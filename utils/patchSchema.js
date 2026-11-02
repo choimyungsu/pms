@@ -28,6 +28,10 @@ const REQUIRED_COLUMNS = [
         ddl: "ADD COLUMN `item_version` VARCHAR(255) NULL DEFAULT NULL COMMENT '품목 버전'"
     },
     {
+        name: 'manufacturer',
+        ddl: "ADD COLUMN `manufacturer` VARCHAR(255) NULL DEFAULT NULL COMMENT '제조사'"
+    },
+    {
         name: 'patch_required',
         ddl: "ADD COLUMN `patch_required` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '패치필요 여부(0:불필요,1:필요)'"
     },

@@ -77,17 +77,24 @@
                 formData.set('remarks', config.editor.getData());
             }
 
-            // Collect multiple items (품목명 / 버전 / 상세내용)
+            // Collect multiple items (품목명 / 제조사 / 버전 / 상세내용)
             const itemNames = form.querySelectorAll('input[name="item_names[]"]');
+            const manufacturers = form.querySelectorAll('input[name="manufacturers[]"]');
             const itemVersions = form.querySelectorAll('input[name="item_versions[]"]');
             const itemDetails = form.querySelectorAll('input[name="item_details[]"]');
             const items = [];
             itemNames.forEach((nameInput, index) => {
                 const name = nameInput.value.trim();
+                const manufacturer = manufacturers[index] ? manufacturers[index].value.trim() : '';
                 const version = itemVersions[index] ? itemVersions[index].value.trim() : '';
                 const detail = itemDetails[index] ? itemDetails[index].value.trim() : '';
                 if (name) {
-                    items.push({ item_name: name, item_version: version, item_detail: detail });
+                    items.push({
+                        item_name: name,
+                        manufacturer: manufacturer,
+                        item_version: version,
+                        item_detail: detail
+                    });
                 }
             });
             formData.append('items', JSON.stringify(items));

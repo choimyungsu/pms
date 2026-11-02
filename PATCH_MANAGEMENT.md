@@ -7,7 +7,7 @@
 | 구분 | 테이블 | 사용 컬럼 |
 |---|---|---|
 | 고객사 등 요약 | `tb_maintenance_summary` | `customer_company`, `project_name`, `main_engineer`, `sub_engineer`, `maintenance_start_date`, `maintenance_end_date` |
-| 품목 / 버전 | `tb_maintenance_summary_items` | `item_name`, **`item_version`(신규)**, `item_detail`, `patch_required`(신규) |
+| 품목 / 제조사 / 버전 | `tb_maintenance_summary_items` | `item_name`, **`manufacturer`(신규)**, **`item_version`(신규)**, `item_detail`, `patch_required`(신규) |
 
 > 패치 전용 테이블은 추후 별도 설계 예정입니다.
 > 그 전까지 `tb_maintenance_summary_items` 의 패치필요 필드를 사용하며,
@@ -15,8 +15,9 @@
 
 ## 2. 화면 구성
 
-- **목록 테이블: 고객사 / 품목 / 버전 / 패치필요** (요청사항)
+- **목록 테이블: 고객사 / 품목 / 제조사 / 버전 / 패치필요** (요청사항)
   - 품목 셀 하단에 상세내용(`item_detail`) 표시
+  - **버전 셀은 인라인 편집 input** — 여러 행을 동시에 수정하고 "변경사항 저장" 으로 일괄 반영
   - 버전 셀 하단에 판정자·판정일 표시
 - 상단 요약: 전체 품목 / 전체 패치필요 / 조회 결과 / 조회 결과 중 패치필요
 - 조건 설정: **고객사 / 품목 / 버전 복수 선택**(multiple select, Ctrl·Shift+클릭) + 실시간 미리보기
@@ -43,16 +44,30 @@ UPDATE tb_maintenance_summary_items i
 
 개별 체크박스 토글, 전체 초기화도 지원합니다.
 
-## 4. 버전 정보 입력/관리
+## 4. 제조사 / 버전 정보 입력·관리
 
-`tb_maintenance_summary_items.item_version` 을 추가하고 아래 화면에 입력 필드를 연결했습니다.
+`tb_maintenance_summary_items` 에 `manufacturer`, `item_version` 을 추가하고 아래 화면에 입력 필드를 연결했습니다.
 
-- 유지보수(요약) **등록** 폼: 품목명 / **버전** / 상세내용 3열 입력
-- 유지보수(요약) **수정** 폼: 기존 값 로드 + 신규 행 추가 시 버전 입력
+- 유지보수(요약) **등록** 폼: 품목명 / **제조사** / **버전** / 상세내용 4열 입력
+- 유지보수(요약) **수정** 폼: 기존 값 로드 + 신규 행 추가 시 제조사·버전 입력
 - 유지보수(요약) **목록/상세**: 품목 옆 버전 배지, 패치필요 배지 표시
-- 저장 경로: `public/js/maintenanceSummaryFormHandler.js` → `items` JSON(`item_version`) → `MaintenanceSummary.addItems()`
+- 저장 경로: `public/js/maintenanceSummaryFormHandler.js` → `items` JSON(`manufacturer`, `item_version`) → `MaintenanceSummary.addItems()`
 
-`addItems()` 는 `item_version` 컬럼 존재 여부를 확인 후 분기하므로, 컬럼 추가 전 DB에서도 오류 없이 동작합니다.
+`addItems()` 는 `manufacturer` / `item_version` 컬럼 존재 여부를 각각 확인 후 분기하므로, 컬럼 추가 전 DB에서도 오류 없이 동작합니다.
+
+### 4-1. 버전 복수행 인라인 수정 (패치관리 목록)
+
+| 항목 | 내용 |
+|---|---|
+| UI | 버전 셀이 `<input class="form-control version-input" data-id data-original>` 로 렌더링 |
+| 변경 감지 | 입력값 ≠ `data-original` 인 행을 dirty 로 표시 (노란 배경 + `변경 N건` 배지) |
+| 저장 | 툴바의 **변경사항 저장** 버튼 → `POST /maintenance/patch/save-versions` |
+| 요청 본문 | `{ rows: [{ id, item_version }] }` (최대 500행) |
+| 서버 처리 | id 존재 확인 → 트랜잭션으로 일괄 `UPDATE` → `{ success, updated, skipped, message }` |
+| 저장 후 | `data-original` 갱신, dirty 해제, SweetAlert/알림 표시 |
+| 안전장치 | 저장하지 않고 페이지 이탈 시 `beforeunload` 경고 |
+
+빈 문자열로 저장하면 `NULL` 로 저장됩니다(버전 미입력 상태).
 
 ## 5. 스키마 자동 점검
 
@@ -60,6 +75,7 @@ UPDATE tb_maintenance_summary_items i
 
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
+| manufacturer | VARCHAR(255) | 제조사 |
 | item_version | VARCHAR(255) | 품목 버전 |
 | patch_required | TINYINT(1) DEFAULT 0 | 패치필요 여부 |
 | patch_required_at | DATETIME | 판정 일시 |
@@ -80,13 +96,14 @@ UPDATE tb_maintenance_summary_items i
 | GET | `/maintenance/patch/preview-count` | 조건 매칭 건수 미리보기 (JSON) |
 | POST | `/maintenance/patch/apply-condition` | 조건 적용 (mode=check/replace/uncheck) |
 | POST | `/maintenance/patch/toggle/:id` | 개별 패치필요 토글 (JSON) |
+| POST | `/maintenance/patch/save-versions` | 버전 복수행 일괄 저장 (JSON body `{rows:[{id,item_version}]}`) |
 | POST | `/maintenance/patch/reset` | 전체 초기화 |
 | GET | `/maintenance/patch/download-excel` | 엑셀 다운로드 (현재 필터 반영) |
 | GET | `/maintenance/patch/options` | 조건 옵션 목록 (JSON) |
 
 ## 7. 엑셀 컬럼
 
-**고객사, 품목, 버전, 패치필요(O), 판정일시, 판정자, 판정 조건**, 사업명, 상세내용, 담당자(정), 담당자(부), 유지보수 시작일, 유지보수 종료일
+**고객사, 품목, 제조사, 버전, 패치필요(O), 판정일시, 판정자, 판정 조건**, 사업명, 상세내용, 담당자(정), 담당자(부), 유지보수 시작일, 유지보수 종료일
 
 ## 8. 라우트 등록 순서 주의
 

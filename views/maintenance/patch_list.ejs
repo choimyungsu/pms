@@ -28,6 +28,11 @@
     .condition-title { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
     .multi-select { min-height: 132px; font-size: .8rem; }
     .summary-pill { font-size: .8rem; }
+    .version-input { min-width: 130px; font-size: .82rem; }
+    .version-input.is-dirty { border-color: #ffc107; background-color: #fffdf3; box-shadow: 0 0 0 .15rem rgba(255,193,7,.25); }
+    tr.row-dirty > td { background-color: #fffdf3; }
+    .dirty-badge { display: none; }
+    .dirty-badge.show { display: inline-block; }
     @media (max-width: 991.98px) {
         .condition-group { border-right: 0; border-bottom: 1px solid rgba(0,0,0,.1); padding-bottom: .75rem; }
     }
@@ -175,7 +180,7 @@
             <div class="card">
                 <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <form action="/maintenance/patch" method="GET" class="d-flex gap-1" style="width: 300px;">
-                        <input type="text" name="search" class="form-control form-control-sm" placeholder="고객사 / 품목 / 버전 검색" value="<%= filters.search %>">
+                        <input type="text" name="search" class="form-control form-control-sm" placeholder="고객사 / 품목 / 제조사 / 버전 검색" value="<%= filters.search %>">
                         <% filters.customers.forEach(function (v) { %><input type="hidden" name="customers" value="<%= v %>"><% }) %>
                         <% filters.items.forEach(function (v) { %><input type="hidden" name="items" value="<%= v %>"><% }) %>
                         <% filters.versions.forEach(function (v) { %><input type="hidden" name="versions" value="<%= v %>"><% }) %>
@@ -184,6 +189,10 @@
                     </form>
 
                     <div class="d-flex align-items-center gap-2">
+                        <span class="badge text-bg-warning dirty-badge" id="dirtyBadge">변경 0건</span>
+                        <button type="button" class="btn btn-primary btn-sm" id="saveVersionsBtn" disabled>
+                            <i class="fa-solid fa-floppy-disk me-1"></i>변경사항 저장
+                        </button>
                         <div class="btn-group btn-group-sm">
                             <a href="<%= buildUrl('1') %>" class="btn btn-<%= filters.patch === '1' ? 'danger' : 'outline-danger' %>">패치필요만</a>
                             <a href="<%= buildUrl('0') %>" class="btn btn-<%= filters.patch === '0' ? 'success' : 'outline-success' %>">패치불필요만</a>
@@ -209,14 +218,15 @@
                                     <th style="width:64px;">NO</th>
                                     <th>고객사</th>
                                     <th>품목</th>
-                                    <th style="width:180px;">버전</th>
+                                    <th style="width:160px;">제조사</th>
+                                    <th style="width:200px;">버전</th>
                                     <th style="width:110px;" class="text-center">패치필요</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <% if (rows.length === 0) { %>
                                 <tr>
-                                    <td colspan="5" class="text-center text-muted py-4">
+                                    <td colspan="6" class="text-center text-muted py-4">
                                         조회된 대상이 없습니다. 유지보수(요약)에 품목과 버전을 먼저 등록해 주세요.
                                     </td>
                                 </tr>
@@ -231,10 +241,17 @@
                                         <div class="text-muted small"><%= r.item_detail %></div>
                                         <% } %>
                                     </td>
+                                    <td><%= r.manufacturer || '-' %></td>
                                     <td>
-                                        <%= r.item_version || '-' %>
+                                        <input type="text"
+                                               class="form-control form-control-sm version-input"
+                                               data-id="<%= r.id %>"
+                                               data-original="<%= r.item_version || '' %>"
+                                               value="<%= r.item_version || '' %>"
+                                               placeholder="버전 입력"
+                                               autocomplete="off">
                                         <% if (Number(r.patch_required) === 1 && r.patch_condition) { %>
-                                        <div class="text-muted small" title="<%= r.patch_condition %>">
+                                        <div class="text-muted small mt-1" title="<%= r.patch_condition %>">
                                             <%= r.patch_required_by || '' %>
                                             <%= r.patch_required_at ? '(' + String(r.patch_required_at).slice(0, 10) + ')' : '' %>
                                         </div>
@@ -407,5 +424,110 @@
                 .finally(function () { cb.disabled = false; });
         });
     });
+})();
+</script>
+
+<script>
+/* ------------------------------------------------------------------
+ * 버전 복수행 편집 / 일괄 저장
+ * ------------------------------------------------------------------ */
+(function () {
+    const inputs = Array.from(document.querySelectorAll('.version-input'));
+    const saveBtn = document.getElementById('saveVersionsBtn');
+    const dirtyBadge = document.getElementById('dirtyBadge');
+
+    if (!saveBtn || inputs.length === 0) return;
+
+    function rowOf(input) { return input.closest('tr'); }
+
+    function isDirty(input) {
+        return input.value.trim() !== (input.getAttribute('data-original') || '');
+    }
+
+    function collectDirty() {
+        return inputs.filter(isDirty).map(function (input) {
+            return { id: parseInt(input.getAttribute('data-id'), 10), item_version: input.value.trim() };
+        });
+    }
+
+    function refreshDirtyState() {
+        let count = 0;
+        inputs.forEach(function (input) {
+            const dirty = isDirty(input);
+            const tr = rowOf(input);
+            input.classList.toggle('is-dirty', dirty);
+            if (tr) tr.classList.toggle('row-dirty', dirty);
+            if (dirty) count += 1;
+        });
+        dirtyBadge.textContent = '변경 ' + count + '건';
+        dirtyBadge.classList.toggle('show', count > 0);
+        saveBtn.disabled = count === 0;
+        return count;
+    }
+
+    inputs.forEach(function (input) {
+        input.addEventListener('input', refreshDirtyState);
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                input.blur();
+            }
+        });
+    });
+
+    function notify(type, message) {
+        if (window.showNotification) window.showNotification(type, message);
+        else alert(message);
+    }
+
+    saveBtn.addEventListener('click', async function () {
+        const rows = collectDirty();
+        if (rows.length === 0) return;
+
+        if (!confirm('변경된 ' + rows.length + '개 행의 버전을 저장할까요?')) return;
+
+        const originalLabel = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>저장 중...';
+
+        try {
+            const res = await fetch('/maintenance/patch/save-versions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ rows: rows })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.message || '저장에 실패했습니다.');
+
+            // 저장 성공 → 기준값 갱신
+            const savedMap = {};
+            rows.forEach(function (r) { savedMap[r.id] = r.item_version; });
+            inputs.forEach(function (input) {
+                const id = parseInt(input.getAttribute('data-id'), 10);
+                if (Object.prototype.hasOwnProperty.call(savedMap, id)) {
+                    input.setAttribute('data-original', savedMap[id]);
+                    input.value = savedMap[id];
+                }
+            });
+            refreshDirtyState();
+            notify('success', data.message || '버전을 저장했습니다.');
+        } catch (err) {
+            notify('error', err.message || '저장 중 오류가 발생했습니다.');
+        } finally {
+            saveBtn.innerHTML = originalLabel;
+            refreshDirtyState();
+        }
+    });
+
+    // 페이지 이탈 경고
+    window.addEventListener('beforeunload', function (e) {
+        if (collectDirty().length > 0) {
+            e.preventDefault();
+            e.returnValue = '';
+            return '';
+        }
+    });
+
+    refreshDirtyState();
 })();
 </script>

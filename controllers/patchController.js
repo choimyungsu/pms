@@ -56,7 +56,7 @@ function buildFilter(filters) {
         const like = `%${filters.search}%`;
         const cols = [
             's.customer_company', 's.project_name',
-            'i.item_name', 'i.item_version', 'i.item_detail',
+            'i.item_name', 'i.manufacturer', 'i.item_version', 'i.item_detail',
             's.main_engineer', 's.sub_engineer'
         ];
         where.push(`(${cols.map((c) => `${c} LIKE ?`).join(' OR ')})`);
@@ -137,6 +137,7 @@ const SELECT_ROW = `
         i.id,
         i.summary_id,
         i.item_name,
+        i.manufacturer,
         i.item_version,
         i.item_detail,
         COALESCE(i.patch_required, 0) AS patch_required,
@@ -432,6 +433,94 @@ exports.getOptions = async (req, res) => {
 };
 
 /* ------------------------------------------------------------------ */
+/* 버전 일괄(복수행) 저장                                              */
+/* ------------------------------------------------------------------ */
+/* 요청 형식: { rows: [{ id: 1, item_version: 'v7.0.2' }, ...] }
+   - id 는 tb_maintenance_summary_items.id
+   - 존재하지 않는 id 는 건너뛰고 skipped 로 집계
+   - 트랜잭션으로 일괄 반영                                            */
+
+exports.saveItemVersions = async (req, res) => {
+    try {
+        const body = req.body || {};
+        let rows = body.rows;
+
+        // 폼(form-urlencoded) 으로 들어온 경우 문자열 JSON 파싱
+        if (typeof rows === 'string') {
+            try { rows = JSON.parse(rows); } catch (e) { rows = null; }
+        }
+
+        if (!Array.isArray(rows) || rows.length === 0) {
+            return res.status(400).json({ success: false, message: '저장할 행이 없습니다.' });
+        }
+
+        // 정규화 + 검증
+        const normalized = [];
+        const seen = new Set();
+        for (const row of rows.slice(0, MAX_IN_LIST)) {
+            if (!row) continue;
+            const id = parseInt(row.id, 10);
+            if (!Number.isInteger(id) || id <= 0) continue;
+            if (seen.has(id)) continue;
+            seen.add(id);
+            const rawVersion = row.item_version;
+            const version = rawVersion === null || rawVersion === undefined
+                ? null
+                : String(rawVersion).trim().slice(0, 255);
+            normalized.push({ id, item_version: version === '' ? null : version });
+        }
+
+        if (normalized.length === 0) {
+            return res.status(400).json({ success: false, message: '유효한 행이 없습니다.' });
+        }
+
+        // 대상 존재 확인
+        const ids = normalized.map((r) => r.id);
+        const [exists] = await db.query(
+            `SELECT id FROM tb_maintenance_summary_items WHERE id IN (${placeholders(ids)})`,
+            ids
+        );
+        const existsSet = new Set(exists.map((r) => Number(r.id)));
+        const targets = normalized.filter((r) => existsSet.has(r.id));
+        const skipped = normalized.length - targets.length;
+
+        if (targets.length === 0) {
+            return res.status(404).json({ success: false, message: '대상 품목을 찾을 수 없습니다.' });
+        }
+
+        // 트랜잭션 일괄 UPDATE
+        const conn = await db.getConnection();
+        let updated = 0;
+        try {
+            await conn.beginTransaction();
+            for (const t of targets) {
+                const [result] = await conn.query(
+                    'UPDATE tb_maintenance_summary_items SET item_version = ? WHERE id = ?',
+                    [t.item_version, t.id]
+                );
+                updated += result.affectedRows || 0;
+            }
+            await conn.commit();
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
+        }
+
+        return res.json({
+            success: true,
+            updated,
+            skipped,
+            message: `버전 ${updated}건을 저장했습니다.${skipped ? ` (${skipped}건 제외)` : ''}`
+        });
+    } catch (error) {
+        console.error('[patch] saveItemVersions error:', error);
+        return res.status(500).json({ success: false, message: '버전 저장 중 오류가 발생했습니다.' });
+    }
+};
+
+/* ------------------------------------------------------------------ */
 /* 엑셀 다운로드                                                        */
 /* ------------------------------------------------------------------ */
 
@@ -448,7 +537,7 @@ exports.downloadPatchExcel = async (req, res) => {
         );
 
         const header = [
-            '고객사', '품목', '버전',
+            '고객사', '품목', '제조사', '버전',
             '패치필요', '판정일시', '판정자', '판정 조건',
             '사업명', '상세내용', '담당자(정)', '담당자(부)',
             '유지보수 시작일', '유지보수 종료일'
@@ -471,6 +560,7 @@ exports.downloadPatchExcel = async (req, res) => {
         const data = rows.map((r) => [
             r.customer_company || '',
             r.item_name || '',
+            r.manufacturer || '',
             r.item_version || '',
             Number(r.patch_required) === 1 ? 'O' : '',
             toYmdHm(r.patch_required_at),
@@ -486,7 +576,7 @@ exports.downloadPatchExcel = async (req, res) => {
 
         const ws = xlsx.utils.aoa_to_sheet([header, ...data]);
         ws['!cols'] = [
-            { wch: 22 }, { wch: 20 }, { wch: 16 },
+            { wch: 22 }, { wch: 20 }, { wch: 16 }, { wch: 16 },
             { wch: 10 }, { wch: 18 }, { wch: 14 }, { wch: 40 },
             { wch: 24 }, { wch: 24 }, { wch: 14 }, { wch: 14 },
             { wch: 14 }, { wch: 14 }

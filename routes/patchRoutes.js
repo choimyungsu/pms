@@ -13,6 +13,9 @@ router.post('/patch/apply-condition', isAuthenticated, patchController.applyCond
 // 개별 체크 토글 (AJAX)
 router.post('/patch/toggle/:id', isAuthenticated, patchController.togglePatchRequired);
 
+// 버전 복수행 일괄 저장 (AJAX)
+router.post('/patch/save-versions', isAuthenticated, patchController.saveItemVersions);
+
 // 전체 패치필요 초기화
 router.post('/patch/reset', isAuthenticated, patchController.resetPatchRequired);
 
