@@ -75,7 +75,12 @@
                                             <% if (summary.items && summary.items.length > 0) { %>
                                                 <ul class="mb-0">
                                                     <% summary.items.forEach(item => { %>
-                                                        <li><strong><%= item.item_name %></strong>: <%= item.item_detail %></li>
+                                                        <li>
+                                                            <strong><%= item.item_name %></strong>
+                                                            <% if (item.item_version) { %><span class="badge text-bg-secondary ms-1"><%= item.item_version %></span><% } %>
+                                                            <% if (item.item_detail) { %>: <%= item.item_detail %><% } %>
+                                                            <% if (item.patch_required) { %><span class="badge text-bg-warning ms-1">패치필요</span><% } %>
+                                                        </li>
                                                     <% }); %>
                                                 </ul>
                                             <% } else { %>

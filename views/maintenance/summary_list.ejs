@@ -292,14 +292,18 @@
                                         %>
                                     </td>
                                     <td>
-                                        <% if (summary.items && summary.items.length > 0) { 
-                                            let itemNames = summary.items.map(i => i.item_name);
-                                            let chunks = [];
-                                            for (let i = 0; i < itemNames.length; i += 4) {
-                                                chunks.push(itemNames.slice(i, i + 4).join(', '));
-                                            }
-                                        %>
-                                            <%- chunks.join('<br>') %>
+                                        <% if (summary.items && summary.items.length > 0) { %>
+                                            <% summary.items.forEach(function (it) { %>
+                                                <div class="mb-1">
+                                                    <span class="badge bg-secondary"><%= it.item_name %></span>
+                                                    <% if (it.item_version) { %>
+                                                        <span class="badge bg-info text-dark"><%= it.item_version %></span>
+                                                    <% } %>
+                                                    <% if (it.item_detail) { %>
+                                                        <div class="text-muted" style="font-size:0.85em;"><%= it.item_detail %></div>
+                                                    <% } %>
+                                                </div>
+                                            <% }) %>
                                         <% } else { %>
                                             -
                                         <% } %>

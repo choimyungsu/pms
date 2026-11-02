@@ -2,27 +2,25 @@ const db = require('../config/db');
 const xlsx = require('xlsx');
 
 /**
- * 패치관리(Patch Management)
- * - 데이터 원천: tb_maintenance (고객사 / 품목 / 버전 / 담당자(정·부) )
- * - 패치필요 여부: tb_maintenance.patch_required (+ patch_required_at / patch_required_by / patch_condition)
- * - 조건 UI 에서 품목·버전(복수)을 선택하면 해당 조합의 행이 패치필요로 체크됩니다.
+ * 패치관리 (Patch Management)
+ *
+ * 기준 테이블
+ *  - tb_maintenance_summary        : 고객사(customer_company) / 사업명 / 담당자(정·부)
+ *  - tb_maintenance_summary_items  : 품목(item_name) / 버전(item_version) / 상세(item_detail)
+ *
+ * 패치필요 필드
+ *  - 현재는 tb_maintenance_summary_items.patch_required 를 사용합니다.
+ *  - 패치 전용 테이블은 추후 별도 설계 예정이며, 교체 시 아래 ITEM_SOURCE 상수와
+ *    UPDATE 대상만 바꾸면 되도록 한 곳에 모아 두었습니다.
  */
 
 const PAGE_SIZE = 30;
 const MAX_IN_LIST = 500;
 
-// 버전 표시용 SQL 식 (펌웨어 / OS 를 함께 보여줌)
-const VERSION_DISPLAY_SQL = `CONCAT_WS(' / ', NULLIF(m.firmware_version, ''), NULLIF(m.os_version, ''))`;
-
-// 담당자(정/부) SQL 식 : 정 담당자는 main_engineer, 없으면 유지보수담당자로 대체
-const MANAGER_PRIMARY_SQL = `COALESCE(NULLIF(m.main_engineer, ''), NULLIF(m.maintenance_manager, ''))`;
-const MANAGER_SECONDARY_SQL = `NULLIF(m.sub_engineer, '')`;
-
 /* ------------------------------------------------------------------ */
-/* helpers                                                             */
+/* 헬퍼                                                                */
 /* ------------------------------------------------------------------ */
 
-// body 에서 배열 파라미터를 안전하게 추출 (items, items[] 둘 다 지원)
 function toArray(value) {
     if (value === undefined || value === null) return [];
     const arr = Array.isArray(value) ? value : [value];
@@ -36,10 +34,20 @@ function placeholders(arr) {
     return arr.map(() => '?').join(', ');
 }
 
-/**
- * 목록/엑셀 공통 WHERE 절 생성
- * filters: { search, items, versions, customers, patch, activeOnly }
- */
+function normalizeFilters(query) {
+    // body/query 가 undefined 인 경우(예: body 없이 호출되는 POST) 안전하게 처리
+    const source = query || {};
+    return {
+        search: (source.search || '').toString().trim(),
+        items: toArray(source.items),
+        versions: toArray(source.versions),
+        customers: toArray(source.customers),
+        patch: ['1', '0'].includes(source.patch) ? source.patch : '',
+        activeOnly: source.active_only === '1'
+    };
+}
+
+// 목록/엑셀 공통 WHERE
 function buildFilter(filters) {
     const where = [];
     const params = [];
@@ -47,56 +55,60 @@ function buildFilter(filters) {
     if (filters.search) {
         const like = `%${filters.search}%`;
         const cols = [
-            'm.customer_company', 'm.project_name', 'm.item', 'm.manufacturer', 'm.model',
-            'm.serial_number', 'm.firmware_version', 'm.os_version',
-            'm.main_engineer', 'm.sub_engineer', 'm.maintenance_manager'
+            's.customer_company', 's.project_name',
+            'i.item_name', 'i.item_version', 'i.item_detail',
+            's.main_engineer', 's.sub_engineer'
         ];
         where.push(`(${cols.map((c) => `${c} LIKE ?`).join(' OR ')})`);
         cols.forEach(() => params.push(like));
     }
 
-    if (filters.items.length > 0) {
-        where.push(`m.item IN (${placeholders(filters.items)})`);
-        params.push(...filters.items);
-    }
-
-    if (filters.versions.length > 0) {
-        // 선택한 버전이 펌웨어 또는 OS 어느 쪽에 있더라도 매칭
-        where.push(`(m.firmware_version IN (${placeholders(filters.versions)}) OR m.os_version IN (${placeholders(filters.versions)}))`);
-        params.push(...filters.versions, ...filters.versions);
-    }
-
-    if (filters.customers.length > 0) {
-        where.push(`m.customer_company IN (${placeholders(filters.customers)})`);
+    if (filters.customers.length) {
+        where.push(`s.customer_company IN (${placeholders(filters.customers)})`);
         params.push(...filters.customers);
     }
 
+    if (filters.items.length) {
+        where.push(`i.item_name IN (${placeholders(filters.items)})`);
+        params.push(...filters.items);
+    }
+
+    if (filters.versions.length) {
+        where.push(`i.item_version IN (${placeholders(filters.versions)})`);
+        params.push(...filters.versions);
+    }
+
     if (filters.patch === '1') {
-        where.push('m.patch_required = 1');
+        where.push('COALESCE(i.patch_required, 0) = 1');
     } else if (filters.patch === '0') {
-        where.push('(m.patch_required = 0 OR m.patch_required IS NULL)');
+        where.push('COALESCE(i.patch_required, 0) = 0');
     }
 
-    if (filters.activeOnly) {
-        where.push('m.closed_at IS NULL');
-    }
-
-    const whereString = where.length > 0 ? ` WHERE ${where.join(' AND ')}` : '';
+    const whereString = where.length ? ` WHERE ${where.join(' AND ')}` : '';
     return { whereString, params };
 }
 
-function normalizeFilters(query) {
-    return {
-        search: (query.search || '').toString().trim(),
-        items: toArray(query.items),
-        versions: toArray(query.versions),
-        customers: toArray(query.customers),
-        patch: ['1', '0'].includes(query.patch) ? query.patch : '',
-        activeOnly: query.active_only === '1'
-    };
+// 조건 적용용 매칭 WHERE (items 테이블 별칭 i, summary 별칭 s)
+function buildMatch(filters) {
+    const where = [];
+    const params = [];
+
+    if (filters.items.length) {
+        where.push(`i.item_name IN (${placeholders(filters.items)})`);
+        params.push(...filters.items);
+    }
+    if (filters.versions.length) {
+        where.push(`i.item_version IN (${placeholders(filters.versions)})`);
+        params.push(...filters.versions);
+    }
+    if (filters.customers.length) {
+        where.push(`s.customer_company IN (${placeholders(filters.customers)})`);
+        params.push(...filters.customers);
+    }
+
+    return { matchString: where.join(' AND '), params };
 }
 
-// 조회 조건 요약 문자열 (patch_condition 컬럼 / 화면 표시용)
 function describeCondition(items, versions, customers) {
     const parts = [];
     if (items.length) parts.push(`품목: ${items.join(', ')}`);
@@ -105,7 +117,6 @@ function describeCondition(items, versions, customers) {
     return parts.join(' | ').slice(0, 500);
 }
 
-// 필터 쿼리스트링 재생성 (리다이렉트 시 조건 유지)
 function queryFromFilters(filters, extra = {}) {
     const sp = new URLSearchParams();
     if (filters.search) sp.set('search', filters.search);
@@ -121,45 +132,60 @@ function queryFromFilters(filters, extra = {}) {
     return s ? `?${s}` : '';
 }
 
-// 조건 옵션(품목 / 버전 / 고객사) 목록
+const SELECT_ROW = `
+    SELECT
+        i.id,
+        i.summary_id,
+        i.item_name,
+        i.item_version,
+        i.item_detail,
+        COALESCE(i.patch_required, 0) AS patch_required,
+        i.patch_required_at,
+        i.patch_required_by,
+        i.patch_condition,
+        s.customer_company,
+        s.project_name,
+        s.division,
+        s.main_engineer,
+        s.sub_engineer,
+        s.maintenance_start_date,
+        s.maintenance_end_date
+      FROM tb_maintenance_summary_items i
+      JOIN tb_maintenance_summary s ON s.id = i.summary_id
+`;
+
 async function loadOptions() {
     const [[itemRows], [versionRows], [customerRows]] = await Promise.all([
-        db.query(`SELECT DISTINCT item FROM tb_maintenance
-                   WHERE item IS NOT NULL AND item <> '' ORDER BY item`),
-        db.query(`SELECT v FROM (
-                     SELECT DISTINCT firmware_version AS v FROM tb_maintenance
-                      WHERE firmware_version IS NOT NULL AND firmware_version <> ''
-                     UNION
-                     SELECT DISTINCT os_version AS v FROM tb_maintenance
-                      WHERE os_version IS NOT NULL AND os_version <> ''
-                  ) t ORDER BY v`),
-        db.query(`SELECT DISTINCT customer_company FROM tb_maintenance
-                   WHERE customer_company IS NOT NULL AND customer_company <> ''
-                   ORDER BY customer_company`)
+        db.query(`SELECT DISTINCT item_name AS v FROM tb_maintenance_summary_items
+                   WHERE item_name IS NOT NULL AND item_name <> '' ORDER BY item_name`),
+        db.query(`SELECT DISTINCT item_version AS v FROM tb_maintenance_summary_items
+                   WHERE item_version IS NOT NULL AND item_version <> '' ORDER BY item_version`),
+        db.query(`SELECT DISTINCT customer_company AS v FROM tb_maintenance_summary
+                   WHERE customer_company IS NOT NULL AND customer_company <> '' ORDER BY customer_company`)
     ]);
 
     return {
-        itemOptions: itemRows.map((r) => r.item),
+        itemOptions: itemRows.map((r) => r.v),
         versionOptions: versionRows.map((r) => r.v),
-        customerOptions: customerRows.map((r) => r.customer_company)
+        customerOptions: customerRows.map((r) => r.v)
     };
 }
 
 /* ------------------------------------------------------------------ */
-/* 화면                                                                */
+/* 목록 화면                                                           */
 /* ------------------------------------------------------------------ */
 
-// GET /maintenance/patch
 exports.getPatchList = async (req, res) => {
     try {
         const filters = normalizeFilters(req.query);
         const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-        const offset = (page - 1) * PAGE_SIZE;
-
         const { whereString, params } = buildFilter(filters);
 
         const [[countRow]] = await db.query(
-            `SELECT COUNT(*) AS cnt FROM tb_maintenance m${whereString}`,
+            `SELECT COUNT(*) AS cnt
+               FROM tb_maintenance_summary_items i
+               JOIN tb_maintenance_summary s ON s.id = i.summary_id
+               ${whereString}`,
             params
         );
         const totalRecords = Number(countRow.cnt) || 0;
@@ -167,49 +193,28 @@ exports.getPatchList = async (req, res) => {
         const currentPage = Math.min(page, totalPages);
 
         const [rows] = await db.query(
-            `SELECT
-                m.id,
-                m.customer_company,
-                m.project_name,
-                m.item,
-                m.manufacturer,
-                m.model,
-                m.serial_number,
-                m.firmware_version,
-                m.os_version,
-                ${VERSION_DISPLAY_SQL} AS version_display,
-                ${MANAGER_PRIMARY_SQL} AS manager_primary,
-                ${MANAGER_SECONDARY_SQL} AS manager_secondary,
-                m.maintenance_manager,
-                m.maintenance_start_date,
-                m.maintenance_end_date,
-                COALESCE(m.patch_required, 0) AS patch_required,
-                m.patch_required_at,
-                m.patch_required_by,
-                m.patch_condition
-               FROM tb_maintenance m
-               ${whereString}
-               ORDER BY COALESCE(m.patch_required, 0) DESC, m.customer_company ASC, m.item ASC, m.id ASC
-               LIMIT ?, ?`,
+            `${SELECT_ROW}
+             ${whereString}
+             ORDER BY COALESCE(i.patch_required, 0) DESC, s.customer_company ASC, i.item_name ASC, i.id ASC
+             LIMIT ?, ?`,
             [...params, (currentPage - 1) * PAGE_SIZE, PAGE_SIZE]
         );
 
         const options = await loadOptions();
 
-        // 상단 요약 카운트
-        const [[summaryRow]] = await db.query(
-            `SELECT
-                COUNT(*) AS total,
-                SUM(CASE WHEN COALESCE(patch_required, 0) = 1 THEN 1 ELSE 0 END) AS required_count
-               FROM tb_maintenance m${whereString}`,
+        const [[filteredSummary]] = await db.query(
+            `SELECT COUNT(*) AS total,
+                    SUM(CASE WHEN COALESCE(i.patch_required,0) = 1 THEN 1 ELSE 0 END) AS required_count
+               FROM tb_maintenance_summary_items i
+               JOIN tb_maintenance_summary s ON s.id = i.summary_id
+               ${whereString}`,
             params
         );
 
-        const [[globalRow]] = await db.query(
-            `SELECT
-                COUNT(*) AS total_all,
-                SUM(CASE WHEN COALESCE(patch_required, 0) = 1 THEN 1 ELSE 0 END) AS required_all
-               FROM tb_maintenance`
+        const [[globalSummary]] = await db.query(
+            `SELECT COUNT(*) AS total_all,
+                    SUM(CASE WHEN COALESCE(patch_required,0) = 1 THEN 1 ELSE 0 END) AS required_all
+               FROM tb_maintenance_summary_items`
         );
 
         res.render('maintenance/patch_list', {
@@ -225,10 +230,10 @@ exports.getPatchList = async (req, res) => {
             currentPage,
             totalPages,
             totalRecords,
-            filteredTotal: Number(summaryRow.total) || 0,
-            filteredRequired: Number(summaryRow.required_count) || 0,
-            globalTotal: Number(globalRow.total_all) || 0,
-            globalRequired: Number(globalRow.required_all) || 0,
+            filteredTotal: Number(filteredSummary.total) || 0,
+            filteredRequired: Number(filteredSummary.required_count) || 0,
+            globalTotal: Number(globalSummary.total_all) || 0,
+            globalRequired: Number(globalSummary.required_all) || 0,
             notice: req.query.notice || '',
             noticeType: req.query.notice_type || 'success',
             queryString: queryFromFilters(filters)
@@ -243,111 +248,86 @@ exports.getPatchList = async (req, res) => {
 /* 조건 적용                                                           */
 /* ------------------------------------------------------------------ */
 
-// POST /maintenance/patch/apply-condition
 exports.applyCondition = async (req, res) => {
     const filters = normalizeFilters(req.body);
     const { items, versions, customers } = filters;
     const mode = ['check', 'replace', 'uncheck'].includes(req.body.mode) ? req.body.mode : 'check';
 
+    const back = (notice, type) =>
+        res.redirect(`/maintenance/patch${queryFromFilters(filters, { notice, notice_type: type })}`);
+
     try {
-        if (items.length === 0 && versions.length === 0 && customers.length === 0) {
-            return res.redirect(`/maintenance/patch${queryFromFilters(filters, {
-                notice: '품목 또는 버전을 최소 1개 이상 선택해야 합니다.',
-                notice_type: 'warning'
-            })}`);
+        if (!items.length && !versions.length && !customers.length) {
+            return back('품목 또는 버전을 최소 1개 이상 선택해야 합니다.', 'warning');
         }
 
         const conditionSummary = describeCondition(items, versions, customers);
-        const operator = req.session.user && req.session.user.name ? req.session.user.name : 'system';
-
-        // 매칭 조건 생성 (고객사 조건은 선택했을 때만)
-        const matchWhere = [];
-        const matchParams = [];
-
-        if (items.length) {
-            matchWhere.push(`item IN (${placeholders(items)})`);
-            matchParams.push(...items);
-        }
-        if (versions.length) {
-            matchWhere.push(`(firmware_version IN (${placeholders(versions)}) OR os_version IN (${placeholders(versions)}))`);
-            matchParams.push(...versions, ...versions);
-        }
-        if (customers.length) {
-            matchWhere.push(`customer_company IN (${placeholders(customers)})`);
-            matchParams.push(...customers);
-        }
-        const matchString = matchWhere.join(' AND ');
+        const operator = (req.session.user && req.session.user.name) || 'system';
+        const { matchString, params } = buildMatch(filters);
 
         let affected = 0;
 
         if (mode === 'check') {
-            // 조건에 해당하는 항목만 패치필요 = 1 (그 외 기존 값 유지)
             const [result] = await db.query(
-                `UPDATE tb_maintenance
-                    SET patch_required = 1,
-                        patch_required_at = NOW(),
-                        patch_required_by = ?,
-                        patch_condition = ?
+                `UPDATE tb_maintenance_summary_items i
+                   JOIN tb_maintenance_summary s ON s.id = i.summary_id
+                    SET i.patch_required = 1,
+                        i.patch_required_at = NOW(),
+                        i.patch_required_by = ?,
+                        i.patch_condition = ?
                   WHERE ${matchString}`,
-                [operator, conditionSummary, ...matchParams]
+                [operator, conditionSummary, ...params]
             );
             affected = result.affectedRows || 0;
         } else if (mode === 'uncheck') {
-            // 조건에 해당하는 항목만 패치필요 = 0
             const [result] = await db.query(
-                `UPDATE tb_maintenance
-                    SET patch_required = 0,
-                        patch_required_at = NULL,
-                        patch_required_by = NULL,
-                        patch_condition = NULL
+                `UPDATE tb_maintenance_summary_items i
+                   JOIN tb_maintenance_summary s ON s.id = i.summary_id
+                    SET i.patch_required = 0,
+                        i.patch_required_at = NULL,
+                        i.patch_required_by = NULL,
+                        i.patch_condition = NULL
                   WHERE ${matchString}`,
-                [...matchParams]
+                params
             );
             affected = result.affectedRows || 0;
         } else {
-            // replace : 전체 초기화 후 조건에 해당하는 항목만 체크
-            const connection = await db.getConnection();
+            // replace : 전체 초기화 후 조건 해당 건만 체크 (트랜잭션)
+            const conn = await db.getConnection();
             try {
-                await connection.beginTransaction();
-                await connection.query(
-                    `UPDATE tb_maintenance
+                await conn.beginTransaction();
+                await conn.query(
+                    `UPDATE tb_maintenance_summary_items
                         SET patch_required = 0,
                             patch_required_at = NULL,
                             patch_required_by = NULL,
                             patch_condition = NULL`
                 );
-                const [result] = await connection.query(
-                    `UPDATE tb_maintenance
-                        SET patch_required = 1,
-                            patch_required_at = NOW(),
-                            patch_required_by = ?,
-                            patch_condition = ?
+                const [result] = await conn.query(
+                    `UPDATE tb_maintenance_summary_items i
+                       JOIN tb_maintenance_summary s ON s.id = i.summary_id
+                        SET i.patch_required = 1,
+                            i.patch_required_at = NOW(),
+                            i.patch_required_by = ?,
+                            i.patch_condition = ?
                       WHERE ${matchString}`,
-                    [operator, conditionSummary, ...matchParams]
+                    [operator, conditionSummary, ...params]
                 );
                 affected = result.affectedRows || 0;
-                await connection.commit();
+                await conn.commit();
             } catch (err) {
-                await connection.rollback();
+                await conn.rollback();
                 throw err;
             } finally {
-                connection.release();
+                conn.release();
             }
         }
 
         const modeLabel = mode === 'replace' ? '조건 기준으로 재설정' : mode === 'uncheck' ? '조건 항목 체크 해제' : '조건 항목 체크';
-        const notice = `${modeLabel} 완료 — ${affected}건 반영 (${conditionSummary})`;
-
-        return res.redirect(`/maintenance/patch${queryFromFilters(filters, {
-            notice,
-            notice_type: 'success'
-        })}`);
+        return back(`${modeLabel} 완료 — ${affected}건 반영 (${conditionSummary})`, 'success');
     } catch (error) {
         console.error('[patch] applyCondition error:', error);
-        return res.redirect(`/maintenance/patch${queryFromFilters(filters, {
-            notice: '조건 적용 중 오류가 발생했습니다.',
-            notice_type: 'error'
-        })}`);
+        return back('조건 적용 중 오류가 발생했습니다.', 'error');
     }
 };
 
@@ -355,29 +335,25 @@ exports.applyCondition = async (req, res) => {
 /* 개별 토글 / 전체 초기화                                              */
 /* ------------------------------------------------------------------ */
 
-// POST /maintenance/patch/toggle/:id  (AJAX)
 exports.togglePatchRequired = async (req, res) => {
     const { id } = req.params;
     try {
-        const next = req.body && req.body.patch_required !== undefined
-            ? (['1', 'true', 1, true].includes(req.body.patch_required) ? 1 : 0)
-            : null;
-
-        if (next === null) {
+        const raw = req.body ? req.body.patch_required : undefined;
+        if (raw === undefined || raw === null) {
             return res.status(400).json({ success: false, message: 'patch_required 값이 필요합니다.' });
         }
-
-        const operator = req.session.user && req.session.user.name ? req.session.user.name : 'system';
+        const next = ['1', 'true', 1, true].includes(raw) ? 1 : 0;
+        const operator = (req.session.user && req.session.user.name) || 'system';
 
         const [result] = next === 1
             ? await db.query(
-                `UPDATE tb_maintenance
+                `UPDATE tb_maintenance_summary_items
                     SET patch_required = 1, patch_required_at = NOW(), patch_required_by = ?, patch_condition = ?
                   WHERE id = ?`,
                 [operator, '수동 지정', id]
             )
             : await db.query(
-                `UPDATE tb_maintenance
+                `UPDATE tb_maintenance_summary_items
                     SET patch_required = 0, patch_required_at = NULL, patch_required_by = NULL, patch_condition = NULL
                   WHERE id = ?`,
                 [id]
@@ -386,7 +362,6 @@ exports.togglePatchRequired = async (req, res) => {
         if (!result.affectedRows) {
             return res.status(404).json({ success: false, message: '대상을 찾을 수 없습니다.' });
         }
-
         return res.json({ success: true, patch_required: next });
     } catch (error) {
         console.error('[patch] togglePatchRequired error:', error);
@@ -394,12 +369,11 @@ exports.togglePatchRequired = async (req, res) => {
     }
 };
 
-// POST /maintenance/patch/reset
 exports.resetPatchRequired = async (req, res) => {
     const filters = normalizeFilters(req.body);
     try {
         const [result] = await db.query(
-            `UPDATE tb_maintenance
+            `UPDATE tb_maintenance_summary_items
                 SET patch_required = 0, patch_required_at = NULL, patch_required_by = NULL, patch_condition = NULL
               WHERE COALESCE(patch_required, 0) = 1`
         );
@@ -417,145 +391,24 @@ exports.resetPatchRequired = async (req, res) => {
 };
 
 /* ------------------------------------------------------------------ */
-/* 엑셀 다운로드                                                        */
+/* 미리보기 / 옵션                                                      */
 /* ------------------------------------------------------------------ */
 
-// GET /maintenance/patch/download-excel
-exports.downloadPatchExcel = async (req, res) => {
-    try {
-        const filters = normalizeFilters(req.query);
-        const { whereString, params } = buildFilter(filters);
-
-        const [rows] = await db.query(
-            `SELECT
-                m.customer_company,
-                m.project_name,
-                m.item,
-                m.manufacturer,
-                m.model,
-                m.serial_number,
-                m.firmware_version,
-                m.os_version,
-                ${VERSION_DISPLAY_SQL} AS version_display,
-                ${MANAGER_PRIMARY_SQL} AS manager_primary,
-                ${MANAGER_SECONDARY_SQL} AS manager_secondary,
-                m.maintenance_manager,
-                m.maintenance_start_date,
-                m.maintenance_end_date,
-                COALESCE(m.patch_required, 0) AS patch_required,
-                m.patch_required_at,
-                m.patch_required_by,
-                m.patch_condition
-               FROM tb_maintenance m
-               ${whereString}
-               ORDER BY COALESCE(m.patch_required, 0) DESC, m.customer_company ASC, m.item ASC, m.id ASC`,
-            params
-        );
-
-        const header = [
-            '고객사', '사업명', '품목', '제조사', '모델', 'S/N',
-            '펌웨어 버전', 'OS 버전', '버전',
-            '담당자(정)', '담당자(부)', '유지보수 담당자',
-            '유지보수 시작일', '유지보수 종료일',
-            '패치필요', '판정일시', '판정자', '판정 조건'
-        ];
-
-        const toYmd = (v) => {
-            if (!v) return '';
-            const d = new Date(v);
-            if (isNaN(d.getTime())) return String(v);
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        };
-        const toYmdHms = (v) => {
-            if (!v) return '';
-            const d = new Date(v);
-            if (isNaN(d.getTime())) return String(v);
-            return `${toYmd(d)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-        };
-
-        const data = rows.map((r) => [
-            r.customer_company || '',
-            r.project_name || '',
-            r.item || '',
-            r.manufacturer || '',
-            r.model || '',
-            r.serial_number || '',
-            r.firmware_version || '',
-            r.os_version || '',
-            r.version_display || '',
-            r.manager_primary || '',
-            r.manager_secondary || '',
-            r.maintenance_manager || '',
-            toYmd(r.maintenance_start_date),
-            toYmd(r.maintenance_end_date),
-            Number(r.patch_required) === 1 ? 'O' : '',
-            toYmdHms(r.patch_required_at),
-            r.patch_required_by || '',
-            r.patch_condition || ''
-        ]);
-
-        const ws = xlsx.utils.aoa_to_sheet([header, ...data]);
-        ws['!cols'] = [
-            { wch: 22 }, { wch: 24 }, { wch: 18 }, { wch: 14 }, { wch: 18 }, { wch: 18 },
-            { wch: 14 }, { wch: 14 }, { wch: 20 },
-            { wch: 14 }, { wch: 14 }, { wch: 16 },
-            { wch: 14 }, { wch: 14 },
-            { wch: 10 }, { wch: 18 }, { wch: 14 }, { wch: 40 }
-        ];
-
-        const wb = xlsx.utils.book_new();
-        xlsx.utils.book_append_sheet(wb, ws, '패치관리');
-        const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
-
-        const now = new Date();
-        const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-        const fileName = `patch_management_${stamp}.xlsx`;
-
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader(
-            'Content-Disposition',
-            `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(`패치관리_${stamp}.xlsx`)}`
-        );
-        res.send(buf);
-    } catch (error) {
-        console.error('[patch] downloadPatchExcel error:', error);
-        res.status(500).send('엑셀 다운로드 중 오류가 발생했습니다.');
-    }
-};
-
-// GET /maintenance/patch/preview-count  (조건 UI 미리보기: 선택 조건에 매칭되는 건수)
 exports.previewCount = async (req, res) => {
     try {
         const filters = normalizeFilters(req.query);
-        const { items, versions, customers } = filters;
-
-        if (items.length === 0 && versions.length === 0) {
+        if (!filters.items.length && !filters.versions.length) {
             return res.json({ success: true, count: 0, checked: 0, ready: false });
         }
-
-        const where = [];
-        const params = [];
-        if (items.length) {
-            where.push(`item IN (${placeholders(items)})`);
-            params.push(...items);
-        }
-        if (versions.length) {
-            where.push(`(firmware_version IN (${placeholders(versions)}) OR os_version IN (${placeholders(versions)}))`);
-            params.push(...versions, ...versions);
-        }
-        if (customers.length) {
-            where.push(`customer_company IN (${placeholders(customers)})`);
-            params.push(...customers);
-        }
-
+        const { matchString, params } = buildMatch(filters);
         const [[row]] = await db.query(
             `SELECT COUNT(*) AS cnt,
-                    SUM(CASE WHEN COALESCE(patch_required, 0) = 1 THEN 1 ELSE 0 END) AS checked_cnt
-               FROM tb_maintenance
-              WHERE ${where.join(' AND ')}`,
+                    SUM(CASE WHEN COALESCE(i.patch_required,0) = 1 THEN 1 ELSE 0 END) AS checked_cnt
+               FROM tb_maintenance_summary_items i
+               JOIN tb_maintenance_summary s ON s.id = i.summary_id
+              WHERE ${matchString}`,
             params
         );
-
         return res.json({
             success: true,
             count: Number(row.cnt) || 0,
@@ -568,7 +421,6 @@ exports.previewCount = async (req, res) => {
     }
 };
 
-// GET /maintenance/patch/options  (조건 UI 옵션을 JSON 으로 - 필요 시 사용)
 exports.getOptions = async (req, res) => {
     try {
         const options = await loadOptions();
@@ -576,5 +428,84 @@ exports.getOptions = async (req, res) => {
     } catch (error) {
         console.error('[patch] getOptions error:', error);
         res.status(500).json({ success: false, message: '서버 오류' });
+    }
+};
+
+/* ------------------------------------------------------------------ */
+/* 엑셀 다운로드                                                        */
+/* ------------------------------------------------------------------ */
+
+exports.downloadPatchExcel = async (req, res) => {
+    try {
+        const filters = normalizeFilters(req.query);
+        const { whereString, params } = buildFilter(filters);
+
+        const [rows] = await db.query(
+            `${SELECT_ROW}
+             ${whereString}
+             ORDER BY COALESCE(i.patch_required, 0) DESC, s.customer_company ASC, i.item_name ASC, i.id ASC`,
+            params
+        );
+
+        const header = [
+            '고객사', '품목', '버전',
+            '패치필요', '판정일시', '판정자', '판정 조건',
+            '사업명', '상세내용', '담당자(정)', '담당자(부)',
+            '유지보수 시작일', '유지보수 종료일'
+        ];
+
+        const pad = (n) => String(n).padStart(2, '0');
+        const toYmd = (v) => {
+            if (!v) return '';
+            const d = new Date(v);
+            if (isNaN(d.getTime())) return String(v);
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        };
+        const toYmdHm = (v) => {
+            if (!v) return '';
+            const d = new Date(v);
+            if (isNaN(d.getTime())) return String(v);
+            return `${toYmd(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        };
+
+        const data = rows.map((r) => [
+            r.customer_company || '',
+            r.item_name || '',
+            r.item_version || '',
+            Number(r.patch_required) === 1 ? 'O' : '',
+            toYmdHm(r.patch_required_at),
+            r.patch_required_by || '',
+            r.patch_condition || '',
+            r.project_name || '',
+            r.item_detail || '',
+            r.main_engineer || '',
+            r.sub_engineer || '',
+            toYmd(r.maintenance_start_date),
+            toYmd(r.maintenance_end_date)
+        ]);
+
+        const ws = xlsx.utils.aoa_to_sheet([header, ...data]);
+        ws['!cols'] = [
+            { wch: 22 }, { wch: 20 }, { wch: 16 },
+            { wch: 10 }, { wch: 18 }, { wch: 14 }, { wch: 40 },
+            { wch: 24 }, { wch: 24 }, { wch: 14 }, { wch: 14 },
+            { wch: 14 }, { wch: 14 }
+        ];
+
+        const wb = xlsx.utils.book_new();
+        xlsx.utils.book_append_sheet(wb, ws, '패치관리');
+        const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+        const now = new Date();
+        const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="patch_management_${stamp}.xlsx"; filename*=UTF-8''${encodeURIComponent(`패치관리_${stamp}.xlsx`)}`
+        );
+        res.send(buf);
+    } catch (error) {
+        console.error('[patch] downloadPatchExcel error:', error);
+        res.status(500).send('엑셀 다운로드 중 오류가 발생했습니다.');
     }
 };

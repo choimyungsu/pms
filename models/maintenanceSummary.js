@@ -65,8 +65,40 @@ const MaintenanceSummary = {
 
     async addItems(summaryId, items) {
         if (!items || items.length === 0) return;
-        const values = items.map(item => [summaryId, item.item_name, item.item_detail]);
-        await pool.query('INSERT INTO tb_maintenance_summary_items (summary_id, item_name, item_detail) VALUES ?', [values]);
+        // item_version 컬럼이 없을 수도 있으므로 존재 여부를 확인해 유연하게 대응
+        const hasVersion = await this.hasItemVersionColumn();
+        if (hasVersion) {
+            const values = items.map(item => [
+                summaryId,
+                item.item_name,
+                item.item_detail || null,
+                item.item_version || null
+            ]);
+            await pool.query(
+                'INSERT INTO tb_maintenance_summary_items (summary_id, item_name, item_detail, item_version) VALUES ?',
+                [values]
+            );
+        } else {
+            const values = items.map(item => [summaryId, item.item_name, item.item_detail]);
+            await pool.query('INSERT INTO tb_maintenance_summary_items (summary_id, item_name, item_detail) VALUES ?', [values]);
+        }
+    },
+
+    // tb_maintenance_summary_items.item_version 컬럼 존재 여부 (1회 캐시)
+    async hasItemVersionColumn() {
+        if (typeof this._hasItemVersion !== 'undefined') return this._hasItemVersion;
+        try {
+            const [rows] = await pool.query(
+                `SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS
+                  WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = 'tb_maintenance_summary_items'
+                    AND COLUMN_NAME = 'item_version'`
+            );
+            this._hasItemVersion = Number(rows[0].cnt) > 0;
+        } catch (err) {
+            this._hasItemVersion = false;
+        }
+        return this._hasItemVersion;
     },
 
     async deleteItemsBySummaryId(summaryId) {

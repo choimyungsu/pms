@@ -1,30 +1,13 @@
 <%- include('../partials/header') %>
 <%- include('../partials/sidebar') %>
 
-<style>
-    .patch-toolbar { gap: .5rem; flex-wrap: wrap; }
-    .patch-table { font-size: 0.82rem; }
-    .patch-table th, .patch-table td { vertical-align: middle; white-space: nowrap; }
-    .patch-table td.patch-cell { text-align: center; }
-    .patch-needed { background-color: #fff3cd !important; }
-    .patch-check { width: 18px; height: 18px; cursor: pointer; }
-    .condition-panel { border: 1px solid rgba(0,0,0,.125); border-radius: .375rem; padding: .75rem; }
-    .condition-group { border-right: 1px solid rgba(0,0,0,.1); }
-    .condition-group:last-child { border-right: 0; }
-    .condition-title { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
-    .multi-select { min-height: 132px; font-size: .8rem; }
-    .chosen-tag { display:inline-block; font-size:.72rem; padding:.15rem .4rem; border-radius:.25rem; background:#e9ecef; margin:.1rem .15rem 0 0; }
-    .summary-pill { font-size: .8rem; }
-</style>
-
 <%
-    // 필터 유지 링크 생성 (패치필요 필터만 교체)
+    // 필터 유지 링크 생성 (patch 필터만 교체)
     const baseParams = new URLSearchParams();
     if (filters.search) baseParams.set('search', filters.search);
+    filters.customers.forEach(function (v) { baseParams.append('customers', v); });
     filters.items.forEach(function (v) { baseParams.append('items', v); });
     filters.versions.forEach(function (v) { baseParams.append('versions', v); });
-    filters.customers.forEach(function (v) { baseParams.append('customers', v); });
-    if (filters.activeOnly) baseParams.set('active_only', '1');
     const buildUrl = function (patchVal) {
         const p = new URLSearchParams(baseParams.toString());
         if (patchVal) p.set('patch', patchVal);
@@ -33,6 +16,23 @@
     };
 %>
 
+<style>
+    .patch-toolbar { gap: .5rem; flex-wrap: wrap; }
+    .patch-table { font-size: 0.85rem; }
+    .patch-table th, .patch-table td { vertical-align: middle; }
+    .patch-table td.patch-cell { text-align: center; }
+    .patch-needed { background-color: #fff3cd !important; }
+    .patch-check { width: 18px; height: 18px; cursor: pointer; }
+    .condition-group { border-right: 1px solid rgba(0,0,0,.1); }
+    .condition-group:last-child { border-right: 0; }
+    .condition-title { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
+    .multi-select { min-height: 132px; font-size: .8rem; }
+    .summary-pill { font-size: .8rem; }
+    @media (max-width: 991.98px) {
+        .condition-group { border-right: 0; border-bottom: 1px solid rgba(0,0,0,.1); padding-bottom: .75rem; }
+    }
+</style>
+
 <main class="app-main">
     <div class="app-content-header">
         <div class="container-fluid">
@@ -40,7 +40,7 @@
                 <div class="col-sm-6">
                     <h3 class="mb-0"><%= page_title %></h3>
                     <div class="text-muted small mt-1">
-                        고객사 · 품목 · 버전 · 담당자(정/부) 현황 및 패치필요 판정
+                        유지보수(요약) 기준 · 고객사 / 품목 / 버전 현황 및 패치필요 판정
                     </div>
                 </div>
                 <div class="col-sm-6">
@@ -69,7 +69,7 @@
                 <div class="col-6 col-md-3">
                     <div class="card mb-0">
                         <div class="card-body py-2">
-                            <div class="text-muted small">전체 대상</div>
+                            <div class="text-muted small">전체 품목</div>
                             <div class="fs-5 fw-semibold"><%= globalTotal %>건</div>
                         </div>
                     </div>
@@ -104,7 +104,7 @@
             <div class="card mb-3">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span class="fw-semibold"><i class="fa-solid fa-filter me-1"></i>패치필요 조건 설정</span>
-                    <span class="text-muted small">품목 / 버전은 복수 선택 가능 (Ctrl 또는 Shift + 클릭), 버전은 펌웨어·OS 모두 매칭</span>
+                    <span class="text-muted small">품목 / 버전 복수 선택 (Ctrl 또는 Shift + 클릭)</span>
                 </div>
                 <div class="card-body">
                     <form id="conditionForm" method="POST" action="/maintenance/patch/apply-condition">
@@ -112,7 +112,7 @@
                             <div class="col-12 col-lg-4 condition-group">
                                 <div class="condition-title mb-2">고객사 (선택)</div>
                                 <select class="form-select multi-select" id="condCustomers" name="customers" multiple size="6">
-                                    <% customerOptions.forEach(function(c) { %>
+                                    <% customerOptions.forEach(function (c) { %>
                                     <option value="<%= c %>"><%= c %></option>
                                     <% }) %>
                                 </select>
@@ -125,7 +125,7 @@
                             <div class="col-12 col-lg-4 condition-group">
                                 <div class="condition-title mb-2">품목 (복수 선택)</div>
                                 <select class="form-select multi-select" id="condItems" name="items" multiple size="6">
-                                    <% itemOptions.forEach(function(v) { %>
+                                    <% itemOptions.forEach(function (v) { %>
                                     <option value="<%= v %>"><%= v %></option>
                                     <% }) %>
                                 </select>
@@ -138,7 +138,7 @@
                             <div class="col-12 col-lg-4">
                                 <div class="condition-title mb-2">버전 (복수 선택)</div>
                                 <select class="form-select multi-select" id="condVersions" name="versions" multiple size="6">
-                                    <% versionOptions.forEach(function(v) { %>
+                                    <% versionOptions.forEach(function (v) { %>
                                     <option value="<%= v %>"><%= v %></option>
                                     <% }) %>
                                 </select>
@@ -156,7 +156,7 @@
                                     <i class="fa-solid fa-check me-1"></i>조건 항목 체크
                                 </button>
                                 <button type="submit" name="mode" value="replace" class="btn btn-dark btn-sm"
-                                        onclick="return confirm('기존 패치필요 체크를 모두 해제하고, 이 조건에 해당하는 항목만 다시 체크합니다. 진행할까요?');">
+                                        onclick="return confirm('기존 패치필요 체크를 모두 해제하고, 이 조건에 해당하는 품목/버전만 다시 체크합니다. 진행할까요?');">
                                     <i class="fa-solid fa-rotate me-1"></i>조건 기준 재설정
                                 </button>
                                 <button type="submit" name="mode" value="uncheck" class="btn btn-outline-secondary btn-sm">
@@ -165,7 +165,7 @@
                             </div>
                         </div>
                         <div class="text-muted small mt-2">
-                            선택한 조건에 해당하는 행의 <strong>패치필요</strong> 필드만 체크됩니다. (그 외 행의 값은 유지)
+                            선택한 조건에 해당하는 <strong>품목 행</strong>의 패치필요 필드만 체크됩니다. (그 외 행의 값은 유지)
                         </div>
                     </form>
                 </div>
@@ -174,29 +174,26 @@
             <!-- 목록 -->
             <div class="card">
                 <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <form action="/maintenance/patch" method="GET" class="d-flex gap-1" style="width: 320px;">
-                        <input type="text" name="search" class="form-control form-control-sm" placeholder="고객사 / 품목 / 모델 / 담당자 검색" value="<%= filters.search %>">
-                        <% filters.items.forEach(function(v) { %><input type="hidden" name="items" value="<%= v %>"><% }) %>
-                        <% filters.versions.forEach(function(v) { %><input type="hidden" name="versions" value="<%= v %>"><% }) %>
-                        <% filters.customers.forEach(function(v) { %><input type="hidden" name="customers" value="<%= v %>"><% }) %>
+                    <form action="/maintenance/patch" method="GET" class="d-flex gap-1" style="width: 300px;">
+                        <input type="text" name="search" class="form-control form-control-sm" placeholder="고객사 / 품목 / 버전 검색" value="<%= filters.search %>">
+                        <% filters.customers.forEach(function (v) { %><input type="hidden" name="customers" value="<%= v %>"><% }) %>
+                        <% filters.items.forEach(function (v) { %><input type="hidden" name="items" value="<%= v %>"><% }) %>
+                        <% filters.versions.forEach(function (v) { %><input type="hidden" name="versions" value="<%= v %>"><% }) %>
                         <% if (filters.patch) { %><input type="hidden" name="patch" value="<%= filters.patch %>"><% } %>
-                        <% if (filters.activeOnly) { %><input type="hidden" name="active_only" value="1"><% } %>
                         <button type="submit" class="btn btn-default btn-sm"><i class="fas fa-search"></i></button>
                     </form>
 
                     <div class="d-flex align-items-center gap-2">
                         <div class="btn-group btn-group-sm">
-                            <a href="<%= buildUrl('1') %>"
-                               class="btn btn-<%= filters.patch === '1' ? 'danger' : 'outline-danger' %>">패치필요만</a>
-                            <a href="<%= buildUrl('0') %>"
-                               class="btn btn-<%= filters.patch === '0' ? 'success' : 'outline-success' %>">패치불필요만</a>
+                            <a href="<%= buildUrl('1') %>" class="btn btn-<%= filters.patch === '1' ? 'danger' : 'outline-danger' %>">패치필요만</a>
+                            <a href="<%= buildUrl('0') %>" class="btn btn-<%= filters.patch === '0' ? 'success' : 'outline-success' %>">패치불필요만</a>
                             <a href="<%= buildUrl('') %>" class="btn btn-<%= !filters.patch ? 'secondary' : 'outline-secondary' %>">전체</a>
                         </div>
                         <a href="/maintenance/patch/download-excel<%= queryString %>" class="btn btn-success btn-sm">
                             <i class="fa-solid fa-file-excel me-1"></i>엑셀 다운로드
                         </a>
                         <form action="/maintenance/patch/reset" method="POST" class="d-inline"
-                              onsubmit="return confirm('모든 행의 패치필요 체크를 초기화합니다. 계속할까요?');">
+                              onsubmit="return confirm('모든 품목의 패치필요 체크를 초기화합니다. 계속할까요?');">
                             <button type="submit" class="btn btn-outline-danger btn-sm">
                                 <i class="fa-solid fa-eraser me-1"></i>전체 초기화
                             </button>
@@ -209,56 +206,44 @@
                         <table class="table table-bordered table-hover patch-table mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>NO</th>
+                                    <th style="width:64px;">NO</th>
                                     <th>고객사</th>
                                     <th>품목</th>
-                                    <th>제조사 / 모델</th>
-                                    <th>버전</th>
-                                    <th>담당자(정)</th>
-                                    <th>담당자(부)</th>
-                                    <th>유지보수 기간</th>
-                                    <th class="text-center">패치필요</th>
-                                    <th>판정 정보</th>
+                                    <th style="width:180px;">버전</th>
+                                    <th style="width:110px;" class="text-center">패치필요</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <% if (rows.length === 0) { %>
                                 <tr>
-                                    <td colspan="10" class="text-center text-muted py-4">
-                                        조회된 대상이 없습니다. 유지보수(상세) 데이터를 먼저 등록해 주세요.
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        조회된 대상이 없습니다. 유지보수(요약)에 품목과 버전을 먼저 등록해 주세요.
                                     </td>
                                 </tr>
                                 <% } %>
-                                <% rows.forEach(function(r, idx) { %>
+                                <% rows.forEach(function (r, idx) { %>
                                 <tr class="<%= Number(r.patch_required) === 1 ? 'patch-needed' : '' %>">
                                     <td><%= (currentPage - 1) * 30 + idx + 1 %></td>
                                     <td><%= r.customer_company || '-' %></td>
-                                    <td><%= r.item || '-' %></td>
                                     <td>
-                                        <div><%= r.manufacturer || '-' %></div>
-                                        <div class="text-muted small"><%= r.model || '' %></div>
+                                        <%= r.item_name || '-' %>
+                                        <% if (r.item_detail) { %>
+                                        <div class="text-muted small"><%= r.item_detail %></div>
+                                        <% } %>
                                     </td>
-                                    <td class="text-nowrap"><%= r.version_display || '-' %></td>
-                                    <td><%= r.manager_primary || '-' %></td>
-                                    <td><%= r.manager_secondary || '-' %></td>
-                                    <td class="text-nowrap">
-                                        <%= r.maintenance_start_date || '-' %> ~ <%= r.maintenance_end_date || '-' %>
+                                    <td>
+                                        <%= r.item_version || '-' %>
+                                        <% if (Number(r.patch_required) === 1 && r.patch_condition) { %>
+                                        <div class="text-muted small" title="<%= r.patch_condition %>">
+                                            <%= r.patch_required_by || '' %>
+                                            <%= r.patch_required_at ? '(' + String(r.patch_required_at).slice(0, 10) + ')' : '' %>
+                                        </div>
+                                        <% } %>
                                     </td>
                                     <td class="patch-cell">
                                         <input type="checkbox" class="form-check-input patch-check"
                                                data-id="<%= r.id %>"
                                                <%= Number(r.patch_required) === 1 ? 'checked' : '' %>>
-                                    </td>
-                                    <td class="small text-muted">
-                                        <% if (Number(r.patch_required) === 1) { %>
-                                            <div>판정자: <%= r.patch_required_by || '-' %></div>
-                                            <div>판정일: <%= r.patch_required_at || '-' %></div>
-                                            <% if (r.patch_condition) { %>
-                                            <div title="<%= r.patch_condition %>">조건: <%= r.patch_condition.length > 28 ? r.patch_condition.slice(0, 28) + '…' : r.patch_condition %></div>
-                                            <% } %>
-                                        <% } else { %>
-                                            -
-                                        <% } %>
                                     </td>
                                 </tr>
                                 <% }) %>
@@ -359,38 +344,40 @@
         debounceTimer = setTimeout(refreshPreview, 180);
     }
 
-    Object.keys(selects).forEach(function (key) {
-        selects[key].addEventListener('change', function () {
-            updateCounter(key);
-            schedulePreview();
+    if (selects.customers && selects.items && selects.versions) {
+        Object.keys(selects).forEach(function (key) {
+            selects[key].addEventListener('change', function () {
+                updateCounter(key);
+                schedulePreview();
+            });
         });
-    });
 
-    document.querySelectorAll('[data-clear]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            const sel = document.getElementById(btn.getAttribute('data-clear'));
-            Array.from(sel.options).forEach(function (o) { o.selected = false; });
-            const key = btn.getAttribute('data-clear').replace('cond', '').toLowerCase();
-            updateCounter(key);
-            schedulePreview();
+        document.querySelectorAll('[data-clear]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const sel = document.getElementById(btn.getAttribute('data-clear'));
+                Array.from(sel.options).forEach(function (o) { o.selected = false; });
+                const key = btn.getAttribute('data-clear').replace('cond', '').toLowerCase();
+                updateCounter(key);
+                schedulePreview();
+            });
         });
-    });
 
-    // 기존 필터를 조건 UI 에 반영 (재조회 시 선택 상태 유지)
-    const preItems = <%- JSON.stringify(filters.items) %>;
-    const preVersions = <%- JSON.stringify(filters.versions) %>;
-    const preCustomers = <%- JSON.stringify(filters.customers) %>;
-
-    function preselect(sel, values) {
-        Array.from(sel.options).forEach(function (o) {
-            if (values.indexOf(o.value) !== -1) o.selected = true;
+        // 기존 필터를 조건 UI 에 반영
+        const pre = {
+            condCustomers: <%- JSON.stringify(filters.customers) %>,
+            condItems: <%- JSON.stringify(filters.items) %>,
+            condVersions: <%- JSON.stringify(filters.versions) %>
+        };
+        Object.keys(pre).forEach(function (id) {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            Array.from(sel.options).forEach(function (o) {
+                if (pre[id].indexOf(o.value) !== -1) o.selected = true;
+            });
+            updateCounter(id.replace('cond', '').toLowerCase());
         });
+        if (pre.condItems.length || pre.condVersions.length) refreshPreview();
     }
-    preselect(selects.items, preItems);
-    preselect(selects.versions, preVersions);
-    preselect(selects.customers, preCustomers);
-    Object.keys(selects).forEach(updateCounter);
-    if (preItems.length || preVersions.length) refreshPreview();
 
     // 개별 체크 토글
     document.querySelectorAll('.patch-check').forEach(function (cb) {

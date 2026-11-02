@@ -69,11 +69,14 @@
                                 <% if (summary.items && summary.items.length > 0) { %>
                                     <% summary.items.forEach(item => { %>
                                         <div class="item-row row mb-2">
-                                            <div class="col-md-5">
+                                            <div class="col-md-4">
                                                 <input type="text" class="form-control" name="item_names[]" value="<%= item.item_name %>" placeholder="품목명" <%= isRestricted ? 'readonly' : '' %>>
                                             </div>
-                                            <div class="col-md-5">
-                                                <input type="text" class="form-control" name="item_details[]" value="<%= item.item_detail %>" placeholder="상세내용" <%= isRestricted ? 'readonly' : '' %>>
+                                            <div class="col-md-3">
+                                                <input type="text" class="form-control" name="item_versions[]" value="<%= item.item_version || '' %>" placeholder="버전" <%= isRestricted ? 'readonly' : '' %>>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <input type="text" class="form-control" name="item_details[]" value="<%= item.item_detail || '' %>" placeholder="상세내용" <%= isRestricted ? 'readonly' : '' %>>
                                             </div>
                                             <% if (!isRestricted) { %>
                                             <div class="col-md-2">
@@ -84,10 +87,13 @@
                                     <% }); %>
                                 <% } else { %>
                                     <div class="item-row row mb-2">
-                                        <div class="col-md-5">
+                                        <div class="col-md-4">
                                             <input type="text" class="form-control" name="item_names[]" placeholder="품목명" <%= isRestricted ? 'readonly' : '' %>>
                                         </div>
-                                        <div class="col-md-5">
+                                        <div class="col-md-3">
+                                            <input type="text" class="form-control" name="item_versions[]" placeholder="버전" <%= isRestricted ? 'readonly' : '' %>>
+                                        </div>
+                                        <div class="col-md-3">
                                             <input type="text" class="form-control" name="item_details[]" placeholder="상세내용" <%= isRestricted ? 'readonly' : '' %>>
                                         </div>
                                         <% if (!isRestricted) { %>
@@ -241,10 +247,13 @@
                 const newRow = document.createElement('div');
                 newRow.className = 'item-row row mb-2';
                 newRow.innerHTML = `
-                    <div class="col-md-5">
+                    <div class="col-md-4">
                         <input type="text" class="form-control" name="item_names[]" placeholder="품목명">
                     </div>
-                    <div class="col-md-5">
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" name="item_versions[]" placeholder="버전">
+                    </div>
+                    <div class="col-md-3">
                         <input type="text" class="form-control" name="item_details[]" placeholder="상세내용">
                     </div>
                     <div class="col-md-2">
