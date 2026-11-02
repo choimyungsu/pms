@@ -13,6 +13,7 @@ const newsletterRoutes = require('./routes/newsletterRoutes'); // newsletterRout
 const minutesRoutes = require('./routes/minutesRoutes'); // minutesRoutes 추가
 const minutesController = require('./controllers/minutesController'); // minutesController 추가
 const scheduleRoutes = require('./routes/scheduleRoutes'); // scheduleRoutes 추가
+const patchRoutes = require('./routes/patchRoutes'); // 패치관리 라우트 추가 (maintenanceRoutes 보다 먼저 등록)
 const maintenanceRoutes = require('./routes/maintenanceRoutes'); // 유지보수 라우트 추가
 const maintenanceSummaryRoutes = require('./routes/maintenanceSummaryRoutes');
 const maintenanceSupportRoutes = require('./routes/maintenanceSupportRoutes');
@@ -118,6 +119,7 @@ app.use('/newsletter', newsletterRoutes); // 뉴스레터 라우트 추가
 app.get('/minutes/download-docx/:id', minutesController.downloadMeetingMinutesAsDocx);
 app.use('/minutes', isAuthenticated, minutesRoutes); // 회의록 라우트 추가
 app.use('/schedule', isAuthenticated, scheduleRoutes); // 일정 라우트 추가
+app.use('/maintenance', isAuthenticated, patchRoutes); // 패치관리 라우트 (유지보수 라우트보다 먼저 등록)
 app.use('/maintenance', isAuthenticated, maintenanceRoutes); // 유지보수 라우트 추가
 app.use('/maintenance', isAuthenticated, maintenanceSummaryRoutes);
 app.use('/maintenance', isAuthenticated, maintenanceSupportRoutes);
@@ -140,6 +142,9 @@ app.use('/assets', isAuthenticated, assetRoutes); // 자산관리 라우트 연�
 app.use('/checklist', isAuthenticated, checklistRoutes); // 체크리스트 라우트 연결
 
 
+// 패치관리용 컬럼/인덱스 사전 점검 (없을 때만 ALTER, 실패해도 서버는 기동)
+const { ensurePatchColumns } = require('./utils/patchSchema');
+
 // SSL/TLS 인증서와 개인 키 읽기
 const options = {
   key: fs.readFileSync('private-key.pem'),
@@ -147,6 +152,8 @@ const options = {
 };
 
 // 서버 시작
-https.createServer(options, app).listen(3443, () => {
-  console.log(`서버가 https://localhost:3443 에서 실행 중입니다.`);
+ensurePatchColumns().finally(() => {
+  https.createServer(options, app).listen(3443, () => {
+    console.log(`서버가 https://localhost:3443 에서 실행 중입니다.`);
+  });
 });
