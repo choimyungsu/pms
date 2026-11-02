@@ -433,14 +433,23 @@ exports.getOptions = async (req, res) => {
 };
 
 /* ------------------------------------------------------------------ */
-/* 버전 일괄(복수행) 저장                                              */
+/* 품목 / 제조사 / 버전 일괄(복수행) 저장                              */
 /* ------------------------------------------------------------------ */
-/* 요청 형식: { rows: [{ id: 1, item_version: 'v7.0.2' }, ...] }
+/* 요청 형식: { rows: [{ id: 1, item_name: '방화벽', manufacturer: 'Fortinet',
+                        item_version: 'v7.0.2' }, ...] }
    - id 는 tb_maintenance_summary_items.id
+   - 세 필드 중 넘어온 필드만 UPDATE (부분 수정 허용)
+   - 화이트리스트에 없는 키는 무시 (SQL 인젝션 방지)
    - 존재하지 않는 id 는 건너뛰고 skipped 로 집계
    - 트랜잭션으로 일괄 반영                                            */
 
-exports.saveItemVersions = async (req, res) => {
+const EDITABLE_FIELDS = [
+    { key: 'item_name', label: '품목', column: 'item_name', allowEmpty: false },
+    { key: 'manufacturer', label: '제조사', column: 'manufacturer', allowEmpty: true },
+    { key: 'item_version', label: '버전', column: 'item_version', allowEmpty: true }
+];
+
+exports.saveItemFields = async (req, res) => {
     try {
         const body = req.body || {};
         let rows = body.rows;
@@ -456,18 +465,49 @@ exports.saveItemVersions = async (req, res) => {
 
         // 정규화 + 검증
         const normalized = [];
+        const invalidNames = [];
         const seen = new Set();
+
         for (const row of rows.slice(0, MAX_IN_LIST)) {
             if (!row) continue;
             const id = parseInt(row.id, 10);
             if (!Number.isInteger(id) || id <= 0) continue;
             if (seen.has(id)) continue;
             seen.add(id);
-            const rawVersion = row.item_version;
-            const version = rawVersion === null || rawVersion === undefined
-                ? null
-                : String(rawVersion).trim().slice(0, 255);
-            normalized.push({ id, item_version: version === '' ? null : version });
+
+            const fields = {};
+            for (const def of EDITABLE_FIELDS) {
+                if (!Object.prototype.hasOwnProperty.call(row, def.key)) continue;
+                const raw = row[def.key];
+                if (raw === null || raw === undefined) {
+                    // 미입력 → NULL 허용 필드만 반영
+                    if (!def.allowEmpty) invalidNames.push(id);
+                    else fields[def.column] = null;
+                    continue;
+                }
+                const value = String(raw).trim().slice(0, 255);
+                if (value === '') {
+                    if (!def.allowEmpty) {
+                        // 품목명은 NOT NULL 이므로 빈 값을 저장할 수 없음
+                        invalidNames.push(id);
+                        continue;
+                    }
+                    fields[def.column] = null;
+                    continue;
+                }
+                fields[def.column] = value;
+            }
+
+            if (Object.keys(fields).length === 0) continue;
+            normalized.push({ id, fields });
+        }
+
+        if (invalidNames.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: '품목명은 비워둘 수 없습니다. 값을 입력한 뒤 다시 저장해 주세요.',
+                invalidIds: invalidNames
+            });
         }
 
         if (normalized.length === 0) {
@@ -488,17 +528,19 @@ exports.saveItemVersions = async (req, res) => {
             return res.status(404).json({ success: false, message: '대상 품목을 찾을 수 없습니다.' });
         }
 
-        // 트랜잭션 일괄 UPDATE
+        // 트랜잭션 일괄 UPDATE (행마다 변경된 컬럼만 SET)
         const conn = await db.getConnection();
         let updated = 0;
         try {
             await conn.beginTransaction();
             for (const t of targets) {
-                const [result] = await conn.query(
-                    'UPDATE tb_maintenance_summary_items SET item_version = ? WHERE id = ?',
-                    [t.item_version, t.id]
+                const cols = Object.keys(t.fields);
+                const setSql = cols.map((c) => `\`${c}\` = ?`).join(', ');
+                await conn.query(
+                    `UPDATE tb_maintenance_summary_items SET ${setSql} WHERE id = ?`,
+                    [...cols.map((c) => t.fields[c]), t.id]
                 );
-                updated += result.affectedRows || 0;
+                updated += 1;
             }
             await conn.commit();
         } catch (err) {
@@ -512,13 +554,16 @@ exports.saveItemVersions = async (req, res) => {
             success: true,
             updated,
             skipped,
-            message: `버전 ${updated}건을 저장했습니다.${skipped ? ` (${skipped}건 제외)` : ''}`
+            message: `${updated}건을 저장했습니다.${skipped ? ` (${skipped}건 제외)` : ''}`
         });
     } catch (error) {
-        console.error('[patch] saveItemVersions error:', error);
-        return res.status(500).json({ success: false, message: '버전 저장 중 오류가 발생했습니다.' });
+        console.error('[patch] saveItemFields error:', error);
+        return res.status(500).json({ success: false, message: '저장 중 오류가 발생했습니다.' });
     }
 };
+
+// 하위 호환: 버전만 저장하던 기존 엔드포인트
+exports.saveItemVersions = exports.saveItemFields;
 
 /* ------------------------------------------------------------------ */
 /* 엑셀 다운로드                                                        */

@@ -28,8 +28,11 @@
     .condition-title { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
     .multi-select { min-height: 132px; font-size: .8rem; }
     .summary-pill { font-size: .8rem; }
-    .version-input { min-width: 130px; font-size: .82rem; }
-    .version-input.is-dirty { border-color: #ffc107; background-color: #fffdf3; box-shadow: 0 0 0 .15rem rgba(255,193,7,.25); }
+    .field-input { min-width: 120px; font-size: .82rem; }
+    .field-input.field-item_name { min-width: 130px; }
+    .field-input.field-item_version { min-width: 130px; }
+    .field-input.is-dirty { border-color: #ffc107; background-color: #fffdf3; box-shadow: 0 0 0 .15rem rgba(255,193,7,.25); }
+    .field-input.is-invalid-name { border-color: #dc3545; background-color: #fff5f5; }
     tr.row-dirty > td { background-color: #fffdf3; }
     .dirty-badge { display: none; }
     .dirty-badge.show { display: inline-block; }
@@ -190,8 +193,11 @@
 
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge text-bg-warning dirty-badge" id="dirtyBadge">변경 0건</span>
-                        <button type="button" class="btn btn-primary btn-sm" id="saveVersionsBtn" disabled>
+                        <button type="button" class="btn btn-primary btn-sm" id="saveFieldsBtn" disabled>
                             <i class="fa-solid fa-floppy-disk me-1"></i>변경사항 저장
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="revertFieldsBtn" disabled title="편집 중인 값을 되돌립니다">
+                            <i class="fa-solid fa-rotate-left me-1"></i>되돌리기
                         </button>
                         <div class="btn-group btn-group-sm">
                             <a href="<%= buildUrl('1') %>" class="btn btn-<%= filters.patch === '1' ? 'danger' : 'outline-danger' %>">패치필요만</a>
@@ -216,9 +222,9 @@
                             <thead class="table-light">
                                 <tr>
                                     <th style="width:64px;">NO</th>
-                                    <th>고객사</th>
-                                    <th>품목</th>
-                                    <th style="width:160px;">제조사</th>
+                                    <th style="width:150px;">고객사</th>
+                                    <th style="width:180px;">품목</th>
+                                    <th style="width:170px;">제조사</th>
                                     <th style="width:200px;">버전</th>
                                     <th style="width:110px;" class="text-center">패치필요</th>
                                 </tr>
@@ -232,20 +238,37 @@
                                 </tr>
                                 <% } %>
                                 <% rows.forEach(function (r, idx) { %>
-                                <tr class="<%= Number(r.patch_required) === 1 ? 'patch-needed' : '' %>">
+                                <tr class="<%= Number(r.patch_required) === 1 ? 'patch-needed' : '' %>" data-row-id="<%= r.id %>">
                                     <td><%= (currentPage - 1) * 30 + idx + 1 %></td>
                                     <td><%= r.customer_company || '-' %></td>
                                     <td>
-                                        <%= r.item_name || '-' %>
+                                        <input type="text"
+                                               class="form-control form-control-sm field-input field-item_name"
+                                               data-id="<%= r.id %>"
+                                               data-field="item_name"
+                                               data-original="<%= r.item_name || '' %>"
+                                               value="<%= r.item_name || '' %>"
+                                               placeholder="품목명 입력"
+                                               autocomplete="off">
                                         <% if (r.item_detail) { %>
-                                        <div class="text-muted small"><%= r.item_detail %></div>
+                                        <div class="text-muted small mt-1"><%= r.item_detail %></div>
                                         <% } %>
                                     </td>
-                                    <td><%= r.manufacturer || '-' %></td>
                                     <td>
                                         <input type="text"
-                                               class="form-control form-control-sm version-input"
+                                               class="form-control form-control-sm field-input field-manufacturer"
                                                data-id="<%= r.id %>"
+                                               data-field="manufacturer"
+                                               data-original="<%= r.manufacturer || '' %>"
+                                               value="<%= r.manufacturer || '' %>"
+                                               placeholder="제조사 입력"
+                                               autocomplete="off">
+                                    </td>
+                                    <td>
+                                        <input type="text"
+                                               class="form-control form-control-sm field-input field-item_version"
+                                               data-id="<%= r.id %>"
+                                               data-field="item_version"
                                                data-original="<%= r.item_version || '' %>"
                                                value="<%= r.item_version || '' %>"
                                                placeholder="버전 입력"
@@ -429,40 +452,68 @@
 
 <script>
 /* ------------------------------------------------------------------
- * 버전 복수행 편집 / 일괄 저장
+ * 품목 / 제조사 / 버전 복수행 인라인 편집 + 일괄 저장
+ *
+ *  - 편집 가능 필드: item_name(품목), manufacturer(제조사), item_version(버전)
+ *  - 각 input 은 data-id / data-field / data-original 을 가짐
+ *  - 변경된 필드만 모아서 POST /maintenance/patch/save-fields 로 전송
  * ------------------------------------------------------------------ */
 (function () {
-    const inputs = Array.from(document.querySelectorAll('.version-input'));
-    const saveBtn = document.getElementById('saveVersionsBtn');
+    const inputs = Array.from(document.querySelectorAll('.field-input'));
+    const saveBtn = document.getElementById('saveFieldsBtn');
+    const revertBtn = document.getElementById('revertFieldsBtn');
     const dirtyBadge = document.getElementById('dirtyBadge');
 
     if (!saveBtn || inputs.length === 0) return;
 
+    // 품목명은 DB 상 NOT NULL 이므로 빈 값 저장 불가
+    const REQUIRED_FIELDS = ['item_name'];
+    const LABELS = { item_name: '품목', manufacturer: '제조사', item_version: '버전' };
+
     function rowOf(input) { return input.closest('tr'); }
+    function fieldOf(input) { return input.getAttribute('data-field'); }
+    function idOf(input) { return parseInt(input.getAttribute('data-id'), 10); }
+    function originalOf(input) { return input.getAttribute('data-original') || ''; }
 
     function isDirty(input) {
-        return input.value.trim() !== (input.getAttribute('data-original') || '');
+        return input.value.trim() !== originalOf(input);
     }
 
+    function isInvalid(input) {
+        return REQUIRED_FIELDS.indexOf(fieldOf(input)) !== -1 && input.value.trim() === '';
+    }
+
+    // 변경된 필드만 수집: [{ id, item_name?, manufacturer?, item_version? }]
     function collectDirty() {
-        return inputs.filter(isDirty).map(function (input) {
-            return { id: parseInt(input.getAttribute('data-id'), 10), item_version: input.value.trim() };
+        const byId = new Map();
+        inputs.forEach(function (input) {
+            if (!isDirty(input)) return;
+            const id = idOf(input);
+            if (!byId.has(id)) byId.set(id, { id: id });
+            byId.get(id)[fieldOf(input)] = input.value.trim();
         });
+        return Array.from(byId.values());
     }
 
     function refreshDirtyState() {
-        let count = 0;
+        const dirtyIds = new Set();
         inputs.forEach(function (input) {
             const dirty = isDirty(input);
-            const tr = rowOf(input);
             input.classList.toggle('is-dirty', dirty);
-            if (tr) tr.classList.toggle('row-dirty', dirty);
-            if (dirty) count += 1;
+            input.classList.toggle('is-invalid-name', isInvalid(input));
+            if (dirty) dirtyIds.add(idOf(input));
         });
-        dirtyBadge.textContent = '변경 ' + count + '건';
-        dirtyBadge.classList.toggle('show', count > 0);
-        saveBtn.disabled = count === 0;
-        return count;
+
+        document.querySelectorAll('tr[data-row-id]').forEach(function (tr) {
+            tr.classList.toggle('row-dirty', dirtyIds.has(parseInt(tr.getAttribute('data-row-id'), 10)));
+        });
+
+        const rowCount = dirtyIds.size;
+        dirtyBadge.textContent = '변경 ' + rowCount + '건';
+        dirtyBadge.classList.toggle('show', rowCount > 0);
+        saveBtn.disabled = rowCount === 0;
+        if (revertBtn) revertBtn.disabled = rowCount === 0;
+        return rowCount;
     }
 
     inputs.forEach(function (input) {
@@ -470,6 +521,10 @@
         input.addEventListener('keydown', function (e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
+                input.blur();
+            } else if (e.key === 'Escape') {
+                input.value = originalOf(input);
+                refreshDirtyState();
                 input.blur();
             }
         });
@@ -480,18 +535,39 @@
         else alert(message);
     }
 
+    // 되돌리기
+    if (revertBtn) {
+        revertBtn.addEventListener('click', function () {
+            if (collectDirty().length === 0) return;
+            if (!confirm('편집 중인 내용을 모두 되돌릴까요?')) return;
+            inputs.forEach(function (input) {
+                input.value = originalOf(input);
+            });
+            refreshDirtyState();
+        });
+    }
+
     saveBtn.addEventListener('click', async function () {
         const rows = collectDirty();
         if (rows.length === 0) return;
 
-        if (!confirm('변경된 ' + rows.length + '개 행의 버전을 저장할까요?')) return;
+        // 필수값 검증 (품목명)
+        const invalid = inputs.filter(isInvalid);
+        if (invalid.length > 0) {
+            notify('error', '품목명은 비워둘 수 없습니다. 값을 입력한 뒤 다시 저장해 주세요.');
+            invalid[0].focus();
+            return;
+        }
+
+        if (!confirm('변경된 ' + rows.length + '개 행을 저장할까요?')) return;
 
         const originalLabel = saveBtn.innerHTML;
         saveBtn.disabled = true;
+        if (revertBtn) revertBtn.disabled = true;
         saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>저장 중...';
 
         try {
-            const res = await fetch('/maintenance/patch/save-versions', {
+            const res = await fetch('/maintenance/patch/save-fields', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                 body: JSON.stringify({ rows: rows })
@@ -499,18 +575,17 @@
             const data = await res.json();
             if (!res.ok || !data.success) throw new Error(data.message || '저장에 실패했습니다.');
 
-            // 저장 성공 → 기준값 갱신
-            const savedMap = {};
-            rows.forEach(function (r) { savedMap[r.id] = r.item_version; });
-            inputs.forEach(function (input) {
-                const id = parseInt(input.getAttribute('data-id'), 10);
-                if (Object.prototype.hasOwnProperty.call(savedMap, id)) {
-                    input.setAttribute('data-original', savedMap[id]);
-                    input.value = savedMap[id];
-                }
+            // 저장 성공 → 해당 필드의 기준값 갱신
+            rows.forEach(function (row) {
+                inputs.forEach(function (input) {
+                    if (idOf(input) !== row.id) return;
+                    const field = fieldOf(input);
+                    if (!Object.prototype.hasOwnProperty.call(row, field)) return;
+                    input.setAttribute('data-original', row[field]);
+                    input.value = row[field];
+                });
             });
-            refreshDirtyState();
-            notify('success', data.message || '버전을 저장했습니다.');
+            notify('success', data.message || '저장했습니다.');
         } catch (err) {
             notify('error', err.message || '저장 중 오류가 발생했습니다.');
         } finally {
@@ -519,7 +594,7 @@
         }
     });
 
-    // 페이지 이탈 경고
+    // 저장하지 않고 이탈 시 경고
     window.addEventListener('beforeunload', function (e) {
         if (collectDirty().length > 0) {
             e.preventDefault();

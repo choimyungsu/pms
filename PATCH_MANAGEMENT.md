@@ -16,8 +16,8 @@
 ## 2. 화면 구성
 
 - **목록 테이블: 고객사 / 품목 / 제조사 / 버전 / 패치필요** (요청사항)
-  - 품목 셀 하단에 상세내용(`item_detail`) 표시
-  - **버전 셀은 인라인 편집 input** — 여러 행을 동시에 수정하고 "변경사항 저장" 으로 일괄 반영
+  - **품목 / 제조사 / 버전 3개 셀 모두 인라인 편집 input** — 여러 행을 동시에 수정하고 "변경사항 저장" 으로 일괄 반영
+  - 품목 셀 하단에 상세내용(`item_detail`, 읽기 전용) 표시
   - 버전 셀 하단에 판정자·판정일 표시
 - 상단 요약: 전체 품목 / 전체 패치필요 / 조회 결과 / 조회 결과 중 패치필요
 - 조건 설정: **고객사 / 품목 / 버전 복수 선택**(multiple select, Ctrl·Shift+클릭) + 실시간 미리보기
@@ -55,19 +55,24 @@ UPDATE tb_maintenance_summary_items i
 
 `addItems()` 는 `manufacturer` / `item_version` 컬럼 존재 여부를 각각 확인 후 분기하므로, 컬럼 추가 전 DB에서도 오류 없이 동작합니다.
 
-### 4-1. 버전 복수행 인라인 수정 (패치관리 목록)
+### 4-1. 품목 / 제조사 / 버전 복수행 인라인 수정 (패치관리 목록)
 
 | 항목 | 내용 |
 |---|---|
-| UI | 버전 셀이 `<input class="form-control version-input" data-id data-original>` 로 렌더링 |
-| 변경 감지 | 입력값 ≠ `data-original` 인 행을 dirty 로 표시 (노란 배경 + `변경 N건` 배지) |
-| 저장 | 툴바의 **변경사항 저장** 버튼 → `POST /maintenance/patch/save-versions` |
-| 요청 본문 | `{ rows: [{ id, item_version }] }` (최대 500행) |
-| 서버 처리 | id 존재 확인 → 트랜잭션으로 일괄 `UPDATE` → `{ success, updated, skipped, message }` |
-| 저장 후 | `data-original` 갱신, dirty 해제, SweetAlert/알림 표시 |
-| 안전장치 | 저장하지 않고 페이지 이탈 시 `beforeunload` 경고 |
+| UI | 품목·제조사·버전 3개 셀이 `<input class="form-control field-input" data-id data-field data-original>` 로 렌더링 |
+| 편집 필드 | `item_name`(품목), `manufacturer`(제조사), `item_version`(버전) |
+| 변경 감지 | 입력값 ≠ `data-original` 인 셀을 dirty(노란 배경)로, 해당 행은 `row-dirty` 로 표시 + `변경 N건` 배지 |
+| 저장 | 툴바의 **변경사항 저장** 버튼 → `POST /maintenance/patch/save-fields` |
+| 요청 본문 | `{ rows: [{ id, item_name?, manufacturer?, item_version? }] }` — **변경된 필드만** 전송, 최대 500행 |
+| 서버 처리 | 화이트리스트 필드만 반영 → id 존재 확인 → 트랜잭션 일괄 `UPDATE` → `{ success, updated, skipped, message }` |
+| 저장 후 | 해당 필드의 `data-original` 갱신, dirty 해제, SweetAlert/알림 표시 |
+| 되돌리기 | **되돌리기** 버튼(또는 Esc) — 편집 중 값을 원래대로 복원 |
+| 안전장치 | 저장하지 않고 페이지 이탈 시 `beforeunload` 경고 / Enter 로 편집 확정 |
 
-빈 문자열로 저장하면 `NULL` 로 저장됩니다(버전 미입력 상태).
+제약 및 처리
+- **품목명은 DB 상 `NOT NULL`** → 빈 값으로 저장 시 400 응답 (`품목명은 비워둘 수 없습니다.`) 및 해당 input 빨간 테두리 표시
+- 제조사·버전은 빈 값 저장 시 `NULL` 처리
+- 하위 호환: 기존 `POST /maintenance/patch/save-versions` (버전 전용) 경로도 그대로 동작
 
 ## 5. 스키마 자동 점검
 
@@ -96,7 +101,8 @@ UPDATE tb_maintenance_summary_items i
 | GET | `/maintenance/patch/preview-count` | 조건 매칭 건수 미리보기 (JSON) |
 | POST | `/maintenance/patch/apply-condition` | 조건 적용 (mode=check/replace/uncheck) |
 | POST | `/maintenance/patch/toggle/:id` | 개별 패치필요 토글 (JSON) |
-| POST | `/maintenance/patch/save-versions` | 버전 복수행 일괄 저장 (JSON body `{rows:[{id,item_version}]}`) |
+| POST | `/maintenance/patch/save-fields` | 품목/제조사/버전 복수행 일괄 저장 (JSON body `{rows:[{id,item_name?,manufacturer?,item_version?}]}`) |
+| POST | `/maintenance/patch/save-versions` | 하위 호환 — 버전 전용 저장 (내부적으로 save-fields 와 동일 핸들러) |
 | POST | `/maintenance/patch/reset` | 전체 초기화 |
 | GET | `/maintenance/patch/download-excel` | 엑셀 다운로드 (현재 필터 반영) |
 | GET | `/maintenance/patch/options` | 조건 옵션 목록 (JSON) |
