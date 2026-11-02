@@ -1,0 +1,243 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<!-- Notification Modal -->
+<div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center pb-4">
+                <div class="mb-3">
+                    <i id="notificationIcon" class="fas fa-check-circle" style="font-size: 4rem; color: #28a745;"></i>
+                </div>
+                <h5 class="modal-title" id="notificationModalLabel">성공!</h5>
+                <p id="notificationMessage" class="text-muted">작업이 완료되었습니다.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">용어사전</h3>
+                </div>
+                <div class="col-sm-6 d-flex justify-content-end align-items-center">
+                    <a href="/glossary/create" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus"></i> 용어 등록</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fa-solid fa-book-open"></i> 용어 검색</h3>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <input type="text" id="searchTermInput" class="form-control" placeholder="검색어를 입력하세요...">
+                    </div>
+                    <div class="mb-3 text-center">
+                        <button class="btn btn-outline-primary btn-sm initial-char-btn" data-char="ㄱ">ㄱ</button>
+                        <button class="btn btn-outline-primary btn-sm initial-char-btn" data-char="ㄴ">ㄴ</button>
+                        <button class="btn btn-outline-primary btn-sm initial-char-btn" data-char="ㄷ">ㄷ</button>
+                        <button class="btn btn-outline-primary btn-sm initial-char-btn" data-char="ㄹ">ㄹ</button>
+                        <button class="btn btn-outline-primary btn-sm initial-char-btn" data-char="ㅁ">ㅁ</button>
+                        <button class="btn btn-outline-primary btn-sm initial-char-btn" data-char="ㅂ">ㅂ</button>
+                        <button class="btn btn-outline-primary btn-sm initial-char-btn" data-char="ㅅ">ㅅ</button>
+                        <button class="btn btn-outline-primary btn-sm initial-char-btn" data-char="ㅇ">ㅇ</button>
+                        <button class="btn btn-outline-primary btn-sm initial-char-btn" data-char="ㅈ">ㅈ</button>
+                        <button class="btn btn-outline-primary btn-sm initial-char-btn" data-char="ㅊ">ㅊ</button>
+                        <button class="btn btn-outline-primary btn-sm initial-char-btn" data-char="ㅋ">ㅋ</button>
+                        <button class="btn btn-outline-primary btn-sm initial-char-btn" data-char="ㅌ">ㅌ</button>
+                        <button class="btn btn-outline-primary btn-sm initial-char-btn" data-char="ㅍ">ㅍ</button>
+                        <button class="btn btn-outline-primary btn-sm initial-char-btn" data-char="ㅎ">ㅎ</button>
+                    </div>
+                    <div class="mb-3 text-center">
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="A">A</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="B">B</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="C">C</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="D">D</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="E">E</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="F">F</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="G">G</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="H">H</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="I">I</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="J">J</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="K">K</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="L">L</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="M">M</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="N">N</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="O">O</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="P">P</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="Q">Q</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="R">R</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="S">S</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="T">T</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="U">U</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="V">V</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="W">W</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="X">X</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="Y">Y</button>
+                        <button class="btn btn-outline-secondary btn-sm initial-char-btn" data-char="Z">Z</button>
+                    </div>
+                    <hr>
+                    <div id="glossaryResults" class="row"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    // 알림 모달을 표시하는 함수 (기존 함수 재사용)
+    function showNotification(type, message) {
+        const icon = document.getElementById('notificationIcon');
+        const title = document.getElementById('notificationModalLabel');
+        const messageEl = document.getElementById('notificationMessage');
+        
+        if (type === 'success') {
+            icon.className = 'fas fa-check-circle';
+            icon.style.color = '#28a745';
+            title.textContent = '성공!';
+        } else if (type === 'error') {
+            icon.className = 'fas fa-exclamation-circle';
+            icon.style.color = '#dc3545';
+            title.textContent = '오류!';
+        } else if (type === 'warning') {
+            icon.className = 'fas fa-exclamation-triangle';
+            icon.style.color = '#ffc107';
+            title.textContent = '경고!';
+        }
+        
+        messageEl.textContent = message;
+        
+        const notificationModal = new bootstrap.Modal(document.getElementById('notificationModal'));
+        notificationModal.show();
+        
+        // 3초 후 자동으로 닫기
+        setTimeout(() => {
+            notificationModal.hide();
+        }, 3000);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchTermInput = document.getElementById('searchTermInput');
+        const initialCharButtons = document.querySelectorAll('.initial-char-btn');
+        const glossaryResults = document.getElementById('glossaryResults');
+
+        let currentInitialChar = '';
+        let currentSearchTerm = '';
+
+        async function fetchGlossaryTerms(initialChar = '', searchTerm = '') {
+            currentInitialChar = initialChar;
+            currentSearchTerm = searchTerm;
+
+            let url = '/glossary/api/terms';
+            const params = new URLSearchParams();
+            if (initialChar) {
+                params.append('initialChar', initialChar);
+            }
+            if (searchTerm) {
+                params.append('searchTerm', searchTerm);
+            }
+            if (params.toString()) {
+                url += `?${params.toString()}`;
+            }
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const terms = await response.json();
+                displayTerms(terms);
+            } catch (error) {
+                console.error('용어 조회 중 오류 발생:', error);
+                glossaryResults.innerHTML = '<p class="text-danger">용어를 불러오는 데 실패했습니다.</p>';
+            }
+        }
+
+        function displayTerms(terms) {
+            glossaryResults.innerHTML = '';
+            if (terms.length === 0) {
+                glossaryResults.innerHTML = '<p class="text-muted text-center">검색 결과가 없습니다.</p>';
+                return;
+            }
+
+            terms.forEach(term => {
+                const termCard = document.createElement('div');
+                termCard.className = 'col-md-6 mb-4';
+                termCard.innerHTML = `
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">${term.term}</h5>
+                            <p class="card-text">${term.description}</p>
+                            ${term.image_path ? `<img src="/uploads/glossary/${term.image_path}" class="img-fluid mt-2" alt="${term.term}">` : ''}
+                        </div>
+                        <div class="card-footer text-end">
+                            <a href="/glossary/edit/${term.id}" class="btn btn-sm btn-info">수정</a>
+                            <button class="btn btn-sm btn-danger delete-term-btn" data-id="${term.id}">삭제</button>
+                        </div>
+                    </div>
+                `;
+                glossaryResults.appendChild(termCard);
+            });
+
+            // Add event listeners for delete buttons
+            document.querySelectorAll('.delete-term-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const id = this.dataset.id;
+                    deleteTerm(id);
+                });
+            });
+        }
+
+        async function deleteTerm(id) {
+            if (!confirm('정말로 이 용어를 삭제하시겠습니까?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/glossary/api/terms/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || '네트워크 응답이 올바르지 않습니다.');
+                }
+
+                showNotification('success', '용어가 성공적으로 삭제되었습니다.');
+                fetchGlossaryTerms(currentInitialChar, currentSearchTerm); // Refresh list
+            } catch (error) {
+                console.error('용어 삭제 오류:', error);
+                showNotification('error', error.message);
+            }
+        }
+
+        // Event Listeners
+        searchTermInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                fetchGlossaryTerms('', searchTermInput.value);
+            }
+        });
+
+        initialCharButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                searchTermInput.value = ''; // 검색어 초기화
+                fetchGlossaryTerms(this.dataset.char);
+            });
+        });
+
+        // Initial load
+        fetchGlossaryTerms();
+    });
+</script>
+
+<%- include('../partials/footer') %>

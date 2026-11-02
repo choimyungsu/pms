@@ -1,0 +1,10 @@
+ALTER TABLE tb_meeting_minutes
+ADD COLUMN meeting_date DATETIME,
+ADD COLUMN location VARCHAR(255),
+ADD COLUMN host VARCHAR(255),
+ADD COLUMN attendees TEXT,
+ADD COLUMN agenda JSON,
+ADD COLUMN summary TEXT,
+ADD COLUMN remarks TEXT,
+DROP COLUMN content,
+DROP COLUMN status

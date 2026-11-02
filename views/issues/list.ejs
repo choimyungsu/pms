@@ -1,0 +1,121 @@
+<%- include('../partials/header', { page: 'issues' }) %>
+<%- include('../partials/sidebar', { page: 'issues' }) %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">이슈 목록</h3>
+                </div>
+                <div class="col-sm-6 text-end">
+                    <a href="/issues/create" class="btn btn-primary">새 이슈 등록</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <ul class="nav nav-tabs" id="issueTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="ongoing-tab" data-bs-toggle="tab" data-bs-target="#ongoing" type="button" role="tab" aria-controls="ongoing" aria-selected="true">진행중</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab" aria-controls="completed" aria-selected="false">완료</button>
+                </li>
+            </ul>
+            <div class="tab-content" id="issueTabContent">
+                <div class="tab-pane fade show active" id="ongoing" role="tabpanel" aria-labelledby="ongoing-tab">
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>제목</th>
+                                        <th>프로젝트</th>
+                                        <th>상태</th>
+                                        <th>등록자</th>
+                                        <th>담당자</th>
+                                        <th>등록일</th>
+                                        <th>관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% issues.filter(i => i.status === '진행중').forEach(issue => { %>
+                                        <tr>
+                                            <td><a href="/issues/<%= issue.id %>"><%= issue.title %></a></td>
+                                            <td><%= issue.project_name || 'N/A' %></td>
+                                            <td><span class="badge bg-warning"><%= issue.status %></span></td>
+                                            <td><%= issue.creator_name %></td>
+                                            <td><%= issue.assignee_name || '미지정' %></td>
+                                            <td><%= new Date(issue.created_at).toLocaleDateString() %></td>
+                                            <td>
+                                                <% if (currentUser && (currentUser.role === 'admin' || currentUser.id === issue.creator_id)) { %>
+                                                    <a href="/issues/<%= issue.id %>/edit" class="btn btn-sm btn-warning">수정</a>
+                                                    <form action="/issues/<%= issue.id %>/delete" method="POST" style="display:inline;" class="delete-issue-form">
+                                                        <button type="submit" class="btn btn-sm btn-danger">삭제</button>
+                                                    </form>
+                                                <% } %>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="completed" role="tabpanel" aria-labelledby="completed-tab">
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>제목</th>
+                                        <th>프로젝트</th>
+                                        <th>상태</th>
+                                        <th>등록자</th>
+                                        <th>담당자</th>
+                                        <th>등록일</th>
+                                        <th>관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% issues.filter(i => i.status === '완료').forEach(issue => { %>
+                                        <tr>
+                                            <td><a href="/issues/<%= issue.id %>"><%= issue.title %></a></td>
+                                            <td><%= issue.project_name || 'N/A' %></td>
+                                            <td><span class="badge bg-success"><%= issue.status %></span></td>
+                                            <td><%= issue.creator_name %></td>
+                                            <td><%= issue.assignee_name || '미지정' %></td>
+                                            <td><%= new Date(issue.created_at).toLocaleDateString() %></td>
+                                            <td>
+                                                <% if (currentUser && (currentUser.role === 'admin' || currentUser.id === issue.creator_id)) { %>
+                                                    <a href="/issues/<%= issue.id %>/edit" class="btn btn-sm btn-warning">수정</a>
+                                                    <form action="/issues/<%= issue.id %>/delete" method="POST" style="display:inline;" class="delete-issue-form">
+                                                        <button type="submit" class="btn btn-sm btn-danger">삭제</button>
+                                                    </form>
+                                                <% } %>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<script>
+    document.querySelectorAll('.delete-issue-form').forEach(form => {
+        form.addEventListener('submit', function(event) {
+            if (!confirm('정말로 이 이슈를 삭제하시겠습니까?')) {
+                event.preventDefault();
+            }
+        });
+    });
+</script>

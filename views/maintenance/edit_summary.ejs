@@ -1,0 +1,298 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" href="/css/dropzone.css">
+<%- include('../partials/sidebar') %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">유지보수(요약) 수정</h3>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-end">
+                        <li class="breadcrumb-item"><a href="/">Home</a></li>
+                        <li class="breadcrumb-item"><a href="/maintenance/summary">유지보수(요약)</a></li>
+                        <li class="breadcrumb-item active">수정</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <% 
+                const isAdmin = user && user.role === 'admin';
+                const isOpsManager = user && user.role === 'operations_manager';
+                const isCreator = user && user.id === summary.creator_id;
+                const isRestricted = !(isAdmin || isOpsManager || isCreator);
+            %>
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">유지보수 요약 정보 수정</h3>
+                </div>
+                <div class="card-body">
+                    <form id="edit-summary-form" action="/maintenance/summary/edit/<%= summary.id %>" method="POST">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="division" class="form-label">구분</label>
+                                <input type="text" class="form-control" id="division" name="division" value="<%= summary.division %>" <%= isRestricted ? 'readonly' : '' %>>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="customer_company" class="form-label">고객사</label>
+                                <input type="text" class="form-control" id="customer_company" name="customer_company" value="<%= summary.customer_company %>" <%= isRestricted ? 'readonly' : '' %>>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="project_name" class="form-label">사업명</label>
+                                <input type="text" class="form-control" id="project_name" name="project_name" value="<%= summary.project_name %>" <%= isRestricted ? 'readonly' : '' %>>
+                            </div>
+                            <% if (isAdmin) { %>
+                            <div class="col-md-4 mb-3">
+                                <label for="cost" class="form-label">비용</label>
+                                <input type="text" class="form-control" id="cost" name="cost" value="<%= summary.cost %>">
+                            </div>
+                            <% } %>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="maintenance_start_date" class="form-label">유지보수시작일</label>
+                                <input type="date" class="form-control" id="maintenance_start_date" name="maintenance_start_date" value="<%= summary.maintenance_start_date %>" <%= isRestricted ? 'readonly' : '' %>>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="maintenance_end_date" class="form-label">유지보수종료일</label>
+                                <input type="date" class="form-control" id="maintenance_end_date" name="maintenance_end_date" value="<%= summary.maintenance_end_date %>" <%= isRestricted ? 'readonly' : '' %>>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">품목</label>
+                            <div id="items-container">
+                                <% if (summary.items && summary.items.length > 0) { %>
+                                    <% summary.items.forEach(item => { %>
+                                        <div class="item-row row mb-2">
+                                            <div class="col-md-5">
+                                                <input type="text" class="form-control" name="item_names[]" value="<%= item.item_name %>" placeholder="품목명" <%= isRestricted ? 'readonly' : '' %>>
+                                            </div>
+                                            <div class="col-md-5">
+                                                <input type="text" class="form-control" name="item_details[]" value="<%= item.item_detail %>" placeholder="상세내용" <%= isRestricted ? 'readonly' : '' %>>
+                                            </div>
+                                            <% if (!isRestricted) { %>
+                                            <div class="col-md-2">
+                                                <button type="button" class="btn btn-danger btn-sm remove-item">삭제</button>
+                                            </div>
+                                            <% } %>
+                                        </div>
+                                    <% }); %>
+                                <% } else { %>
+                                    <div class="item-row row mb-2">
+                                        <div class="col-md-5">
+                                            <input type="text" class="form-control" name="item_names[]" placeholder="품목명" <%= isRestricted ? 'readonly' : '' %>>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <input type="text" class="form-control" name="item_details[]" placeholder="상세내용" <%= isRestricted ? 'readonly' : '' %>>
+                                        </div>
+                                        <% if (!isRestricted) { %>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-danger btn-sm remove-item">삭제</button>
+                                        </div>
+                                        <% } %>
+                                    </div>
+                                <% } %>
+                            </div>
+                            <% if (!isRestricted) { %>
+                            <button type="button" class="btn btn-success btn-sm" id="add-item">품목 추가</button>
+                            <% } %>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="main_engineer" class="form-label">정엔지니어</label>
+                                <input type="text" class="form-control" id="main_engineer" name="main_engineer" value="<%= summary.main_engineer %>" <%= isRestricted ? 'readonly' : '' %>>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="sub_engineer" class="form-label">부엔지니어</label>
+                                <input type="text" class="form-control" id="sub_engineer" name="sub_engineer" value="<%= summary.sub_engineer %>" <%= isRestricted ? 'readonly' : '' %>>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="sales_manager" class="form-label">영업담당</label>
+                                <input type="text" class="form-control" id="sales_manager" name="sales_manager" value="<%= summary.sales_manager %>" <%= isRestricted ? 'readonly' : '' %>>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="inspection_method" class="form-label">점검방식</label>
+                            <input type="text" class="form-control" id="inspection_method" name="inspection_method" value="<%= summary.inspection_method %>" <%= isRestricted ? 'readonly' : '' %>>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="customer_contact_person" class="form-label">고객담당자</label>
+                                <input type="text" class="form-control" id="customer_contact_person" name="customer_contact_person" value="<%= summary.customer_contact_person %>" <%= isRestricted ? 'readonly' : '' %>>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="customer_contact" class="form-label">고객연락처</label>
+                                <input type="text" class="form-control" id="customer_contact" name="customer_contact" value="<%= summary.customer_contact %>" <%= isRestricted ? 'readonly' : '' %>>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="customer_email" class="form-label">고객이메일</label>
+                                <input type="email" class="form-control" id="customer_email" name="customer_email" value="<%= summary.customer_email %>" <%= isRestricted ? 'readonly' : '' %>>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="inspection_location" class="form-label">점검위치</label>
+                            <input type="text" class="form-control" id="inspection_location" name="inspection_location" value="<%= summary.inspection_location %>" <%= isRestricted ? 'readonly' : '' %>>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">첨부파일</label>
+                            <% if (summary.attachments && summary.attachments.length > 0) { %>
+                                <div id="existing-attachments">
+                                    <% summary.attachments.forEach(attachment => { %>
+                                        <div class="attachment-item d-flex justify-content-between align-items-center">
+                                            <a href="/<%= attachment.file_path %>" target="_blank"><%= attachment.file_name %></a>
+                                            <button type="button" class="btn btn-sm btn-danger delete-attachment-btn" data-attachment-id="<%= attachment.id %>">삭제</button>
+                                        </div>
+                                    <% }); %>
+                                </div>
+                            <% } %>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="attachments" class="form-label">새 첨부파일 추가</label>
+                            <div id="drop-zone">
+                                <div>파일을 드래그하거나 여기를 클릭하여 파일을 선택하세요.</div>
+                            </div>
+                            <input type="file" id="file-input" name="attachments" multiple style="display: none;">
+                            <div id="file-list" class="mt-2"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="remarks" class="form-label">비고</label>
+                            <textarea class="form-control" id="remarks" name="remarks" rows="3"><%= summary.remarks %></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">수정</button>
+                        <a href="/maintenance/summary" class="btn btn-secondary">취소</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script src="/js/maintenanceSummaryFormHandler.js"></script>
+<script src="https://cdn.ckeditor.com/ckeditor5/35.3.2/classic/ckeditor.js"></script>
+<script>
+    // Custom Upload Adapter Plugin
+    function MyUploadAdapterPlugin(editor) {
+        editor.plugins.get('FileRepository').createUploadAdapter = (loader) => {
+            return new MyUploadAdapter(loader);
+        };
+    }
+
+    // Custom Upload Adapter Class
+    class MyUploadAdapter {
+        constructor(loader) {
+            this.loader = loader;
+        }
+
+        upload() {
+            return this.loader.file
+                .then(file => new Promise((resolve, reject) => {
+                    const formData = new FormData();
+                    formData.append('image', file);
+
+                    fetch('/memo/upload-image', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            return response.json();
+                        } else {
+                            return response.text().then(text => {
+                                throw new Error(`Server responded with ${response.status}: ${text}`);
+                            });
+                        }
+                    })
+                    .then(data => {
+                        if (data.success && data.filePath) {
+                            resolve({
+                                default: data.filePath
+                            });
+                        } else {
+                            reject(data.message || 'Upload failed');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('CKEditor image upload failed:', error);
+                        reject(error);
+                    });
+                }));
+        }
+
+        abort() {
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        let remarksEditor;
+
+        // Add Item Logic
+        const itemsContainer = document.getElementById('items-container');
+        const addItemBtn = document.getElementById('add-item');
+        if (addItemBtn) {
+            addItemBtn.addEventListener('click', function() {
+                const newRow = document.createElement('div');
+                newRow.className = 'item-row row mb-2';
+                newRow.innerHTML = `
+                    <div class="col-md-5">
+                        <input type="text" class="form-control" name="item_names[]" placeholder="품목명">
+                    </div>
+                    <div class="col-md-5">
+                        <input type="text" class="form-control" name="item_details[]" placeholder="상세내용">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-danger btn-sm remove-item">삭제</button>
+                    </div>
+                `;
+                itemsContainer.appendChild(newRow);
+            });
+        }
+
+        itemsContainer.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-item')) {
+                e.target.closest('.item-row').remove();
+            }
+        });
+
+        ClassicEditor
+            .create(document.querySelector('#remarks'), {
+                extraPlugins: [MyUploadAdapterPlugin],
+            })
+            .then(editor => {
+                remarksEditor = editor;
+                
+                initializeMaintenanceSummaryForm({
+                    formId: 'edit-summary-form',
+                    dropZoneId: 'drop-zone',
+                    fileInputId: 'file-input',
+                    fileListId: 'file-list',
+                    attachmentsToDeleteInputId: 'attachments_to_delete',
+                    isEdit: true,
+                    summaryId: '<%= summary.id %>',
+                    editor: remarksEditor
+                });
+            })
+            .catch(error => {
+                console.error(error);
+            });
+
+        const maintenanceStartDate = document.getElementById('maintenance_start_date');
+        if ('<%= summary.maintenance_start_date %>' !== 'null' && '<%= summary.maintenance_start_date %>') {
+            maintenanceStartDate.value = new Date('<%= summary.maintenance_start_date %>').toISOString().split('T')[0];
+        }
+
+        const maintenanceEndDate = document.getElementById('maintenance_end_date');
+        if ('<%= summary.maintenance_end_date %>' !== 'null' && '<%= summary.maintenance_end_date %>') {
+            maintenanceEndDate.value = new Date('<%= summary.maintenance_end_date %>').toISOString().split('T')[0];
+        }
+    });
+</script>
+
+<%- include('../partials/footer') %>

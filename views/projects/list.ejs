@@ -1,0 +1,152 @@
+<%- include('../partials/header', { page: 'project_list' }) %>
+<%- include('../partials/sidebar', { page: 'project_list' }) %>
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">프로젝트 목록</h3>
+                </div>
+                <div class="col-sm-6 text-end">
+                    <a href="/projects/create" class="btn btn-primary">새 프로젝트 등록</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <ul class="nav nav-tabs" id="projectTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="ongoing-tab" data-bs-toggle="tab" data-bs-target="#ongoing" type="button" role="tab" aria-controls="ongoing" aria-selected="true">진행중</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed" type="button" role="tab" aria-controls="completed" aria-selected="false">완료</button>
+                </li>
+            </ul>
+            <div class="tab-content" id="projectTabContent">
+                <div class="tab-pane fade show active" id="ongoing" role="tabpanel" aria-labelledby="ongoing-tab">
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <table class="table table-bordered" id="ongoingProjectsTable">
+                                <thead>
+                                    <tr>
+                                        <th>프로젝트명</th>
+                                        <th>PM</th>
+                                        <th>담당영업</th>
+                                        <th>상태</th>
+                                        <th>진척율</th>
+                                        <th>시작일</th>
+                                        <th>종료일</th>
+                                        <th>관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% projects.filter(p => p.status !== '완료').forEach(project => { %>
+                                        <tr>
+                                            <td><a href="/projects/<%= project.id %>"><%= project.name %></a></td>
+                                            <td><%= project.pm_name || '없음' %></td>
+                                            <td><%= project.sales_rep_name || '없음' %></td>
+                                            <td><%= project.status %></td>
+                                            <td>
+                                                <div class="progress progress-xs">
+                                                    <div class="progress-bar bg-success" role="progressbar" style="width: <%= project.progress %>%;" aria-valuenow="<%= project.progress %>" aria-valuemin="0" aria-valuemax="100"></div>
+                                                </div>
+                                                <small><%= project.progress || 0 %>%</small>
+                                            </td>
+                                            <td><%= project.start_date ? new Date(project.start_date).toLocaleDateString() : '' %></td>
+                                            <td><%= project.end_date ? new Date(project.end_date).toLocaleDateString() : '' %></td>
+                                            <td>
+                                                <a href="/projects/<%= project.id %>" class="btn btn-sm btn-info">상세보기</a>
+                                                <% if (currentUser && (currentUser.role === 'admin' || currentUser.id == project.pm_id)) { %>
+                                                    <a href="/projects/edit/<%= project.id %>" class="btn btn-sm btn-warning">수정</a>
+                                                <% } %>
+                                                <% if (currentUser && (currentUser.role === 'admin' || currentUser.id == project.pm_id)) { %>
+                                                    <form action="/projects/delete/<%= project.id %>" method="POST" style="display:inline;" onsubmit="return confirm('정말로 이 프로젝트를 삭제하시겠습니까?');">
+                                                        <button type="submit" class="btn btn-sm btn-danger">삭제</button>
+                                                    </form>
+                                                <% } %>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="completed" role="tabpanel" aria-labelledby="completed-tab">
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <table class="table table-bordered" id="completedProjectsTable">
+                                <thead>
+                                    <tr>
+                                        <th>프로젝트명</th>
+                                        <th>PM</th>
+                                        <th>담당영업</th>
+                                        <th>상태</th>
+                                        <th>진척율</th>
+                                        <th>시작일</th>
+                                        <th>종료일</th>
+                                        <th>관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% projects.filter(p => p.status === '완료').forEach(project => { %>
+                                        <tr>
+                                            <td><a href="/projects/<%= project.id %>"><%= project.name %></a></td>
+                                            <td><%= project.pm_name || '없음' %></td>
+                                            <td><%= project.sales_rep_name || '없음' %></td>
+                                            <td><%= project.status %></td>
+                                            <td>
+                                                <div class="progress progress-xs">
+                                                    <div class="progress-bar bg-success" role="progressbar" style="width: <%= project.progress %>%;" aria-valuenow="<%= project.progress %>" aria-valuemin="0" aria-valuemax="100"></div>
+                                                </div>
+                                                <small><%= project.progress || 0 %>%</small>
+                                            </td>
+                                            <td><%= project.start_date ? new Date(project.start_date).toLocaleDateString() : '' %></td>
+                                            <td><%= project.end_date ? new Date(project.end_date).toLocaleDateString() : '' %></td>
+                                            <td>
+                                                <a href="/projects/<%= project.id %>" class="btn btn-sm btn-info">상세보기</a>
+                                                <% if (currentUser && (currentUser.role === 'admin' || currentUser.id == project.pm_id)) { %>
+                                                    <a href="/projects/edit/<%= project.id %>" class="btn btn-sm btn-warning">수정</a>
+                                                <% } %>
+                                                <% if (currentUser && (currentUser.role === 'admin' || currentUser.id == project.pm_id)) { %>
+                                                    <form action="/projects/delete/<%= project.id %>" method="POST" style="display:inline;" onsubmit="return confirm('정말로 이 프로젝트를 삭제하시겠습니까?');">
+                                                        <button type="submit" class="btn btn-sm btn-danger">삭제</button>
+                                                    </form>
+                                                <% } %>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('#ongoingProjectsTable').DataTable({
+        language: {
+            url: '/js/datatables/ko.json'
+        }
+    });
+    $('#completedProjectsTable').DataTable({
+        language: {
+            url: '/js/datatables/ko.json'
+        }
+    });
+});
+</script>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,8 @@
+/* Mobile Sidebar Scrolling */
+@media (max-width: 992px) {
+  .sidebar-wrapper {
+    height: calc(100vh - 57px);
+    overflow-y: auto;
+    padding-bottom: 20px;
+  }
+}

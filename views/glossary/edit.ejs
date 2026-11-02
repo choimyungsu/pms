@@ -1,0 +1,147 @@
+<%- include('../partials/header', { page: 'glossary_edit' }) %>
+<%- include('../partials/sidebar', { page: 'glossary_edit' }) %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">용어 수정</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-body">
+                    <% if (message) { %>
+                        <div class="alert alert-success" role="alert">
+                            <%= message %>
+                        </div>
+                    <% } %>
+                    <% if (error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <%= error %>
+                        </div>
+                    <% } %>
+                    <form action="/glossary/edit/<%= term.id %>" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="_method" value="PUT"> <!-- For method override if needed -->
+                        <input type="hidden" name="existing_image_path" value="<%= term.image_path || '' %>">
+                        <div class="mb-3">
+                            <label for="term" class="form-label">용어</label>
+                            <input type="text" class="form-control" id="term" name="term" value="<%= term.term %>" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">설명</label>
+                            <textarea class="form-control" id="description" name="description" rows="10"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="image" class="form-label">대표 이미지</label>
+                            <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                            <small class="form-text text-muted">용어의 대표 이미지를 등록합니다. (선택 사항) 새 이미지 업로드 시 기존 이미지는 교체됩니다.</small>
+                            <% if (term.image_path) { %>
+                                <div class="mt-2" id="currentImageContainer">
+                                    <p>현재 이미지:</p>
+                                    <img src="/uploads/glossary/<%= term.image_path %>" class="img-fluid" style="max-height: 150px;">
+                                    <button type="button" class="btn btn-danger btn-sm mt-2" id="removeImageBtn">이미지 삭제</button>
+                                </div>
+                            <% } %>
+                        </div>
+                        <button type="submit" class="btn btn-primary">수정</button>
+                        <a href="/glossary" class="btn btn-secondary">취소</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script src="https://cdn.ckeditor.com/ckeditor5/35.3.2/classic/ckeditor.js"></script>
+<script>
+    // Custom Upload Adapter Plugin
+    function MyUploadAdapterPlugin(editor) {
+        editor.plugins.get('FileRepository').createUploadAdapter = (loader) => {
+            return new MyUploadAdapter(loader);
+        };
+    }
+
+    // Custom Upload Adapter Class
+    class MyUploadAdapter {
+        constructor(loader) {
+            this.loader = loader;
+        }
+
+        upload() {
+            return this.loader.file
+                .then(file => new Promise((resolve, reject) => {
+                    const formData = new FormData();
+                    formData.append('image', file);
+
+                    fetch('/glossary/upload-image', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            return response.json();
+                        } else {
+                            return response.text().then(text => {
+                                throw new Error(`Server responded with ${response.status}: ${text}`);
+                            });
+                        }
+                    })
+                    .then(data => {
+                        if (data.success && data.filePath) {
+                            resolve({
+                                default: data.filePath
+                            });
+                        } else {
+                            reject(data.message || 'Upload failed');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('CKEditor image upload failed:', error);
+                        reject(error);
+                    });
+                }));
+        }
+
+        abort() {
+            // Abort logic can be implemented here
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const removeImageBtn = document.getElementById('removeImageBtn');
+        const imageInput = document.getElementById('image');
+        const existingImagePathInput = document.querySelector('input[name="existing_image_path"]');
+        const currentImageContainer = document.getElementById('currentImageContainer');
+
+        if (removeImageBtn) {
+            removeImageBtn.addEventListener('click', function() {
+                imageInput.value = ''; // Clear file input
+                existingImagePathInput.value = ''; // Clear existing path
+                if (currentImageContainer) {
+                    currentImageContainer.style.display = 'none';
+                }
+            });
+        }
+
+        // Initialize CKEditor with the custom adapter
+        ClassicEditor
+            .create(document.querySelector('#description'), {
+                extraPlugins: [MyUploadAdapterPlugin],
+            })
+            .then(editor => {
+                // Set initial data for the editor
+                const descriptionData = <%- JSON.stringify(term.description || '') %>;
+                editor.setData(descriptionData);
+            })
+            .catch(error => {
+                console.error(error);
+            });
+    });
+</script>
+
+<%- include('../partials/footer') %>

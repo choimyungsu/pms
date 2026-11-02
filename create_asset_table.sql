@@ -1,0 +1,21 @@
+CREATE TABLE tb_assets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    photo_path VARCHAR(255),
+    purchase_date DATE,
+    asset_value DECIMAL(15, 2),
+    handler_id INT,
+    manufacturer VARCHAR(255),
+    model_name VARCHAR(255),
+    serial_number VARCHAR(255) UNIQUE,
+    asset_management_number VARCHAR(255) UNIQUE,
+    purchase_price DECIMAL(15, 2),
+    warranty_end_date DATE,
+    status ENUM('사용중', '대기', '폐기', '분실') NOT NULL DEFAULT '대기',
+    notes TEXT,
+    creator_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (handler_id) REFERENCES tb_user(id) ON DELETE SET NULL,
+    FOREIGN KEY (creator_id) REFERENCES tb_user(id) ON DELETE SET NULL
+);

@@ -1,0 +1,1 @@
+ALTER TABLE tb_projects ADD COLUMN progress INT DEFAULT 0;

@@ -1,0 +1,1 @@
+ALTER TABLE tb_project_knowledge_links ADD COLUMN creator_id INT, ADD FOREIGN KEY (creator_id) REFERENCES tb_user(id);

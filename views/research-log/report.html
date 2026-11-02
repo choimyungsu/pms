@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>연구일지</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* 화면/인쇄 공통 */
+    :root {
+      --border: #222;
+      --text: #111;
+      --muted: #666;
+      --bg: #fff;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: #e9ecef;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", Arial, sans-serif;
+      color: var(--text);
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    /* A4 시트 */
+    .sheet {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 12mm auto;
+      padding: 14mm 16mm;
+      background: var(--bg);
+      box-shadow: 0 2px 12px rgba(0,0,0,.12);
+    }
+    @media print {
+      body { background: transparent; }
+      .sheet {
+        margin: 0;
+        box-shadow: none;
+        page-break-after: always;
+      }
+      @page { size: A4; margin: 12mm 14mm; }
+    }
+
+    h1.title {
+      margin: 0 0 10px;
+      text-align: center;
+      font-size: 22pt;
+      letter-spacing: .04em;
+      font-weight: 700;
+    }
+
+    /* 상단 정보 표 */
+    .meta-table, .info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+      table-layout: fixed;
+      font-size: 11pt;
+    }
+    .meta-table th, .meta-table td,
+    .info-table th, .info-table td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      vertical-align: middle;
+      word-break: keep-all;
+    }
+    .meta-table th, .info-table th {
+      background: #f7f7f7;
+      text-align: center;
+      font-weight: 700;
+      width: 22%;
+    }
+    .meta-table td, .info-table td {
+      background: #fff;
+    }
+    .meta-table .small, .info-table .small {
+      font-size: 10pt; color: var(--muted);
+    }
+
+    /* 결재란 */
+    .approval {
+      display: grid;
+      grid-template-columns: 28mm 1fr;
+      gap: 8px;
+      margin: 12px 0 16px;
+      height: 42mm;
+    }
+    .approval .stamp-title {
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      letter-spacing: .3em;
+      font-weight: 800;
+      font-size: 14pt;
+      user-select: none;
+    }
+    .approval .stamp-grid {
+      border: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      height: 100%;
+    }
+    .approval .cell {
+      border-left: 1px solid var(--border);
+      display: grid;
+      grid-template-rows: 22px 1fr;
+    }
+    .approval .cell:first-child { border-left: 0; }
+    .approval .cell .role {
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 11pt; background: #f7f7f7;
+    }
+    .approval .cell .sign {
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted); font-size: 10pt;
+    }
+
+    /* 섹션 (주요내용/기대효과 등) */
+    .section {
+      border: 1px solid var(--border);
+      margin-top: 10px;
+    }
+    .section .section-head {
+      background: #f7f7f7;
+      border-bottom: 1px solid var(--border);
+      padding: 6px 8px;
+      font-weight: 700;
+      font-size: 11.5pt;
+    }
+    .section .section-body {
+      padding: 10px 10px 60px; /* 적당한 기본 높이 */
+      min-height: 80mm;       /* 필요시 조절 */
+      font-size: 11pt;
+      line-height: 1.6;
+    }
+
+    /* 푸터 */
+    .footer {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 10.5pt;
+      color: #333;
+    }
+
+    /* 라벨 강조 */
+    .label { font-weight: 700; }
+
+    /* 좁은 화면 대응 */
+    @media (max-width: 900px) {
+      .sheet { width: 100%; min-height: auto; margin: 0; padding: 14px; }
+      .approval { height: auto; }
+      .section .section-body { min-height: 200px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet">
+
+    <!-- 제목 -->
+    <h1 class="title">연구일지</h1>
+
+    <!-- 상단 메타 정보 -->
+    <table class="meta-table" aria-label="상단 메타 정보">
+      <colgroup>
+        <col style="width: 18%;">
+        <col style="width: 32%;">
+        <col style="width: 18%;">
+        <col style="width: 32%;">
+      </colgroup>
+      <tr>
+        <th>문서분류</th>
+        <td>기업부설연구소</td>
+        <th>페이지번호</th>
+        <td>1 / 1</td>
+      </tr>
+      <tr>
+        <th>작성자</th>
+        <td>O O O</td>
+        <th>작성일자</th>
+        <td>2025. 09. 01</td>
+      </tr>
+    </table>
+
+    <!-- 안내 문구 -->
+    <p style="margin: 8px 0 0 0; font-size: 11pt;">
+      아래와 같이 연구 일지를 제출합니다.
+    </p>
+
+    <!-- 결재란 -->
+    <section class="approval" aria-label="결재란">
+      <div class="stamp-title">결&nbsp;재</div>
+      <div class="stamp-grid">
+        <div class="cell">
+          <div class="role">담당</div>
+          <div class="sign">서명/도장</div>
+        </div>
+        <div class="cell">
+          <div class="role">팀장</div>
+          <div class="sign">서명/도장</div>
+        </div>
+        <div class="cell">
+          <div class="role">소장</div>
+          <div class="sign">서명/도장</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 기본 정보 -->
+    <table class="info-table" aria-label="기본 정보">
+      <colgroup>
+        <col style="width: 16%;">
+        <col style="width: 34%;">
+        <col style="width: 16%;">
+        <col style="width: 34%;">
+      </colgroup>
+      <tr>
+        <th>소속</th>
+        <td>기업부설연구소</td>
+        <th>작성자</th>
+        <td>O O O</td>
+      </tr>
+      <tr>
+        <th>연구제목</th>
+        <td colspan="3">침입차단시스템 정기점검 자동화 솔루션</td>
+      </tr>
+      <tr>
+        <th>연구목적</th>
+        <td colspan="3" style="height: 28mm;"></td>
+      </tr>
+      <tr>
+        <th>참석자</th>
+        <td colspan="3">O O O, X X X, O O O, X X X, OOO</td>
+      </tr>
+      <tr>
+        <th>회의장소</th>
+        <td colspan="3">제이원아이티 기업부설연구소 회의실</td>
+      </tr>
+    </table>
+
+    <!-- 주요 내용 -->
+    <section class="section" aria-labelledby="sec1">
+      <div class="section-head" id="sec1">연&nbsp;구&nbsp;주&nbsp;요&nbsp;내&nbsp;용</div>
+      <div class="section-body">
+        <!-- 여기에 내용을 입력하세요 -->
+      </div>
+    </section>
+
+    <!-- 기대 효과 -->
+    <section class="section" aria-labelledby="sec2">
+      <div class="section-head" id="sec2">연&nbsp;구&nbsp;기&nbsp;대&nbsp;효&nbsp;과</div>
+      <div class="section-body">
+        <!-- 여기에 내용을 입력하세요 -->
+      </div>
+    </section>
+
+    <!-- 푸터 -->
+    <div class="footer">㈜제이원아이티 기업부설연구소</div>
+
+  </main>
+</body>
+</html>

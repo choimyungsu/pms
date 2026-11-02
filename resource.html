@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>인력 리소스 분석 대시보드</title>
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Chart.js 4 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    body { background: #0b1020; color: #e6e9ef; }
+    .card { background: #121832; border: 1px solid #233; }
+    .card h6, .card .value { color: #fff; }
+    .kpi { font-size: 1.5rem; font-weight: 700; }
+    .sub { font-size: .85rem; color: #b7c0d1; }
+    .chart-wrap { min-height: 320px; }
+    .table thead th { color:#9fb2cf; border-bottom-color:#24314a; }
+    .badge-soft { background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); }
+    .legend-dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container-fluid p-4">
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+      <h2 class="me-auto mb-0">인력 리소스 분석</h2>
+      <select id="deptFilter" class="form-select form-select-sm w-auto">
+        <option value="all" selected>전체 부서</option>
+      </select>
+      <select id="periodFilter" class="form-select form-select-sm w-auto">
+        <option value="Q3-2025" selected>2025 Q3</option>
+        <option value="Q4-2025">2025 Q4</option>
+      </select>
+      <button class="btn btn-sm btn-light" id="exportBtn">CSV 내보내기</button>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-md-3">
+        <div class="card p-3">
+          <h6 class="sub">총 인원</h6>
+          <div class="kpi" id="kpiHeadcount">-</div>
+          <div class="sub" id="kpiHeadcountSub">정규직/계약직/프리랜서</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-3">
+        <div class="card p-3">
+          <h6 class="sub">평균 배정률</h6>
+          <div class="kpi" id="kpiAvgAlloc">-</div>
+          <div class="sub">과부하 인원: <span id="kpiOver">0</span></div>
+        </div>
+      </div>
+      <div class="col-12 col-md-3">
+        <div class="card p-3">
+          <h6 class="sub">유휴 인원</h6>
+          <div class="kpi" id="kpiIdle">-</div>
+          <div class="sub">가용률 ≥ 80% 인원</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-3">
+        <div class="card p-3">
+          <h6 class="sub">월 인건비(예상↔실제)</h6>
+          <div class="kpi"><span id="kpiCostActual">-</span> / <span id="kpiCostPlan">-</span></div>
+          <div class="sub">이번 달 기준</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-xl-4">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h6 class="mb-0">고용 형태 분포</h6>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="typeChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-xl-4">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h6 class="mb-0">부서별 가용률</h6>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="deptUtilChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-xl-4">
+        <div class="card p-3 h-100">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h6 class="mb-0">월별 인건비 추이</h6>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="costChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-12">
+        <div class="card p-3">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h6 class="mb-0">프로젝트 리소스 타임라인 (가짜 Gantt)</h6>
+            <div class="sub">기간: <span id="timelineRange">2025-07-01 ~ 2025-09-30</span></div>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="ganttChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detail Tabs -->
+    <div class="card p-3 mb-5">
+      <ul class="nav nav-tabs" id="detailTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="tab-employees" data-bs-toggle="tab" data-bs-target="#pane-employees" type="button" role="tab">직원 가용성</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-projects" data-bs-toggle="tab" data-bs-target="#pane-projects" type="button" role="tab">프로젝트 배정</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-risks" data-bs-toggle="tab" data-bs-target="#pane-risks" type="button" role="tab">리스크</button>
+        </li>
+      </ul>
+      <div class="tab-content pt-3">
+        <div class="tab-pane fade show active" id="pane-employees" role="tabpanel">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th>이름</th>
+                  <th>부서</th>
+                  <th>역할</th>
+                  <th>배정률</th>
+                  <th>가용률</th>
+                  <th>스킬</th>
+                  <th>상태</th>
+                </tr>
+              </thead>
+              <tbody id="empTbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="tab-pane fade" id="pane-projects" role="tabpanel">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th>프로젝트</th>
+                  <th>기간</th>
+                  <th>인원</th>
+                  <th>예상/실제 인건비</th>
+                  <th>진행률</th>
+                </tr>
+              </thead>
+              <tbody id="projTbody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="tab-pane fade" id="pane-risks" role="tabpanel">
+          <ul id="riskList" class="mb-0"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // -------------------------------
+    // 샘플 데이터 (서버/EJS에서 교체 가능)
+    // -------------------------------
+    const employees = [
+      { name:'김지훈', dept:'플랫폼', role:'BE', type:'정규직', alloc:0.8, skills:['Node.js','PostgreSQL'], status:'정상' },
+      { name:'박민서', dept:'플랫폼', role:'FE', type:'정규직', alloc:1.1, skills:['React','Chart.js'], status:'과부하' },
+      { name:'이서연', dept:'데이터', role:'DS', type:'계약직', alloc:0.6, skills:['Python','Pandas'], status:'정상' },
+      { name:'정우진', dept:'데이터', role:'DE', type:'정규직', alloc:0.2, skills:['Airflow','ETL'], status:'유휴' },
+      { name:'최유진', dept:'인프라', role:'DevOps', type:'프리랜서', alloc:0.9, skills:['Linux','K8s'], status:'정상' },
+      { name:'한가은', dept:'웹서비스', role:'PM', type:'정규직', alloc:1.25, skills:['Agile','Jira'], status:'과부하' },
+      { name:'오승민', dept:'웹서비스', role:'QA', type:'계약직', alloc:0.5, skills:['Cypress','API Test'], status:'정상' },
+    ];
+
+    const projects = [
+      { name:'신규몰 리뉴얼', start:'2025-07-05', end:'2025-09-20', headcount:8, costPlan:120_000_000, costActual:110_000_000, progress:0.62 },
+      { name:'데이터파이프라인 고도화', start:'2025-08-01', end:'2025-12-15', headcount:5, costPlan:80_000_000, costActual:60_000_000, progress:0.31 },
+      { name:'인사포털 개편', start:'2025-06-15', end:'2025-10-30', headcount:6, costPlan:95_000_000, costActual:70_000_000, progress:0.48 },
+    ];
+
+    const deptList = [...new Set(employees.map(e => e.dept))];
+
+    // 월별 인건비 (예: 2025-06 ~ 2025-10)
+    const monthlyCost = {
+      labels:['2025-06','2025-07','2025-08','2025-09','2025-10'],
+      plan:[180, 200, 210, 220, 230],
+      actual:[175, 195, 205, 0, 0] // 9~10월은 진행 중 가정
+    };
+
+    // -------------------------------
+    // 유틸
+    // -------------------------------
+    const fmt = new Intl.NumberFormat('ko-KR');
+    function pct(v){ return (v*100).toFixed(0) + '%'; }
+    function money(m){ return '₩' + fmt.format(Math.round(m/1_000_000)) + 'M'; }
+    function dateDiffDays(a,b){ return (new Date(b)-new Date(a))/(1000*60*60*24); }
+
+    // -------------------------------
+    // KPI 계산
+    // -------------------------------
+    function refreshKPIs(filteredEmps){
+      const headcount = filteredEmps.length;
+      const typeCounts = filteredEmps.reduce((acc,e)=>{ acc[e.type]=(acc[e.type]||0)+1; return acc; },{});
+      const avgAlloc = filteredEmps.reduce((s,e)=>s+e.alloc,0) / Math.max(1,headcount);
+      const over = filteredEmps.filter(e=>e.alloc>1).length;
+      const idle = filteredEmps.filter(e=>e.alloc<=0.2).length;
+
+      document.getElementById('kpiHeadcount').textContent = headcount;
+      document.getElementById('kpiHeadcountSub').textContent = `정규 ${typeCounts['정규직']||0} / 계약 ${typeCounts['계약직']||0} / 프리 ${typeCounts['프리랜서']||0}`;
+      document.getElementById('kpiAvgAlloc').textContent = pct(avgAlloc);
+      document.getElementById('kpiOver').textContent = over;
+      document.getElementById('kpiIdle').textContent = idle;
+
+      // 이번 달 비용 (labels에서 현재 월 찾기)
+      const now = new Date();
+      const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+      const i = monthlyCost.labels.indexOf(ym);
+      const plan = i>=0 ? monthlyCost.plan[i] : monthlyCost.plan.at(-1);
+      const actual = i>=0 ? (monthlyCost.actual[i]||0) : monthlyCost.actual.at(-1);
+      document.getElementById('kpiCostPlan').textContent = money(plan*1_000_000);
+      document.getElementById('kpiCostActual').textContent = actual? money(actual*1_000_000) : '-';
+    }
+
+    // -------------------------------
+    // 표 렌더링
+    // -------------------------------
+    function renderEmpTable(rows){
+      const tbody = document.getElementById('empTbody');
+      tbody.innerHTML = rows.map(e=>{
+        const avail = Math.max(0, 1 - e.alloc);
+        const badge = e.status==='과부하' ? 'danger' : e.status==='유휴' ? 'warning' : 'success';
+        return `<tr>
+          <td>${e.name}</td>
+          <td>${e.dept}</td>
+          <td>${e.role}</td>
+          <td>${pct(e.alloc)}</td>
+          <td>${pct(avail)}</td>
+          <td>${e.skills.join(', ')}</td>
+          <td><span class="badge text-bg-${badge}">${e.status}</span></td>
+        </tr>`
+      }).join('');
+    }
+
+    function renderProjTable(){
+      const tbody = document.getElementById('projTbody');
+      tbody.innerHTML = projects.map(p=>{
+        const days = dateDiffDays(p.start, p.end);
+        return `<tr>
+          <td>${p.name}</td>
+          <td>${p.start} ~ ${p.end} <span class="sub">(${Math.round(days)}일)</span></td>
+          <td>${p.headcount}명</td>
+          <td>${money(p.costActual)} / ${money(p.costPlan)}</td>
+          <td>
+            <div class="progress" style="height:8px;">
+              <div class="progress-bar" role="progressbar" style="width:${(p.progress*100).toFixed(0)}%"></div>
+            </div>
+          </td>
+        </tr>`
+      }).join('');
+    }
+
+    // -------------------------------
+    // 차트들
+    // -------------------------------
+    let typeChart, deptUtilChart, costChart, ganttChart;
+
+    function buildTypeChart(filteredEmps){
+      const ctx = document.getElementById('typeChart');
+      const typeCounts = filteredEmps.reduce((acc,e)=>{ acc[e.type]=(acc[e.type]||0)+1; return acc; },{});
+      const labels = Object.keys(typeCounts);
+      const data = Object.values(typeCounts);
+      typeChart?.destroy();
+      typeChart = new Chart(ctx, {
+        type:'doughnut',
+        data:{ labels, datasets:[{ data }] },
+        options:{ plugins:{ legend:{ position:'bottom' } } }
+      });
+    }
+
+    function buildDeptUtilChart(){
+      const ctx = document.getElementById('deptUtilChart');
+      const byDept = deptList.map(d=>{
+        const emps = employees.filter(e=>e.dept===d);
+        const avgAlloc = emps.reduce((s,e)=>s+e.alloc,0)/Math.max(1,emps.length);
+        return { dept:d, used: Math.min(1,avgAlloc), free: Math.max(0,1-avgAlloc) };
+      });
+      deptUtilChart?.destroy();
+      deptUtilChart = new Chart(ctx, {
+        type:'bar',
+        data:{
+          labels: byDept.map(x=>x.dept),
+          datasets:[
+            { label:'배정', data: byDept.map(x=>x.used), stack:'util' },
+            { label:'가용', data: byDept.map(x=>x.free), stack:'util' }
+          ]
+        },
+        options:{
+          indexAxis:'x',
+          scales:{
+            y:{ beginAtZero:true, max:1, ticks:{ callback: v=> (v*100)+'%' } }
+          },
+          plugins:{ legend:{ position:'bottom' } }
+        }
+      });
+    }
+
+    function buildCostChart(){
+      const ctx = document.getElementById('costChart');
+      costChart?.destroy();
+      costChart = new Chart(ctx, {
+        type:'line',
+        data:{
+          labels: monthlyCost.labels,
+          datasets:[
+            { label:'예상', data: monthlyCost.plan },
+            { label:'실제', data: monthlyCost.actual }
+          ]
+        },
+        options:{
+          plugins:{ legend:{ position:'bottom' } },
+          scales:{ y:{ beginAtZero:true, ticks:{ callback:v=> '₩'+v+'M' } } }
+        }
+      });
+    }
+
+    function buildGanttChart(){
+      // 주차 레이블 (Q3 2025 예시: 7월~9월)
+      const labels = ['7주1','7주2','7주3','7주4','8주1','8주2','8주3','8주4','9주1','9주2','9주3','9주4'];
+      // 각 프로젝트가 해당 주에 투입(1) / 비투입(0)으로 표시되는 단순 스택바
+      const datasetFor = (p)=>{
+        const start = new Date(p.start), end = new Date(p.end);
+        const weeks = labels.map((_,i)=>{
+          const base = new Date(2025, 6, 1); // 2025-07-01
+          const wStart = new Date(base.getTime() + i*7*86400000);
+          const wEnd = new Date(base.getTime() + (i+1)*7*86400000 - 1);
+          return (wEnd>=start && wStart<=end) ? 1 : 0;
+        });
+        return weeks;
+      }
+      const datasets = projects.map(p=>({ label:p.name, data: datasetFor(p), stack:'g', borderWidth:0 }));
+
+      const ctx = document.getElementById('ganttChart');
+      ganttChart?.destroy();
+      ganttChart = new Chart(ctx, {
+        type:'bar',
+        data:{ labels, datasets },
+        options:{
+          indexAxis:'y',
+          responsive:true,
+          scales:{ x:{ stacked:true, ticks:{ stepSize:1, callback:v=> v? v: '' } }, y:{ stacked:true } },
+          plugins:{ legend:{ position:'bottom' }, tooltip:{ enabled:false } }
+        }
+      });
+    }
+
+    // -------------------------------
+    // 리스크 패널 (간단 규칙)
+    // -------------------------------
+    function buildRisks(){
+      const risks = [];
+      const over = employees.filter(e=>e.alloc>1).map(e=>e.name).join(', ');
+      if(over) risks.push(`과부하 인원: ${over}`);
+      const idle = employees.filter(e=>e.alloc<=0.2).map(e=>e.name).join(', ');
+      if(idle) risks.push(`유휴 인원: ${idle}`);
+      const longProj = projects.filter(p=> dateDiffDays(p.start,p.end) > 120).map(p=>p.name).join(', ');
+      if(longProj) risks.push(`장기 프로젝트 모니터링 필요: ${longProj}`);
+
+      const ul = document.getElementById('riskList');
+      ul.innerHTML = risks.length? risks.map(r=>`<li class="mb-2">${r}</li>`).join('') : '<li class="text-muted">현재 주요 리스크 없음</li>';
+    }
+
+    // -------------------------------
+    // 필터 & 내보내기
+    // -------------------------------
+    function applyFilters(){
+      const dept = document.getElementById('deptFilter').value;
+      const filtered = dept==='all' ? employees : employees.filter(e=>e.dept===dept);
+      refreshKPIs(filtered);
+      renderEmpTable(filtered);
+      buildTypeChart(filtered);
+    }
+
+    function exportCSV(){
+      const headers = ['name','dept','role','type','alloc','skills','status'];
+      const rows = employees.map(e=> [e.name,e.dept,e.role,e.type,e.alloc,`"${e.skills.join(' ')}"`,e.status].join(','));
+      const blob = new Blob([headers.join(',')+'\n'+rows.join('\n')], { type:'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'employees.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // -------------------------------
+    // 초기화
+    // -------------------------------
+    function init(){
+      // 부서 필터 옵션
+      const sel = document.getElementById('deptFilter');
+      deptList.forEach(d=>{
+        const o = document.createElement('option'); o.value=d; o.textContent=d; sel.appendChild(o);
+      });
+
+      refreshKPIs(employees);
+      renderEmpTable(employees);
+      renderProjTable();
+      buildTypeChart(employees);
+      buildDeptUtilChart();
+      buildCostChart();
+      buildGanttChart();
+      buildRisks();
+
+      document.getElementById('deptFilter').addEventListener('change', applyFilters);
+      document.getElementById('periodFilter').addEventListener('change', (e)=>{
+        // 데모: 레이블만 바꾸는 간단 처리
+        document.getElementById('timelineRange').textContent = e.target.value==='Q4-2025' ? '2025-10-01 ~ 2025-12-31' : '2025-07-01 ~ 2025-09-30';
+        buildGanttChart();
+      });
+      document.getElementById('exportBtn').addEventListener('click', exportCSV);
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

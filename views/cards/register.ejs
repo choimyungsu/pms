@@ -1,0 +1,148 @@
+<%- include('../partials/header', { page: 'card_register' }) %>
+<%- include('../partials/sidebar', { page: 'card_register' }) %>
+
+<!-- Main content -->
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">명함 등록</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fa-regular fa-address-card"></i> 명함 인식 프로그램</h3>
+                        </div>
+                        <div class="card-body">
+                            <form action="/cards/upload" method="POST" enctype="multipart/form-data">
+                                <div class="mb-3">
+                                    <input class="form-control" type="file" id="businessCard" name="businessCard" accept="image/*" required>
+                                </div>
+                                <div class="d-flex">
+                                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass"></i> 인식 시작</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <% if (locals.data) { %>
+            <div class="row">
+                <div class="col-md-5">
+                    <div class="card mb-3">
+                        <div class="card-header"><h3 class="card-title">인식된 이미지</h3></div>
+                        <div class="card-body"><img src="<%= data.imagePath %>" class="img-fluid rounded" alt="Business Card"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3 class="card-title">추출된 전체 텍스트</h3></div>
+                        <div class="card-body"><pre class="bg-light p-3 rounded"><%= data.rawText %></pre></div>
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <div class="card">
+                        <div class="card-header"><h3 class="card-title">구조화된 정보 (편집 후 저장)</h3></div>
+                        <div class="card-body">
+                            <form action="/cards/save" method="POST">
+                                <input type="hidden" name="imagePath" value="<%= data.imagePath %>">
+                                <!-- input fields -->
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">이름</label><div class="col-sm-9"><input type="text" class="form-control" name="name" value="<%= data.structuredData.name || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">회사명</label><div class="col-sm-9"><input type="text" class="form-control" name="company" value="<%= data.structuredData.company || '' %>"></div></div>
+                                <div class="mb-2 row">
+                                    <label class="col-sm-3 col-form-label">고객구분</label>
+                                    <div class="col-sm-9">
+                                        <select class="form-select" name="customer_type" id="customer_type">
+                                            <option value="">선택</option>
+                                            <option value="고객">고객</option>
+                                            <option value="협력사">협력사</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-2 row" id="customer_subtype_row" style="display: none;">
+                                    <label class="col-sm-3 col-form-label">고객 상세구분</label>
+                                    <div class="col-sm-9">
+                                        <select class="form-select" name="customer_subtype">
+                                            <option value="">선택</option>
+                                            <option value="공공">공공</option>
+                                            <option value="기업">기업</option>
+                                            <option value="금융">금융</option>
+                                            <option value="국방">국방</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-2 row">
+                                    <label class="col-sm-3 col-form-label">제조사</label>
+                                    <div class="col-sm-9">
+                                        <input type="text" class="form-control" name="manufacturer" value="">
+                                    </div>
+                                </div>
+                                <div class="mb-2 row">
+                                    <label class="col-sm-3 col-form-label">계약여부</label>
+                                    <div class="col-sm-9">
+                                        <select class="form-select" name="contract_status">
+                                            <option value="">선택</option>
+                                            <option value="계약">계약</option>
+                                            <option value="미계약">미계약</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-2 row">
+                                    <label class="col-sm-3 col-form-label">관련명함</label>
+                                    <div class="col-sm-9">
+                                        <input type="text" class="form-control" id="related-cards-input" placeholder="이름/회사명으로 검색 후 선택" autocomplete="off">
+                                        <div id="related-cards-list" class="mt-2"></div>
+                                        <input type="hidden" name="related_card_ids" id="related_card_ids" value="">
+                                    </div>
+                                </div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">부서</label><div class="col-sm-9"><input type="text" class="form-control" name="department" value="<%= data.structuredData.department || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">직책</label><div class="col-sm-9"><input type="text" class="form-control" name="position" value="<%= data.structuredData.position || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">이메일</label><div class="col-sm-9"><input type="email" class="form-control" name="email" value="<%= data.structuredData.email || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">핸드폰</label><div class="col-sm-9"><input type="text" class="form-control" name="mobile" value="<%= data.structuredData.mobile || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">전화</label><div class="col-sm-9"><input type="text" class="form-control" name="phone" value="<%= data.structuredData.phone || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">팩스</label><div class="col-sm-9"><input type="text" class="form-control" name="fax" value="<%= data.structuredData.fax || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">홈페이지</label><div class="col-sm-9"><input type="text" class="form-control" name="website" value="<%= data.structuredData.website || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">주소</label><div class="col-sm-9"><textarea class="form-control" name="address" rows="3"><%= data.structuredData.address || '' %></textarea></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">메모</label><div class="col-sm-9"><textarea class="form-control" name="memo" rows="3"></textarea></div></div>
+                                <div class="mb-3 row"><div class="col-sm-9 offset-sm-3"><div class="form-check"><input class="form-check-input" type="checkbox" name="email_opt_in" value="true"><label class="form-check-label">이메일 수신에 동의합니다.</label></div></div></div>
+                                <div class="d-grid"><button type="submit" class="btn btn-success"><i class="fa-solid fa-floppy-disk"></i> 데이터베이스에 저장</button></div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <% } %>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<script src="/js/api/card-autocomplete.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const customerType = document.getElementById('customer_type');
+        const customerSubtypeRow = document.getElementById('customer_subtype_row');
+        const contractStatus = document.querySelector('[name="contract_status"]');
+
+        function toggleCustomerSubtype() {
+            if (customerType.value === '고객') {
+                customerSubtypeRow.style.display = '';
+                contractStatus.required = true;
+            } else {
+                customerSubtypeRow.style.display = 'none';
+                contractStatus.required = false;
+            }
+        }
+
+        customerType.addEventListener('change', toggleCustomerSubtype);
+
+        // Initial check on page load
+        toggleCustomerSubtype();
+    });
+</script>

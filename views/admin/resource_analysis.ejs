@@ -1,0 +1,371 @@
+<%- include('../partials/header', { page: 'admin_resource_analysis' }) %>
+<%- include('../partials/sidebar', { page: 'admin_resource_analysis' }) %>
+
+<!-- Main content -->
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">리소스 분석</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Card 1: 총인원 및 부서별 인원수 -->
+                <div class="col-lg-6 col-md-12 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h3 class="card-title"><i class="fa-solid fa-users"></i> 총인원 및 부서별 인원수</h3>
+                        </div>
+                        <div class="card-body">
+                            <h4 class="mb-3">총 인원: <strong><%= totalUsers %>명</strong></h4>
+                            <h5>부서별 인원수:</h5>
+                            <ul class="list-group list-group-flush">
+                                <% if (usersByDepartment && usersByDepartment.length > 0) { %>
+                                    <% usersByDepartment.forEach(dept => {
+                                        const deptName = dept.department_name || '부서 없음';
+                                    %>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            <%= deptName %>
+                                            <span class="badge bg-primary rounded-pill"><%= dept.user_count %>명</span>
+                                        </li>
+                                    <% }); %>
+                                <% } else { %>
+                                    <li class="list-group-item">부서별 인원 정보가 없습니다.</li>
+                                <% } %>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: 평균 배정률 및 과부하 인원수 -->
+                <div class="col-lg-6 col-md-12 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h3 class="card-title"><i class="fa-solid fa-chart-line"></i> 평균 배정률 및 과부하 인원수</h3>
+                        </div>
+                        <div class="card-body">
+                            <h4 class="mb-3">평균 배정률: <strong><%= avgAllocationRate %></strong> <small>(플레이스홀더)</small></h4>
+                            <h4 class="mb-3">과부하 인원수: <strong><%= overloadedPersonnel %>명</strong> <small>(플레이스홀더)</small></h4>
+                            <p class="text-muted">* 배정률 및 과부하 인원수는 현재 플레이스홀더 데이터입니다. 실제 데이터 연동을 위해서는 추가적인 로직이 필요합니다.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 3: 유휴 인원 -->
+                <!-- <div class="col-lg-6 col-md-12 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-warning text-white">
+                            <h3 class="card-title"><i class="fa-solid fa-person-walking-luggage"></i> 유휴 인원</h3>
+                        </div>
+                        <div class="card-body">
+                            <h4 class="mb-3">유휴 인원: <strong><%= idlePersonnel %>명</strong> <small>(플레이스홀더)</small></h4>
+                            <p class="text-muted">* 유휴 인원수는 현재 플레이스홀더 데이터입니다. 실제 데이터 연동을 위해서는 추가적인 로직이 필요합니다.</p>
+                        </div>
+                    </div>
+                </div> -->
+
+                <!-- Card 4: 월 인건비 (예상-실제) -->
+                <!-- <div class="col-lg-6 col-md-12 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h3 class="card-title"><i class="fa-solid fa-money-bill-wave"></i> 월 인건비 (예상-실제)</h3>
+                        </div>
+                        <div class="card-body">
+                            <h4 class="mb-3">예상 인건비: <strong><%= estimatedLaborCost %></strong> <small>(플레이스홀더)</small></h4>
+                            <h4 class="mb-3">실제 인건비: <strong><%= actualLaborCost %></strong> <small>(플레이스홀더)</small></h4>
+                            <p class="text-muted">* 인건비 데이터는 현재 플레이스홀더 데이터입니다. 실제 데이터 연동을 위해서는 추가적인 로직이 필요합니다.</p>
+                        </div>
+                    </div>
+                </div> -->
+            </div>
+
+            <!-- New Tabbed Section -->
+            <div class="row" style="margin-top: 2rem;">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header border-bottom-0" style="padding-left: 1rem;">
+                            <ul class="nav nav-tabs" id="resourceTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="availability-tab" data-bs-toggle="tab" data-bs-target="#availability" type="button" role="tab" aria-controls="availability" aria-selected="true">직원 가용성</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="assignment-tab" data-bs-toggle="tab" data-bs-target="#assignment" type="button" role="tab" aria-controls="assignment" aria-selected="false">프로젝트 배정</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="schedule-analysis-tab" data-bs-toggle="tab" data-bs-target="#schedule-analysis" type="button" role="tab" aria-controls="schedule-analysis" aria-selected="false">일정 분석</button>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="card-body" >
+                            <div class="tab-content" id="resourceTabsContent">
+                                <!-- 직원 가용성 Tab Pane -->
+                                <div class="tab-pane fade show active" id="availability" role="tabpanel" aria-labelledby="availability-tab">
+                                    <h4>직원 가용성 목록</h4>
+                                    <table class="table table-bordered table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>이름</th>
+                                                <th>부서</th>
+                                                <th>직책</th>
+                                                <th>직위</th>
+                                                <th>스킬</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if (allUsersWithDetails && allUsersWithDetails.length > 0) { %>
+                                                <% allUsersWithDetails.forEach(user => { %>
+                                                    <tr>
+                                                        <td>
+                                                            <% if (currentUser && currentUser.role === 'admin' && currentUser.id !== user.id && user.role !== 'admin') { %>
+                                                                <a href="/admin/login-as/<%= user.id %>" onclick="return confirm('<%= user.name %> 계정으로 로그인하시겠습니까?');" title="<%= user.name %> 계정으로 로그인">
+                                                                    <%= user.name %> <i class="fa-solid fa-arrow-right-to-bracket fa-xs"></i>
+                                                                </a>
+                                                            <% } else { %>
+                                                                <%= user.name %>
+                                                            <% } %>
+                                                        </td>
+                                                        <td><%= user.department_name || '-' %></td>
+                                                        <td><%= user.position || '-' %></td>
+                                                        <td><%= user.title || '-' %></td>
+                                                        <td><%= user.skill || '-' %></td>
+                                                    </tr>
+                                                <% }); %>
+                                            <% } else { %>
+                                                <tr>
+                                                    <td colspan="5">직원 정보가 없습니다.</td>
+                                                </tr>
+                                            <% } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- 프로젝트 배정 Tab Pane -->
+                                <div class="tab-pane fade" id="assignment" role="tabpanel" aria-labelledby="assignment-tab">
+                                    <h4>프로젝트 배정 현황</h4>
+                                    <table class="table table-bordered table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>프로젝트</th>
+                                                <th>기간</th>
+                                                <th>인원 (총명수)</th>
+                                                <th>진행여부</th>
+                                                <th>예상 인건비</th>
+                                                <th>실제 인건비</th>
+                                                <th>진행률</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if (finalProjects && finalProjects.length > 0) { %>
+                                                <% finalProjects.forEach(project => {
+                                                    const startDate = project.start_date ? new Date(project.start_date).toLocaleDateString('ko-KR') : '-';
+                                                    const endDate = project.end_date ? new Date(project.end_date).toLocaleDateString('ko-KR') : '-';
+                                                    const assignedUserNames = project.assignedUsers.map(u => u.name).join(', ');
+                                                %>
+                                                    <tr>
+                                                        <td><%= project.name %></td>
+                                                        <td><%= startDate %> ~ <%= endDate %></td>
+                                                        <td>
+                                                            <%= project.assignedUsers.length %>명
+                                                            <% if (assignedUserNames) { %>
+                                                                <br><small>(<%= assignedUserNames %>)</small>
+                                                            <% } %>
+                                                        </td>
+                                                        <td><%= project.status %></td>
+                                                        <td><%= project.estimated_labor_cost %></td>
+                                                        <td><%= project.actual_labor_cost %></td>
+                                                        <td><%= project.progress_rate %></td>
+                                                    </tr>
+                                                <% }); %>
+                                            <% } else { %>
+                                                <tr>
+                                                    <td colspan="7">프로젝트 배정 정보가 없습니다.</td>
+                                                </tr>
+                                            <% } %>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- 일정 분석 Tab Pane -->
+                                <div class="tab-pane fade" id="schedule-analysis" role="tabpanel" aria-labelledby="schedule-analysis-tab">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h4>사용자별 월간 일정</h4>
+                                        <div>
+                                            <button class="btn btn-sm btn-outline-secondary" id="prevMonthBtn"><i class="fa-solid fa-chevron-left"></i> 이전 달</button>
+                                            <button class="btn btn-sm btn-outline-secondary ms-2" id="nextMonthBtn">다음 달 <i class="fa-solid fa-chevron-right"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-striped table-sm" id="scheduleAnalysisTable">
+                                            <thead>
+                                                <tr id="scheduleHeaderRow1">
+                                                    <th rowspan="2" class="align-middle text-center">이름</th>
+                                                    <th rowspan="2" class="align-middle text-center">프로젝트 참여 수</th>
+                                                    <th rowspan="2" class="align-middle text-center">가용률 (%)</th>
+                                                    <th colspan="<%= dateRange.length %>" class="text-center" id="scheduleDateRangeHeader">일정 정보 (<%= dateRange[0].toLocaleDateString('ko-KR') %> ~ <%= dateRange[dateRange.length - 1].toLocaleDateString('ko-KR') %>)</th>
+                                                </tr>
+                                                <tr id="scheduleHeaderRow2">
+                                                    <% dateRange.forEach(date => { %>
+                                                        <th class="text-center"><%= date.getDate() %></th>
+                                                    <% }); %>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="scheduleAnalysisTableBody">
+                                                <% if (finalUsersWithSchedules && finalUsersWithSchedules.length > 0) { %>
+                                                    <% finalUsersWithSchedules.forEach(user => { %>
+                                                        <tr>
+                                                            <td><%= user.name %> (<%= user.department_name || '-' %>)</td>
+                                                            <td class="text-center"><%= user.project_participation_count %></td>
+                                                            <% dateRange.forEach(date => {
+                                                                const dateString = date.toISOString().split('T')[0];
+                                                                const hasSchedule = user.schedulesByDate && user.schedulesByDate[dateString];
+                                                            %>
+                                                                <td class="text-center" style="background-color: <%= hasSchedule ? '#dc3545' : '#28a745' %>; color: white;">
+                                                                    <%= date.getDate() %>
+                                                                </td>
+                                                            <% }); %>
+                                                        </tr>
+                                                    <% }); %>
+                                                <% } else { %>
+                                                    <tr>
+                                                        <td colspan="<%= 2 + dateRange.length %>">일정 정보가 없습니다.</td>
+                                                    </tr>
+                                                <% } %>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<script>
+    let currentReferenceDate = new Date(); // Global variable to track the current reference date
+
+    function formatDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function loadScheduleAnalysisTable(refDate) {
+        const startDate = new Date(refDate);
+        startDate.setDate(startDate.getDate() - 7); // One week before reference date
+        startDate.setHours(0, 0, 0, 0);
+
+        const endDate = new Date(startDate);
+        endDate.setMonth(endDate.getMonth() + 1); // One month after startDate
+        endDate.setDate(endDate.getDate() - 1); // Adjust to the last day of the month
+        endDate.setHours(23, 59, 59, 999);
+
+        const formattedStartDate = formatDate(startDate);
+        const formattedEndDate = formatDate(endDate);
+
+        $.ajax({
+            url: `/admin/resource-analysis/schedules-by-week?startDate=${formattedStartDate}&endDate=${formattedEndDate}`,
+            method: 'GET',
+            success: function(data) {
+                // Update header dates
+                const dateRangeHeader = $('#scheduleDateRangeHeader');
+                dateRangeHeader.attr('colspan', data.dateRange.length);
+                dateRangeHeader.text(`일정 정보 (${new Date(data.dateRange[0]).toLocaleDateString('ko-KR')} ~ ${new Date(data.dateRange[data.dateRange.length - 1]).toLocaleDateString('ko-KR')})`);
+
+                const scheduleHeaderRow2 = $('#scheduleHeaderRow2');
+                scheduleHeaderRow2.empty();
+                data.dateRange.forEach(dateStr => {
+                    const date = new Date(dateStr);
+                    const dayOfWeek = date.getDay(); // 0 for Sunday, 6 for Saturday
+                    let headerBgColor = '';
+                    if (dayOfWeek === 0 || dayOfWeek === 6) { // Sunday or Saturday
+                        headerBgColor = 'background-color: #e9ecef;'; // Light gray
+                    }
+                    scheduleHeaderRow2.append(`<th class="text-center" style="${headerBgColor}">${date.getDate()}</th>`);
+                });
+
+                // Update table body
+                const tableBody = $('#scheduleAnalysisTableBody');
+                tableBody.empty();
+
+                if (data.finalUsersWithSchedules && data.finalUsersWithSchedules.length > 0) {
+                    data.finalUsersWithSchedules.forEach(user => {
+                        let rowHtml = `<tr>
+                            <td>${user.name} (${user.department_name || '-'})</td>
+                            <td class="text-center">${user.project_participation_count}</td>
+                            <td class="text-center">${user.availabilityRate}%</td>`;
+
+                        data.dateRange.forEach(dateStr => {
+                            const schedulesOnDay = user.schedulesByDate && user.schedulesByDate[dateStr];
+                            let bgColor = '#28a745'; // Default green (no schedule)
+                            let tooltipText = '';
+
+                            if (schedulesOnDay && schedulesOnDay.length > 0) {
+                                let hasRed = false;
+                                let hasYellow = false;
+                                const titles = [];
+
+                                schedulesOnDay.forEach(s => {
+                                    if (s.type === 'schedule') {
+                                        hasRed = true;
+                                    } else if (s.type === 'wbs') {
+                                        hasYellow = true;
+                                    }
+                                    titles.push(s.title);
+                                });
+
+                                if (hasRed) {
+                                    bgColor = '#dc3545'; // Red for tb_schedules or overlap
+                                } else if (hasYellow) {
+                                    bgColor = '#ffc107'; // Yellow for tb_wbs_tasks
+                                }
+                                tooltipText = titles.join('\n');
+                            }
+                            
+                            const date = new Date(dateStr);
+                            rowHtml += `<td class="text-center" style="background-color: ${bgColor}; color: white;" data-bs-toggle="tooltip" data-bs-placement="top" title="${tooltipText}">${date.getDate()}</td>`;
+                        });
+                        rowHtml += `</tr>`;
+                        tableBody.append(rowHtml);
+                    });
+                } else {
+                    tableBody.append(`<tr><td colspan="${3 + data.dateRange.length}">일정 정보가 없습니다.</td></tr>`);
+                }
+
+                // Initialize tooltips after content is loaded
+                $('[data-bs-toggle="tooltip"]').tooltip('dispose'); // Dispose existing tooltips
+                $('[data-bs-toggle="tooltip"]').tooltip();
+            },
+            error: function(xhr, status, error) {
+                console.error('Error fetching schedule data:', error);
+                alert('일정 데이터를 불러오는 데 실패했습니다.');
+            }
+        });
+    }
+
+    // Event listeners for month shift buttons
+    $('#prevMonthBtn').on('click', function() {
+        currentReferenceDate.setMonth(currentReferenceDate.getMonth() - 1);
+        loadScheduleAnalysisTable(currentReferenceDate);
+    });
+
+    $('#nextMonthBtn').on('click', function() {
+        currentReferenceDate.setMonth(currentReferenceDate.getMonth() + 1);
+        loadScheduleAnalysisTable(currentReferenceDate);
+    });
+
+    // Initial load of the schedule analysis table
+    $(document).ready(function() {
+        loadScheduleAnalysisTable(currentReferenceDate);
+    });
+</script>

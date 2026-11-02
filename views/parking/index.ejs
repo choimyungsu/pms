@@ -1,0 +1,30 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0"><%= pageTitle %></h3>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-end">
+                        <li class="breadcrumb-item"><a href="/">Home</a></li>
+                        <li class="breadcrumb-item active"><%= pageTitle %></li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid d-flex justify-content-center align-items-center" style="min-height: calc(100vh - 180px);">
+            <a href="http://members.iparking.co.kr" target="_blank" class="btn btn-primary btn-lg" style="padding: 50px 100px; font-size: 3em;">
+                <i class="fas fa-parking fa-5x d-block mb-3"></i>
+                주차 지원
+            </a>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>

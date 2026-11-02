@@ -1,0 +1,275 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<!-- Summernote CSS -->
+<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet">
+
+<!-- Main content -->
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">뉴스레터 작성</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fa-solid fa-envelope"></i> 뉴스레터 발송</h3>
+                </div>
+                <div class="card-body">
+                    <% if (typeof message !== 'undefined' && message) { %>
+                        <div class="alert alert-success" role="alert">
+                            <%= message %>
+                        </div>
+                    <% } %>
+                    <% if (typeof error !== 'undefined' && error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <%= error %>
+                        </div>
+                    <% } %>
+                    <form action="/newsletter/send" method="POST" id="newsletterForm">
+                        <input type="hidden" name="newsletterId" value="<%= typeof newsletter !== 'undefined' ? newsletter.id : '' %>">
+                        <div class="mb-3">
+                            <label for="subject" class="form-label">제목</label>
+                            <input type="text" class="form-control" id="subject" name="subject" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="content" class="form-label">내용</label>
+                            <textarea id="summernote" name="content"></textarea>
+                        </div>
+
+                        <!-- 직접 이메일 추가 섹션 -->
+                        <div class="card card-secondary mb-3">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fa-solid fa-at"></i> 직접 이메일 추가</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="manual_emails" class="form-label">이메일 주소 (여러 개일 경우 쉼표(,)로 구분)</label>
+                                    <textarea class="form-control" id="manual_emails" rows="3"></textarea>
+                                </div>
+                                <button type="button" class="btn btn-secondary" id="add_manual_emails_btn">추가</button>
+                                <hr>
+                                <h5>추가된 이메일:</h5>
+                                <ul id="manual_recipient_list" class="list-group">
+                                    <!-- 수동으로 추가된 이메일이 여기에 표시됩니다. -->
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="button" class="btn btn-secondary me-2" id="saveDraftBtn"><i class="fa-solid fa-save"></i> 임시저장</button>
+                            <button type="button" class="btn btn-info me-2" id="checkRecipientsBtn"><i class="fa-solid fa-users"></i> 수신자 목록 확인</button>
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> 뉴스레터 발송</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Recipient List Modal -->
+<div class="modal fade" id="recipientListModal" tabindex="-1" aria-labelledby="recipientListModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="recipientListModalLabel">뉴스레터 수신자 목록</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <select class="form-select" id="customer_type_filter">
+                            <option value="">고객구분 (전체)</option>
+                            <option value="고객">고객</option>
+                            <option value="협력사">협력사</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="customer_subtype_filter">
+                            <option value="">고객 상세구분 (전체)</option>
+                            <option value="공공">공공</option>
+                            <option value="기업">기업</option>
+                            <option value="금융">금융</option>
+                            <option value="국방">국방</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="contract_status_filter">
+                            <option value="">계약여부 (전체)</option>
+                            <option value="계약">계약</option>
+                            <option value="미계약">미계약</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary" id="filter_recipients_btn">검색</button>
+                    </div>
+                </div>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="select_all_recipients"></th>
+                            <th>이름</th>
+                            <th>회사</th>
+                            <th>이메일</th>
+                            <th>고객구분</th>
+                            <th>계약여부</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recipient_list_body">
+                        <!-- 수신자 목록이 여기에 동적으로 추가됩니다. -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                <button type="button" class="btn btn-primary" id="confirm_selection_btn">선택 완료</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>
+
+<!-- Summernote JS -->
+<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#summernote').summernote({
+            height: 300,
+            minHeight: null,
+            maxHeight: null,
+            focus: true,
+            lang: 'ko-KR' // 한국어 설정
+        });
+
+        let selectedRecipients = [];
+        let manualRecipients = [];
+
+        function fetchRecipients() {
+            const customerType = $('#customer_type_filter').val();
+            const customerSubtype = $('#customer_subtype_filter').val();
+            const contractStatus = $('#contract_status_filter').val();
+
+            $.ajax({
+                url: '/newsletter/recipients',
+                method: 'GET',
+                data: {
+                    customer_type: customerType,
+                    customer_subtype: customerSubtype,
+                    contract_status: contractStatus
+                },
+                success: function(response) {
+                    if (response.success) {
+                        const recipientListBody = $('#recipient_list_body');
+                        recipientListBody.empty();
+                        if (response.recipients.length > 0) {
+                            response.recipients.forEach(recipient => {
+                                const isChecked = selectedRecipients.some(r => r.email === recipient.email) ? 'checked' : '';
+                                recipientListBody.append(`
+                                    <tr>
+                                        <td><input type="checkbox" class="recipient-checkbox" value="${recipient.email}" data-name="${recipient.name}" data-company="${recipient.company}" ${isChecked}></td>
+                                        <td>${recipient.name || ''}</td>
+                                        <td>${recipient.company || ''}</td>
+                                        <td>${recipient.email}</td>
+                                        <td>${recipient.customer_type || ''}${recipient.customer_subtype ? '(' + recipient.customer_subtype + ')' : ''}</td>
+                                        <td>${recipient.contract_status || ''}</td>
+                                    </tr>
+                                `);
+                            });
+                        } else {
+                            recipientListBody.append('<tr><td colspan="6" class="text-center">수신 동의한 이메일 주소가 없습니다.</td></tr>');
+                        }
+                    } else {
+                        alert('수신자 목록을 불러오는 데 실패했습니다: ' + response.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    alert('AJAX 요청 중 오류가 발생했습니다: ' + error);
+                }
+            });
+        }
+
+        $('#checkRecipientsBtn').on('click', function() {
+            fetchRecipients();
+            new bootstrap.Modal(document.getElementById('recipientListModal')).show();
+        });
+
+        $('#filter_recipients_btn').on('click', fetchRecipients);
+
+        $('#select_all_recipients').on('change', function() {
+            $('.recipient-checkbox').prop('checked', this.checked);
+        });
+
+        $('#confirm_selection_btn').on('click', function() {
+            selectedRecipients = [];
+            $('.recipient-checkbox:checked').each(function() {
+                selectedRecipients.push({
+                    email: $(this).val(),
+                    name: $(this).data('name'),
+                    company: $(this).data('company')
+                });
+            });
+            $('#checkRecipientsBtn').html(`<i class="fa-solid fa-users"></i> ${selectedRecipients.length}명 선택됨`);
+            bootstrap.Modal.getInstance(document.getElementById('recipientListModal')).hide();
+        });
+
+        $('#add_manual_emails_btn').on('click', function() {
+            const emails = $('#manual_emails').val().split(',').map(e => e.trim()).filter(e => e);
+            const list = $('#manual_recipient_list');
+            emails.forEach(email => {
+                if (!manualRecipients.some(r => r.email === email) && !selectedRecipients.some(r => r.email === email)) {
+                     const recipient = { email: email, name: '', company: '', is_manual_add: true };
+                     manualRecipients.push(recipient);
+                     list.append(`
+                        <li class="list-group-item d-flex justify-content-between align-items-center" data-email="${email}">
+                            ${email}
+                            <button type="button" class="btn btn-danger btn-sm remove-manual-email">삭제</button>
+                        </li>
+                     `);
+                }
+            });
+            $('#manual_emails').val('');
+        });
+
+        $('#manual_recipient_list').on('click', '.remove-manual-email', function() {
+            const emailToRemove = $(this).parent().data('email');
+            manualRecipients = manualRecipients.filter(r => r.email !== emailToRemove);
+            $(this).parent().remove();
+        });
+
+        $('#saveDraftBtn').on('click', function() {
+            $('#newsletterForm').attr('action', '/newsletter/draft');
+            $('#newsletterForm').submit();
+        });
+
+        $('#newsletterForm').on('submit', function(e) {
+            // 발송 버튼 클릭 시에만 수신자 유효성 검사
+            if ($(this).attr('action') === '/newsletter/send') {
+                $(this).find('input[name^="recipients"]').remove(); // Clear old inputs
+
+                const allRecipients = selectedRecipients.concat(manualRecipients);
+
+                if (allRecipients.length === 0) {
+                    alert('수신자를 한 명 이상 추가해주세요.');
+                    e.preventDefault(); // Stop submission
+                    return;
+                }
+
+                allRecipients.forEach((recipient, index) => {
+                    $(this).append(`<input type="hidden" name="recipients[${index}][email]" value="${recipient.email}">`);
+                    $(this).append(`<input type="hidden" name="recipients[${index}][name]" value="${recipient.name || ''}">`);
+                    $(this).append(`<input type="hidden" name="recipients[${index}][company]" value="${recipient.company || ''}">`);
+                    const isManual = !!recipient.is_manual_add;
+                    $(this).append(`<input type="hidden" name="recipients[${index}][is_manual_add]" value="${isManual}">`);
+                });
+            }
+        });
+    });
+</script>

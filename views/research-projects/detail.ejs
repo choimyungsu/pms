@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <%- include('../partials/head') %>
+    <title><%= title %></title>
+</head>
+<body>
+    <%- include('../partials/header') %>
+    <%- include('../partials/sidebar') %>
+
+    <div class="main-content">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h4 class="card-title"><%= title %>: <%= project.project_name %></h4>
+                            <div class="card-tools">
+                                <a href="/research-projects/<%= project.id %>/edit" class="btn btn-info btn-sm">수정</a>
+                                <form action="/research-projects/<%= project.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('정말로 이 연구과제를 삭제하시겠습니까?');">
+                                    <button type="submit" class="btn btn-danger btn-sm">삭제</button>
+                                </form>
+                                <a href="/research-projects" class="btn btn-secondary btn-sm">목록으로</a>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row">
+                                <dt class="col-sm-3">과제명</dt>
+                                <dd class="col-sm-9"><%= project.project_name %></dd>
+
+                                <dt class="col-sm-3">시작일</dt>
+                                <dd class="col-sm-9"><%= project.start_date %></dd>
+
+                                <dt class="col-sm-3">종료일</dt>
+                                <dd class="col-sm-9"><%= project.end_date %></dd>
+
+                                <dt class="col-sm-3">참여자</dt>
+                                <dd class="col-sm-9"><%= project.participants %></dd>
+
+                                <dt class="col-sm-3">등록일</dt>
+                                <dd class="col-sm-9"><%= project.created_at.toLocaleString() %></dd>
+                            </dl>
+
+                            <h5 class="mt-4">연결된 연구일지</h5>
+                            <% if (relatedLogs && relatedLogs.length > 0) { %>
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-bordered">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>연구제목</th>
+                                                <th>작성자</th>
+                                                <th>작성일자</th>
+                                                <th>작업</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% relatedLogs.forEach(log => { %>
+                                                <tr>
+                                                    <td><%= log.id %></td>
+                                                    <td><a href="/research-log/<%= log.id %>"><%= log.research_title %></a></td>
+                                                    <td><%= log.author %></td>
+                                                    <td><%= log.creation_date ? log.creation_date.substring(0, 10) : '' %></td>
+                                                    <td>
+                                                        <a href="/research-log/<%= log.id %>" class="btn btn-info btn-sm">상세</a>
+                                                    </td>
+                                                </tr>
+                                            <% }) %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <% } else { %>
+                                <p>이 연구과제에 연결된 연구일지가 없습니다.</p>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%- include('../partials/footer') %>
+    <%- include('../partials/scripts') %>
+</body>
+</html>

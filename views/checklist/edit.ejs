@@ -1,0 +1,168 @@
+<%- include('../partials/header', { page: 'checklist' }) %>
+<%- include('../partials/sidebar', { page: 'checklist' }) %>
+
+<style>
+#drop-zone { transition: background-color 0.2s ease; }
+#drop-zone.dragover { background-color: #e9ecef; }
+</style>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0"><%= page_title %></h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">체크리스트 수정</h5>
+                </div>
+                <div class="card-body">
+                    <% if (error) { %>
+                        <div class="alert alert-danger"><%= error %></div>
+                    <% } else { %>
+                        <form id="editChecklistForm" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="title" class="form-label">제목</label>
+                                <input type="text" class="form-control" id="title" name="title" value="<%= item.title %>" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="selected_category_id" class="form-label">카테고리</label>
+                                <div id="category_tree"></div>
+                                <input type="hidden" id="selected_category_id" name="category_id" value="<%= item.category_id %>" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="content" class="form-label">내용</label>
+                                <textarea class="form-control" id="content" name="content" rows="5"><%= item.content %></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="assignee_id" class="form-label">담당자</label>
+                                <select class="form-select" id="assignee_id" name="assignee_id">
+                                    <option value="">선택</option>
+                                    <% allUsers.forEach(user => { %>
+                                        <option value="<%= user.id %>" <%= item.assignee_id == user.id ? 'selected' : '' %>><%= user.name %></option>
+                                    <% }) %>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label>기존 첨부파일</label>
+                                <div id="existing-attachments">
+                                    <% if (attachments && attachments.length > 0) { %>
+                                        <% attachments.forEach(function(attachment) { %>
+                                            <div class="d-flex justify-content-between align-items-center mb-1 attachment-item" data-attachment-id="<%= attachment.id %>">
+                                                <a href="/checklist/api/attachments/<%= attachment.id %>/download"><%= attachment.original_name %></a>
+                                                <button type="button" class="btn btn-sm btn-danger delete-attachment-btn" data-attachment-id="<%= attachment.id %>">삭제</button>
+                                            </div>
+                                        <% }) %>
+                                    <% } else { %>
+                                        <p>첨부된 파일이 없습니다.</p>
+                                    <% } %>
+                                </div>
+                                <input type="hidden" id="attachmentsToDelete" name="attachments_to_delete" value="[]">
+                            </div>
+                            <div class="mb-3">
+                                <label for="attachments" class="form-label">새 첨부파일</label>
+                                <div id="drop-zone" class="border rounded p-5 text-center" style="border-style: dashed !important;">
+                                    <p>여기로 파일을 드래그하거나 클릭하여 업로드하세요.</p>
+                                    <input type="file" class="form-control" id="attachments" name="attachments" multiple style="display: none;">
+                                </div>
+                                <div id="file-list" class="mt-2"></div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">저장</button>
+                            <a href="/checklist/detail/<%= item.id %>" class="btn btn-secondary">취소</a>
+                        </form>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    // Utility for notifications
+    function showNotification(type, message) {
+        // A simple alert fallback, assuming a global notification function might not exist here.
+        alert(`${type.toUpperCase()}: ${message}`);
+    }
+
+    $(document).ready(function() {
+        let uploadedFiles = [];
+        let attachmentsToDelete = [];
+
+        // jstree for category selection
+        async function initJstree() {
+            try {
+                const response = await fetch('/checklist/api/categories');
+                const categories = await response.json();
+                const jstreeData = categories.map(cat => ({ id: cat.id, parent: cat.parent_id ? cat.parent_id : '#', text: cat.name }));
+                
+                $('#category_tree').jstree({ 'core': { 'data': jstreeData } })
+                    .on('ready.jstree', () => $('#category_tree').jstree(true).select_node('<%= item.category_id %>'))
+                    .on('select_node.jstree', (e, data) => $('#selected_category_id').val(data.node.id));
+            } catch (error) {
+                console.error('Error loading categories:', error);
+                showNotification('error', '카테고리 로드 중 오류가 발생했습니다.');
+            }
+        }
+        initJstree();
+
+        // File handling logic
+        const fileInput = $('#attachments');
+        const dropZone = $('#drop-zone');
+        const fileList = $('#file-list');
+
+        function renderFileList() {
+            fileList.empty();
+            uploadedFiles.forEach((file, index) => {
+                fileList.append(`<div class="d-flex justify-content-between align-items-center mb-1"><span>${file.name}</span><button type="button" class="btn btn-sm btn-danger remove-file-btn" data-index="${index}">삭제</button></div>`);
+            });
+        }
+        fileInput.on('change', (e) => { uploadedFiles.push(...e.target.files); renderFileList(); });
+        dropZone.on('click', () => fileInput.trigger('click'));
+        dropZone.on('dragover dragenter', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.addClass('dragover'); });
+        dropZone.on('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.removeClass('dragover'); });
+        dropZone.on('drop', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            dropZone.removeClass('dragover');
+            uploadedFiles.push(...e.originalEvent.dataTransfer.files);
+            renderFileList();
+        });
+        $(document).on('click', '.remove-file-btn', function() { uploadedFiles.splice($(this).data('index'), 1); renderFileList(); });
+        $(document).on('click', '.delete-attachment-btn', function() {
+            attachmentsToDelete.push($(this).data('attachment-id'));
+            $('#attachmentsToDelete').val(JSON.stringify(attachmentsToDelete));
+            $(this).closest('.attachment-item').remove();
+        });
+
+        // Form submission
+        $('#editChecklistForm').on('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            uploadedFiles.forEach(file => formData.append('attachments', file));
+            
+            // Ensure attachments_to_delete is set
+            formData.set('attachments_to_delete', JSON.stringify(attachmentsToDelete));
+
+            try {
+                const response = await fetch(`/checklist/api/items/<%= item.id %>`, { method: 'PUT', body: formData });
+                const result = await response.json();
+                if (response.ok) {
+                    alert('체크리스트가 성공적으로 업데이트되었습니다.');
+                    window.location.href = `/checklist/detail/<%= item.id %>`;
+                } else {
+                    showNotification('error', result.message || '업데이트 중 오류가 발생했습니다.');
+                }
+            } catch (error) {
+                console.error('Update error:', error);
+                showNotification('error', '업데이트 중 통신 오류가 발생했습니다.');
+            }
+        });
+    });
+</script>
+
+<%- include('../partials/footer') %>

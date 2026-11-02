@@ -1,0 +1,1 @@
+ALTER TABLE tb_user ADD COLUMN is_resigned TINYINT(1) DEFAULT 0;

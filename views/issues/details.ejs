@@ -1,0 +1,73 @@
+<%- include('../partials/header', { page: 'issues' }) %>
+<%- include('../partials/sidebar', { page: 'issues' }) %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">이슈 상세 정보</h3>
+                </div>
+                <div class="col-sm-6 text-end">
+                    <% if (currentUser && (currentUser.role === 'admin' || currentUser.id === issue.creator_id)) { %>
+                        <a href="/issues/<%= issue.id %>/edit" class="btn btn-warning">수정</a>
+                        <form action="/issues/<%= issue.id %>/delete" method="POST" style="display:inline;" class="delete-issue-form">
+                            <button type="submit" class="btn btn-danger">삭제</button>
+                        </form>
+                    <% } %>
+                    <a href="/issues" class="btn btn-secondary">목록으로</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title"><%= issue.title %></h4>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-2">
+                        <div class="col-md-3"><strong>프로젝트:</strong></div>
+                        <div class="col-md-9"><%= issue.project_name || 'N/A' %></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3"><strong>상태:</strong></div>
+                        <div class="col-md-9"><span class="badge <%= issue.status === '진행중' ? 'bg-warning' : 'bg-success' %>"><%= issue.status %></span></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3"><strong>등록자:</strong></div>
+                        <div class="col-md-9"><%= issue.creator_name %></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3"><strong>담당자:</strong></div>
+                        <div class="col-md-9"><%= issue.assignee_name || '미지정' %></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3"><strong>등록일:</strong></div>
+                        <div class="col-md-9"><%= new Date(issue.created_at).toLocaleDateString() %></div>
+                    </div>
+                    <hr>
+                    <div class="mb-3">
+                        <h5>이슈 내용:</h5>
+                        <div class="card p-3 bg-light">
+                            <%- issue.content %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<script>
+    document.querySelectorAll('.delete-issue-form').forEach(form => {
+        form.addEventListener('submit', function(event) {
+            if (!confirm('정말로 이 이슈를 삭제하시겠습니까?')) {
+                event.preventDefault();
+            }
+        });
+    });
+</script>

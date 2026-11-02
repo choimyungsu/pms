@@ -1,0 +1,232 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0"><%= page_title %></h3>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-end">
+                        <li class="breadcrumb-item"><a href="/">Home</a></li>
+                        <li class="breadcrumb-item"><a href="/maintenance">유지보수 관리</a></li>
+                        <li class="breadcrumb-item active"><%= page_title %></li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">새 유지보수 기록 등록</h5>
+                </div>
+                <div class="card-body">
+                    <form action="/maintenance/create" method="POST" enctype="multipart/form-data">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="division" class="form-label">구분</label>
+                                <input type="text" class="form-control" id="division" name="division">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="customer_company" class="form-label">고객사</label>
+                                <input type="text" class="form-control" id="customer_company" name="customer_company">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="project_name" class="form-label">사업명</label>
+                                <input type="text" class="form-control" id="project_name" name="project_name">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="inspection_date" class="form-label">검수일</label>
+                                <input type="date" class="form-control" id="inspection_date" name="inspection_date">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="introduction_date" class="form-label">도입일</label>
+                                <input type="date" class="form-control" id="introduction_date" name="introduction_date">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="maintenance_start_date" class="form-label">유지보수시작일</label>
+                                <input type="date" class="form-control" id="maintenance_start_date" name="maintenance_start_date">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="maintenance_end_date" class="form-label">유지보수종료일</label>
+                                <input type="date" class="form-control" id="maintenance_end_date" name="maintenance_end_date">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="item" class="form-label">품목</label>
+                                <input type="text" class="form-control" id="item" name="item">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="manufacturer" class="form-label">제조사</label>
+                                <input type="text" class="form-control" id="manufacturer" name="manufacturer">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="model" class="form-label">모델</label>
+                                <input type="text" class="form-control" id="model" name="model">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="eos" class="form-label">EoS</label>
+                                <input type="text" class="form-control" id="eos" name="eos">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="eol" class="form-label">EoL</label>
+                                <input type="text" class="form-control" id="eol" name="eol">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="serial_number" class="form-label">S/N</label>
+                                <input type="text" class="form-control" id="serial_number" name="serial_number">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="firmware_version" class="form-label">Firmware Version</label>
+                                <input type="text" class="form-control" id="firmware_version" name="firmware_version">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="os_version" class="form-label">OS Version</label>
+                                <input type="text" class="form-control" id="os_version" name="os_version">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="quantity" class="form-label">수량</label>
+                                <input type="text" class="form-control" id="quantity" name="quantity">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="back_contract_company" class="form-label">백계약업체</label>
+                                <input type="text" class="form-control" id="back_contract_company" name="back_contract_company">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="back_contract_details" class="form-label">백계약</label>
+                                <input type="text" class="form-control" id="back_contract_details" name="back_contract_details">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="back_contract_date" class="form-label">백계약일</label>
+                                <input type="date" class="form-control" id="back_contract_date" name="back_contract_date">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="back_contract_end_date" class="form-label">백계약종료일</label>
+                                <input type="date" class="form-control" id="back_contract_end_date" name="back_contract_end_date">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="back_contract_manager" class="form-label">백계약담당자</label>
+                                <input type="text" class="form-control" id="back_contract_manager" name="back_contract_manager">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="back_contract_contact" class="form-label">백계약연락처</label>
+                                <input type="text" class="form-control" id="back_contract_contact" name="back_contract_contact">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="back_contract_email" class="form-label">백계약이메일</label>
+                                <input type="email" class="form-control" id="back_contract_email" name="back_contract_email">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="main_engineer" class="form-label">정엔지니어</label>
+                                <input type="text" class="form-control" id="main_engineer" name="main_engineer">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="sub_engineer" class="form-label">부엔지니어</label>
+                                <input type="text" class="form-control" id="sub_engineer" name="sub_engineer">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="sales_manager" class="form-label">영업담당</label>
+                                <input type="text" class="form-control" id="sales_manager" name="sales_manager">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="inspection_method" class="form-label">점검방식</label>
+                                <input type="text" class="form-control" id="inspection_method" name="inspection_method">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="maintenance_department_company" class="form-label">통합유지보수업체명</label>
+                                <input type="text" class="form-control" id="maintenance_department_company" name="maintenance_department_company">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="maintenance_manager" class="form-label">통합유지보수담당자</label>
+                                <input type="text" class="form-control" id="maintenance_manager" name="maintenance_manager">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="maintenance_manager_contact" class="form-label">통합유지보수담당자연락처</label>
+                                <input type="text" class="form-control" id="maintenance_manager_contact" name="maintenance_manager_contact">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="maintenance_manager_email" class="form-label">통합유지보수담당자이메일</label>
+                                <input type="email" class="form-control" id="maintenance_manager_email" name="maintenance_manager_email">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="customer_contact_person" class="form-label">고객담당자</label>
+                                <input type="text" class="form-control" id="customer_contact_person" name="customer_contact_person">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="customer_contact" class="form-label">고객연락처</label>
+                                <input type="text" class="form-control" id="customer_contact" name="customer_contact">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="customer_email" class="form-label">고객이메일</label>
+                                <input type="email" class="form-control" id="customer_email" name="customer_email">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="customer_location" class="form-label">고객사위치</label>
+                                <input type="text" class="form-control" id="customer_location" name="customer_location">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="inspection_location" class="form-label">점검위치</label>
+                                <input type="text" class="form-control" id="inspection_location" name="inspection_location">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="quotation_filename" class="form-label">견적파일명</label>
+                                <input type="text" class="form-control" id="quotation_filename" name="quotation_filename">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="remarks" class="form-label">비고</label>
+                                <textarea class="form-control" id="remarks" name="remarks" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="attachment" class="form-label">첨부파일</label>
+                            <input class="form-control" type="file" id="attachment" name="attachment">
+                        </div>
+                        <button type="submit" class="btn btn-primary">등록</button>
+                        <a href="/maintenance" class="btn btn-secondary">취소</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>

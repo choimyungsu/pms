@@ -1,0 +1,161 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<!-- Summernote CSS -->
+<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet">
+
+<!-- Main content -->
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">회의록 작성</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fa-solid fa-file-lines"></i> 새 회의록 작성</h3>
+                </div>
+                <div class="card-body">
+                    <% if (typeof message !== 'undefined' && message) { %>
+                        <div class="alert alert-success" role="alert">
+                            <%= message %>
+                        </div>
+                    <% } %>
+                    <% if (typeof error !== 'undefined' && error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <%= error %>
+                        </div>
+                    <% } %>
+                    <form action="/minutes/save" method="POST">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="title" class="form-label">회의명</label>
+                                <input type="text" class="form-control" id="title" name="title" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="meeting_date" class="form-label">일시</label>
+                                <input type="datetime-local" class="form-control" id="meeting_date" name="meeting_date" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="location" class="form-label">장소</label>
+                                <input type="text" class="form-control" id="location" name="location" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="host" class="form-label">주관</label>
+                                <input type="text" class="form-control" id="host" name="host">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="author" class="form-label">작성자</label>
+                                <input type="text" class="form-control" id="author" name="author" value="<%= typeof user !== 'undefined' && user && user.name ? user.name : '' %>" readonly>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="attendees" class="form-label">참석자</label>
+                                <input type="text" class="form-control" id="attendees" name="attendees" placeholder="콤마(,)로 구분하여 입력">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="project_id" class="form-label">프로젝트</label>
+                            <select class="form-control" id="project_id" name="project_id">
+                                <option value="">-- 프로젝트 선택 --</option>
+                                <% projects.forEach(project => { %>
+                                    <option value="<%= project.id %>" <%= selectedProject && selectedProject.id === project.id ? 'selected' : '' %>><%= project.name %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">안건</label>
+                            <table class="table table-bordered" id="agenda-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>안건</th>
+                                        <th>담당자</th>
+                                        <th>예상시간(분)</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>1</td>
+                                        <td><input type="text" class="form-control" name="agenda[0][topic]"></td>
+                                        <td><input type="text" class="form-control" name="agenda[0][presenter]"></td>
+                                        <td><input type="number" class="form-control" name="agenda[0][time]"></td>
+                                        <td><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">삭제</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <button type="button" class="btn btn-secondary" onclick="addRow()">안건 추가</button>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="summary" class="form-label">회의내용 요약</label>
+                            <textarea id="summary" class="form-control" name="summary" rows="5"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="remarks" class="form-label">비고</label>
+                            <textarea id="remarks" class="form-control" name="remarks" rows="3"></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> 회의록 저장</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<script>
+    function addRow() {
+        const table = document.getElementById('agenda-table').getElementsByTagName('tbody')[0];
+        const newRow = table.insertRow();
+        const rowCount = table.rows.length;
+        newRow.innerHTML = `
+            <td>${rowCount}</td>
+            <td><input type="text" class="form-control" name="agenda[${rowCount-1}][topic]"></td>
+            <td><input type="text" class="form-control" name="agenda[${rowCount-1}][presenter]"></td>
+            <td><input type="number" class="form-control" name="agenda[${rowCount-1}][time]"></td>
+            <td><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">삭제</button></td>
+        `;
+    }
+
+    function removeRow(button) {
+        const row = button.parentNode.parentNode;
+        row.parentNode.removeChild(row);
+        // Re-number rows
+        const table = document.getElementById('agenda-table').getElementsByTagName('tbody')[0];
+        for (let i = 0; i < table.rows.length; i++) {
+            table.rows[i].cells[0].innerHTML = i + 1;
+        }
+    }
+</script>
+
+<!-- Summernote JS -->
+<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#summernote').summernote({
+            height: 300,
+            minHeight: null,
+            maxHeight: null,
+            focus: true,
+            lang: 'ko-KR' // 한국어 설정
+        });
+    });
+</script>

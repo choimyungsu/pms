@@ -1,0 +1,89 @@
+<%- include('../partials/header', { page: 'research-log-create' }) %>
+<%- include('../partials/sidebar', { page: 'research-log-create' }) %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">새 연구일지 작성</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-body">
+                    <form action="/research-log" method="POST">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="research_title" class="form-label">연구제목</label>
+                                <input type="text" class="form-control" id="research_title" name="research_title" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="creation_date" class="form-label">작성일자</label>
+                                <input type="date" class="form-control" id="creation_date" name="creation_date" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="project_id" class="form-label">관련 연구과제</label>
+                            <select class="form-control" id="project_id" name="project_id">
+                                <option value="">-- 연구과제 선택 --</option>
+                                <% if (projects && projects.length > 0) { %>
+                                    <% projects.forEach(project => { %>
+                                        <option value="<%= project.id %>"><%= project.project_name %></option>
+                                    <% }) %>
+                                <% } %>
+                            </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="department" class="form-label">소속</label>
+                                <input type="text" class="form-control" id="department" name="department">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="author2" class="form-label">작성자2</label>
+                                <input type="text" class="form-control" id="author2" name="author2">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="doc_classification" class="form-label">문서분류</label>
+                                <input type="text" class="form-control" id="doc_classification" name="doc_classification">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="page_number" class="form-label">페이지번호</label>
+                                <input type="text" class="form-control" id="page_number" name="page_number">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="research_purpose" class="form-label">연구목적</label>
+                            <textarea class="form-control" id="research_purpose" name="research_purpose" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="attendees" class="form-label">참석자</label>
+                            <textarea class="form-control" id="attendees" name="attendees" rows="2"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="meeting_location" class="form-label">회의장소</label>
+                            <input type="text" class="form-control" id="meeting_location" name="meeting_location">
+                        </div>
+                        <div class="mb-3">
+                            <label for="main_content" class="form-label">연구주요내용</label>
+                            <textarea class="form-control" id="main_content" name="main_content" rows="10"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="expected_outcome" class="form-label">연구기대효과</label>
+                            <textarea class="form-control" id="expected_outcome" name="expected_outcome" rows="5"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">저장</button>
+                        <a href="/research-log" class="btn btn-secondary">취소</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>

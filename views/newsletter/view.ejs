@@ -1,0 +1,54 @@
+
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<!-- Main content -->
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">뉴스레터 상세 보기</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fa-solid fa-envelope-open-text"></i> <%= newsletter.subject %></h3>
+                    <div class="card-tools">
+                        <span class="badge bg-secondary"><%= new Date(newsletter.sent_at).toLocaleString() %></span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h5>뉴스레터 내용:</h5>
+                        <div class="border p-3 rounded bg-light" style="min-height: 200px;">
+                            <%- newsletter.content %>
+                        </div>
+                    </div>
+
+                    <h5>수신자 목록 (<%= recipients.length %>명):</h5>
+                    <ul class="list-group list-group-flush">
+                        <% if (recipients.length > 0) { %>
+                            <% recipients.forEach(rec => { %>
+                                <li class="list-group-item">
+                                    <strong><%= rec.recipient_company || '회사명 없음' %></strong> - <%= rec.recipient_name || '이름 없음' %> (<%= rec.recipient_email %>)
+                                </li>
+                            <% }); %>
+                        <% } else { %>
+                            <li class="list-group-item text-muted">수신자가 없습니다.</li>
+                        <% } %>
+                    </ul>
+                </div>
+                <div class="card-footer d-flex justify-content-end">
+                    <a href="/newsletter/list" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> 목록으로</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,180 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">유지보수 지원 관리</h3>
+                </div>
+                <div class="col-sm-6 text-end">
+                    <a href="/maintenance/summary" class="btn btn-secondary btn-sm">목록으로</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h3 class="card-title">대상 정보: [<%= summary.customer_company %>] <%= summary.project_name %></h3>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs" id="supportTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">지원 이력</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register" type="button" role="tab">신규 등록</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content p-3" id="supportTabsContent">
+                        <!-- History Tab -->
+                        <div class="tab-pane fade show active" id="history" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>날짜</th>
+                                            <th>투입시간(h)</th>
+                                            <th>지원구분</th>
+                                            <th>직접출근</th>
+                                            <th>수행업무</th>
+                                            <th>작성자</th>
+                                            <th>작성일시</th>
+                                            <th>작업</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% if (supportLogs && supportLogs.length > 0) { %>
+                                            <% supportLogs.forEach(log => { %>
+                                                <tr>
+                                                    <td><%= log.support_date %></td>
+                                                    <td><%= log.input_time %></td>
+                                                    <td><%= log.support_type === 'field' ? '현장지원' : '원격지원' %></td>
+                                                    <td><%= log.support_type === 'field' ? (log.is_direct_commute ? 'Y' : 'N') : '-' %></td>
+                                                    <td><%- log.work_details ? log.work_details.replace(/\n/g, '<br>') : '' %></td>
+                                                    <td><%= log.creator_name %></td>
+                                                    <td><%= new Date(log.created_at).toLocaleString() %></td>
+                                                    <td>
+                                                        <% if (user && (user.role === 'admin' || user.id === log.creator_id)) { %>
+                                                            <button class="btn btn-info btn-xs" onclick="editLog(<%= JSON.stringify(log) %>)">수정</button>
+                                                            <form action="/maintenance/support/delete/<%= log.id %>" method="POST" style="display:inline;" onsubmit="return confirm('정말로 삭제하시겠습니까?');">
+                                                                <button type="submit" class="btn btn-danger btn-xs">삭제</button>
+                                                            </form>
+                                                        <% } %>
+                                                    </td>
+                                                </tr>
+                                            <% }); %>
+                                        <% } else { %>
+                                            <tr>
+                                                <td colspan="8" class="text-center">등록된 지원 이력이 없습니다.</td>
+                                            </tr>
+                                        <% } %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Register Tab -->
+                        <div class="tab-pane fade" id="register" role="tabpanel">
+                            <form action="/maintenance/summary/<%= summary.id %>/support" method="POST" id="supportForm">
+                                <input type="hidden" id="logId" name="id">
+                                <div class="row mb-3">
+                                    <div class="col-md-3">
+                                        <label for="support_date" class="form-label">지원 날짜</label>
+                                        <input type="date" class="form-control" id="support_date" name="support_date" required value="<%= new Date().toISOString().split('T')[0] %>">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label for="input_time" class="form-label">투입 시간 (시간 단위)</label>
+                                        <input type="number" step="0.5" class="form-control" id="input_time" name="input_time" required placeholder="예: 2.5">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">지원 구분</label>
+                                        <div>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="radio" name="support_type" id="type_field" value="field" checked onchange="toggleCommute()">
+                                                <label class="form-check-label" for="type_field">현장지원</label>
+                                            </div>
+                                            <div class="form-check form-check-inline">
+                                                <input class="form-check-input" type="radio" name="support_type" id="type_remote" value="remote" onchange="toggleCommute()">
+                                                <label class="form-check-label" for="type_remote">원격지원</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3" id="commute_container">
+                                        <label class="form-label">&nbsp;</label>
+                                        <div class="form-check mt-1">
+                                            <input class="form-check-input" type="checkbox" id="is_direct_commute" name="is_direct_commute">
+                                            <label class="form-check-label" for="is_direct_commute">직접 출근 여부</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-12">
+                                        <label for="work_details" class="form-label">수행 업무</label>
+                                        <textarea class="form-control" id="work_details" name="work_details" rows="3" placeholder="수행한 업무 내용을 입력하세요"></textarea>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <button type="submit" class="btn btn-primary" id="submitBtn">등록</button>
+                                    <button type="button" class="btn btn-secondary d-none" id="cancelBtn" onclick="resetForm()">취소</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<script>
+    function toggleCommute() {
+        const isField = document.getElementById('type_field').checked;
+        const container = document.getElementById('commute_container');
+        if (isField) {
+            container.classList.remove('d-none');
+        } else {
+            container.classList.add('d-none');
+            document.getElementById('is_direct_commute').checked = false;
+        }
+    }
+
+    function editLog(log) {
+        document.getElementById('register-tab').click();
+        document.getElementById('supportForm').action = '/maintenance/support/update/' + log.id;
+        document.getElementById('support_date').value = log.support_date;
+        document.getElementById('input_time').value = log.input_time;
+        if (log.support_type === 'field') {
+            document.getElementById('type_field').checked = true;
+        } else {
+            document.getElementById('type_remote').checked = true;
+        }
+        document.getElementById('is_direct_commute').checked = log.is_direct_commute == 1;
+        document.getElementById('work_details').value = log.work_details || '';
+        toggleCommute();
+        
+        document.getElementById('submitBtn').innerText = '수정';
+        document.getElementById('cancelBtn').classList.remove('d-none');
+        document.getElementById('register-tab').innerText = '기록 수정';
+    }
+
+    function resetForm() {
+        document.getElementById('supportForm').action = '/maintenance/summary/<%= summary.id %>/support';
+        document.getElementById('support_date').value = '<%= new Date().toISOString().split("T")[0] %>';
+        document.getElementById('input_time').value = '';
+        document.getElementById('type_field').checked = true;
+        document.getElementById('is_direct_commute').checked = false;
+        document.getElementById('work_details').value = '';
+        toggleCommute();
+        
+        document.getElementById('submitBtn').innerText = '등록';
+        document.getElementById('cancelBtn').classList.add('d-none');
+        document.getElementById('register-tab').innerText = '신규 등록';
+        document.getElementById('history-tab').click();
+    }
+</script>

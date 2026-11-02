@@ -1,0 +1,397 @@
+<%- include('../partials/header', { page: 'tech_status' }) %>
+<%- include('../partials/sidebar', { page: 'tech_status' }) %>
+
+<style>
+    .date-selector {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .date-btn {
+        background-color: #fff;
+        border: 1px solid #ccc;
+        border-radius: 20px;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .date-btn.active,
+    .date-btn:hover {
+        background-color: #0d6efd;
+        color: #fff;
+        border-color: #0d6efd;
+    }
+
+    #schedule-display {
+        margin-top: 20px;
+    }
+
+    .schedule-card {
+        display: flex;
+        align-items: flex-start;
+        background: #ffffff;
+        border: 1px solid #e3e6f0;
+        border-left: 5px solid #4a90e2;
+        border-radius: 4px;
+        padding: 8px 12px; /* Reduced padding */
+        margin-bottom: 8px; /* Reduced margin */
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .schedule-user-container {
+        flex: 0 0 80px; /* Reduced width */
+        padding-right: 10px; /* Reduced padding */
+    }
+
+    .schedule-user {
+        font-size: 0.9rem; /* Reduced font size */
+        font-weight: bold;
+        color: #333;
+    }
+
+    .schedule-details {
+        flex: 1;
+    }
+
+    .schedule-title {
+        font-size: 1rem; /* Reduced font size */
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 3px; /* Reduced margin */
+    }
+
+    .schedule-description {
+        font-size: 0.9rem; /* Reduced font size */
+        color: #555;
+        white-space: pre-wrap;
+    }
+
+    #loading {
+        text-align: center;
+        padding: 20px;
+        font-size: 1.2rem;
+        display: none;
+    }
+</style>
+
+<style>
+    .tech-dashboard { --ink: #172033; --muted: #687386; --line: #e6eaf0; }
+    .tech-dashboard .hero { background: linear-gradient(120deg, #172033 0%, #245b7c 100%); color: #fff; border-radius: 10px; padding: 24px; }
+    .tech-dashboard .hero small { color: #c8d9e5; }
+    .tech-dashboard .metric { border: 1px solid var(--line); border-radius: 8px; min-height: 110px; }
+    .tech-dashboard .metric-label { color: var(--muted); font-size: .82rem; }
+    .tech-dashboard .metric-value { color: var(--ink); font-size: 1.8rem; font-weight: 700; }
+    .tech-dashboard .team-card { border-top: 3px solid #2a9d8f; border-radius: 8px; }
+    .tech-dashboard .team-card .small { color: var(--muted); }
+    .tech-dashboard .resource-table th { white-space: nowrap; background: #f7f9fb; }
+    .tech-dashboard .resource-table td, .tech-dashboard .resource-table th { vertical-align: middle; }
+    .tech-dashboard .person-name { position: relative; display: inline-block; color: var(--ink); font-weight: 700; cursor: help; border-bottom: 1px dotted #8a94a6; }
+    .tech-dashboard .person-popover { display: none; position: absolute; z-index: 20; left: 0; top: calc(100% + 8px); width: 280px; padding: 12px; background: #172033; color: #fff; border-radius: 8px; box-shadow: 0 10px 26px rgba(23,32,51,.22); font-weight: 400; }
+    .tech-dashboard .person-name:hover .person-popover, .tech-dashboard .person-name:focus .person-popover { display: block; }
+    .tech-dashboard .person-popover strong { display: block; margin-bottom: 6px; }
+    .tech-dashboard .person-popover ul { margin: 0; padding-left: 18px; }
+    .tech-dashboard .day-cell { min-width: 62px; text-align: center; font-size: .78rem; }
+    .tech-dashboard .day-cell.planned { background: #dff3ef; color: #146c60; }
+    .tech-dashboard .day-cell.leave { background: #fff0d6; color: #8a5b00; }
+    .tech-dashboard .day-cell.empty { color: #b2bac5; }
+</style>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <!-- <h3 class="mb-0">기술본부 현황</h3> -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-content">
+        <div class="container-fluid">
+            <section class="tech-dashboard mb-4">
+                <div class="hero mb-3 d-flex justify-content-between align-items-end flex-wrap gap-2">
+                    <div>
+                        <div class="text-uppercase small fw-bold" style="letter-spacing:.08em;">TECHNICAL HQ / RESOURCE CONTROL</div>
+                        <h1 class="h3 mb-1">기술본부 통합 대시보드</h1>
+                        <small><%= startOfWeek.toLocaleDateString('ko-KR') %> ~ <%= endOfWeek.toLocaleDateString('ko-KR') %> · 계획 일정과 프로젝트 투입을 기준으로 집계</small>
+                    </div>
+                    <a href="/admin/resource-analysis" class="btn btn-light btn-sm"><i class="fa-solid fa-chart-line"></i> 상세 리소스 분석</a>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-6 col-xl-3"><div class="metric bg-white p-3"><div class="metric-label">재직 인원</div><div class="metric-value"><%= resourceMembers.length %><small class="fs-6 fw-normal">명</small></div><small class="text-muted">기술본부 3개 팀</small></div></div>
+                    <div class="col-6 col-xl-3"><div class="metric bg-white p-3"><div class="metric-label">주간 계획 일정</div><div class="metric-value"><%= resourceMembers.reduce((sum, member) => sum + member.scheduledDays, 0) %><small class="fs-6 fw-normal">일</small></div><small class="text-muted">일정 + WBS 작업</small></div></div>
+                    <div class="col-6 col-xl-3"><div class="metric bg-white p-3"><div class="metric-label">투입 프로젝트</div><div class="metric-value"><%= resourceProjects.length %><small class="fs-6 fw-normal">건</small></div><small class="text-muted">진행/완료 포함</small></div></div>
+                    <div class="col-6 col-xl-3"><div class="metric bg-white p-3"><div class="metric-label">휴가·반차 계획</div><div class="metric-value"><%= resourceMembers.reduce((sum, member) => sum + member.leaveDays, 0) %><small class="fs-6 fw-normal">일</small></div><small class="text-muted">출퇴근 로그 미연동</small></div></div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <% teamSummary.forEach(team => { %>
+                        <div class="col-md-4"><div class="team-card bg-white p-3 h-100"><div class="d-flex justify-content-between"><strong><%= team.name %></strong><span class="badge bg-light text-dark"><%= team.memberCount %>명</span></div><div class="small mt-2">주간 일정 <b><%= team.scheduledDays %>일</b> · 휴가/반차 <b><%= team.leaveDays %>일</b> · 참여 프로젝트 <b><%= team.projectCount %>건</b></div></div></div>
+                    <% }); %>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title mb-0"><i class="fa-solid fa-users-viewfinder"></i> 사람별 계획·투입 현황</h3><span class="text-muted small">이름에 마우스를 올리면 관련 프로젝트 표시</span></div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-bordered table-sm resource-table mb-0">
+                            <thead><tr><th>인원</th><th>팀</th><th>프로젝트</th><th>계획일</th><th>휴가/반차</th><% dateRange.forEach(date => { %><th class="day-cell"><%= date.toLocaleDateString('ko-KR', { weekday: 'short' }) %><br><%= date.getDate() %></th><% }); %></tr></thead>
+                            <tbody>
+                                <% resourceMembers.forEach(member => { %>
+                                    <tr>
+                                        <td><span class="person-name" tabindex="0"><%= member.name %><span class="person-popover"><strong><%= member.name %> · <%= member.department_name || '기술본부' %></strong><% if (member.projects.length) { %><ul><% member.projects.forEach(project => { %><li><%= project.name %> <span class="badge <%= project.status === '완료' ? 'bg-success' : 'bg-primary' %>"><%= project.status %></span></li><% }); %></ul><% } else { %><span>연결된 프로젝트가 없습니다.</span><% } %></span></span></td>
+                                        <td><%= member.department_name || '-' %></td><td><%= member.projectCount %>건</td><td><%= member.scheduledDays %>일</td><td><%= member.leaveDays %>일</td>
+                                        <% dateRange.forEach(date => { const dateString = date.toISOString().split('T')[0]; const dayItems = scheduleMap[member.id] && scheduleMap[member.id][dateString]; const hasLeave = dayItems && dayItems.some(item => ['연차', '오전반차', '오후반차'].includes(item.scheduleType)); %><td class="day-cell <%= hasLeave ? 'leave' : dayItems && dayItems.length ? 'planned' : 'empty' %>" title="<%= dayItems ? dayItems.map(item => item.title).join(', ') : '계획 없음' %>"><%= hasLeave ? '휴가' : dayItems && dayItems.length ? '계획' : '-' %></td><% }); %>
+                                    </tr>
+                                <% }); %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card mb-4"><div class="card-header"><h3 class="card-title mb-0"><i class="fa-solid fa-diagram-project"></i> 프로젝트 투입 및 실적</h3></div><div class="card-body table-responsive p-0"><table class="table table-hover mb-0"><thead><tr><th>프로젝트</th><th>상태</th><th>진척률</th><th>투입 인원</th><th>기간</th></tr></thead><tbody><% resourceProjects.forEach(project => { %><tr><td><a href="/projects/<%= project.id %>"><%= project.name %></a></td><td><span class="badge <%= project.status === '완료' ? 'bg-success' : 'bg-primary' %>"><%= project.status %></span></td><td style="min-width:150px"><div class="progress"><div class="progress-bar" style="width:<%= project.progress %>%"></div></div><small><%= project.progress %>%</small></td><td><%= project.members.map(member => member.name).join(', ') %></td><td><%= project.start_date ? new Date(project.start_date).toLocaleDateString('ko-KR') : '-' %> ~ <%= project.end_date ? new Date(project.end_date).toLocaleDateString('ko-KR') : '-' %></td></tr><% }); %><% if (!resourceProjects.length) { %><tr><td colspan="5" class="text-center text-muted">투입 프로젝트가 없습니다.</td></tr><% } %></tbody></table></div></div>
+            </section>
+
+            <div class="row">
+                <!-- 프로젝트 현황 -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">프로젝트 현황</h3>
+                        </div>
+                        <div class="card-body table-responsive p-0">
+                            <table class="table table-striped table-valign-middle">
+                                <thead>
+                                    <tr>
+                                        <th>프로젝트명</th>
+                                        <th>PM</th>
+                                        <th>영업</th>
+                                        <th>진행율</th>
+                                        <th>상태</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% if (projects && projects.length > 0) { %>
+                                        <% projects.forEach(project => { %>
+                                            <tr>
+                                                <td><a href="/projects/<%= project.id %>"><%= project.name %></a></td>
+                                                <td><%= project.pm_name || '-' %></td>
+                                                <td><%= project.sales_rep_name || '-' %></td>
+                                                <td>
+                                                    <div class="progress progress-xs">
+                                                        <div class="progress-bar bg-primary" style="width: <%= project.progress || 0 %>%"></div>
+                                                    </div>
+                                                    <small><%= project.progress || 0 %>%</small>
+                                                </td>
+                                                <td><span class="badge bg-info"><%= project.status %></span></td>
+                                            </tr>
+                                        <% }) %>
+                                    <% } else { %>
+                                        <tr>
+                                            <td colspan="5" class="text-center">진행 중인 프로젝트가 없습니다.</td>
+                                        </tr>
+                                    <% } %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 주간보고 -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">최근 주간보고</h3>
+                        </div>
+                        <div class="card-body">
+                            <% if (weeklyReports && weeklyReports.length > 0) { %>
+                                <div class="accordion" id="weeklyReportsAccordion">
+                                    <% weeklyReports.forEach((report, index) => { %>
+                                        <div class="accordion-item">
+                                            <h2 class="accordion-header" id="heading<%= index %>">
+                                                <button class="accordion-button <%= index === 0 ? '' : 'collapsed' %>" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<%= index %>" aria-expanded="<%= index === 0 ? 'true' : 'false' %>" aria-controls="collapse<%= index %>">
+                                                    <%= report.title %> (<%= new Date(report.report_date).toLocaleDateString() %>)
+                                                </button>
+                                            </h2>
+                                            <div id="collapse<%= index %>" class="accordion-collapse collapse <%= index === 0 ? 'show' : '' %>" aria-labelledby="heading<%= index %>" data-bs-parent="#weeklyReportsAccordion">
+                                                <div class="accordion-body" style="max-height: 600px; overflow-y: auto;">
+                                                    <strong>지난주 실적</strong>
+                                                    <pre class="p-2 bg-light"><%= report.previousWeekPerformance || '내용 없음' %></pre>
+                                                    <hr>
+                                                    <strong>금주 계획</strong>
+                                                    <pre class="p-2 bg-light"><%= report.currentWeekPlan || '내용 없음' %></pre>
+                                                    <div class="text-end mt-2">
+                                                        <a href="/weekly-reports/<%= report.id %>" class="btn btn-sm btn-outline-primary">상세보기</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <% }) %>
+                                </div>
+                            <% } else { %>
+                                <p>최근 주간보고가 없습니다.</p>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4">
+                <!-- 일정 현황 -->
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h3 class="card-title">일정 현황</h3>
+							<div class="ms-3 d-flex align-items-center">
+								<button id="prev-month-btn" class="btn btn-sm btn-outline-secondary">&lt;</button>
+								<span id="current-year-month" class="mx-2 fw-bold" style="font-size: 1.2rem; color: #6c757d;"></span>
+								<button id="next-month-btn" class="btn btn-sm btn-outline-secondary">&gt;</button>
+							</div>
+                        </div>
+                        <div class="card-body">
+							<div class="date-selector" id="date-selector">
+								<!-- Date buttons will be generated here -->
+							</div>
+							<div id="loading">로딩 중...</div>
+							<div id="schedule-display">
+								<!-- Schedules will be loaded here -->
+							</div>
+						</div>
+                    </div>
+                </div>
+
+                <!-- 이슈 리스트 -->
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h3 class="card-title">이슈 리스트</h3>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-group list-group-flush">
+                                <% if (issues && issues.length > 0) { %>
+                                    <% issues.forEach(issue => { %>
+                                        <li class="list-group-item">
+                                            <a href="/issues/<%= issue.id %>"><%= issue.title %></a>
+                                            <% if (issue.project_name) { %>
+                                                <small>(프로젝트: <a href="/projects/<%= issue.project_id %>"><%= issue.project_name %></a>)</small>
+                                            <% } %>
+                                            <span class="badge bg-warning float-end"><%= issue.status %></span>
+                                        </li>
+                                    <% }) %>
+                                <% } else { %>
+                                    <li class="list-group-item">진행 중인 이슈가 없습니다.</li>
+                                <% } %>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const dateSelector = document.getElementById('date-selector');
+        const scheduleDisplay = document.getElementById('schedule-display');
+        const loadingIndicator = document.getElementById('loading');
+        const yearMonthDisplay = document.getElementById('current-year-month');
+        const prevMonthBtn = document.getElementById('prev-month-btn');
+        const nextMonthBtn = document.getElementById('next-month-btn');
+
+        let currentDate = new Date();
+
+        function renderCalendar(date) {
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            yearMonthDisplay.textContent = `${year}년 ${month + 1}월`;
+            dateSelector.innerHTML = '';
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateBtn = document.createElement('button');
+                dateBtn.classList.add('date-btn');
+                dateBtn.innerHTML = `${new Date(year, month, i).toLocaleDateString('ko-KR', { weekday: 'short' })}<br>${month + 1}/${i}`;
+                dateBtn.dataset.date = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                dateSelector.appendChild(dateBtn);
+            }
+        }
+
+        async function loadSchedulesForDate(dateString) {
+            document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'));
+            const targetButton = document.querySelector(`.date-btn[data-date='${dateString}']`);
+            if (targetButton) {
+                targetButton.classList.add('active');
+            }
+
+            scheduleDisplay.innerHTML = '';
+            loadingIndicator.style.display = 'block';
+
+            try {
+                const response = await fetch(`/admin/schedule/${dateString}`);
+                if (!response.ok) throw new Error('Network response was not ok');
+                const schedules = await response.json();
+                loadingIndicator.style.display = 'none';
+
+                if (schedules.length > 0) {
+                    schedules.forEach(schedule => {
+                        const card = document.createElement('div');
+                        card.classList.add('schedule-card');
+                        card.innerHTML = `
+                            <div class="schedule-user-container">
+                                <div class="schedule-user">${schedule.user_name}</div>
+                            </div>
+                            <div class="schedule-details">
+                                <div class="schedule-title">${schedule.title}</div>
+                                <div class="schedule-description">${schedule.description || '내용 없음'}</div>
+                            </div>
+                        `;
+                        scheduleDisplay.appendChild(card);
+                    });
+                } else {
+                    scheduleDisplay.innerHTML = '<p>해당 날짜에 등록된 일정이 없습니다.</p>';
+                }
+            } catch (error) {
+                console.error('Error fetching schedules:', error);
+                loadingIndicator.style.display = 'none';
+                scheduleDisplay.innerHTML = '<p>일정을 불러오는 중 오류가 발생했습니다.</p>';
+            }
+        }
+
+        prevMonthBtn.addEventListener('click', function () {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            renderCalendar(currentDate);
+            const firstDayString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-01`;
+            loadSchedulesForDate(firstDayString);
+        });
+
+        nextMonthBtn.addEventListener('click', function () {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            renderCalendar(currentDate);
+            const firstDayString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-01`;
+            loadSchedulesForDate(firstDayString);
+        });
+
+        dateSelector.addEventListener('click', function (e) {
+            if (e.target.classList.contains('date-btn')) {
+                const dateString = e.target.dataset.date;
+                loadSchedulesForDate(dateString);
+            }
+        });
+
+        // Initial Load
+        renderCalendar(currentDate);
+        const todayString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+        loadSchedulesForDate(todayString);
+    });
+</script>
+
+<%- include('../partials/footer') %>

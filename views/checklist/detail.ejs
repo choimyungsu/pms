@@ -1,0 +1,116 @@
+<%- include('../partials/header', { page: 'checklist' }) %>
+<%- include('../partials/sidebar', { page: 'checklist' }) %>
+
+<main class="app-main">
+  <div class="app-content-header">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-sm-6">
+          <h3 class="mb-0">체크리스트 상세정보</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="app-content">
+    <div class="container-fluid">
+      <% if (error) { %>
+        <div class="alert alert-danger"><%= error %></div>
+      <% } else if (item) { %>
+        <div class="card">
+          <div class="card-header">
+            <h4><%= item.title %></h4>
+          </div>
+          <div class="card-body">
+            <dl class="row">
+              <dt class="col-sm-3">카테고리</dt>
+              <dd class="col-sm-9"><a href="/checklist?category_id=<%= item.category_id %>"><%= item.category_name || '미지정' %></a></dd>
+              
+              <dt class="col-sm-3">작성자</dt>
+              <dd class="col-sm-9"><%= item.creator_name %></dd>
+
+              <dt class="col-sm-3">담당자</dt>
+              <dd class="col-sm-9"><%= item.assignee_name || '미지정' %></dd>
+
+              <dt class="col-sm-3">등록일</dt>
+              <dd class="col-sm-9"><%= new Date(item.created_at).toLocaleString() %></dd>
+
+              <dt class="col-sm-3">내용</dt>
+              <dd class="col-sm-9"><pre class="card p-2" style="white-space: pre-wrap; word-wrap: break-word;"><%= item.content %></pre></dd>
+              
+              <dt class="col-sm-3">첨부파일</dt>
+              <dd class="col-sm-9">
+                <% if (attachments && attachments.length > 0) { %>
+                  <ul class="list-group list-group-flush">
+                    <% attachments.forEach(function(attachment) { %>
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <a href="/checklist/api/attachments/<%= attachment.id %>/download">
+                          <i class="fas fa-file-download me-2"></i> <%= attachment.original_name %>
+                        </a>
+                      </li>
+                    <% }) %>
+                  </ul>
+                <% } else { %>
+                  <p>첨부된 파일이 없습니다.</p>
+                <% } %>
+              </dd>
+            </dl>
+            <div class="mt-3">
+              <a href="/checklist" class="btn btn-secondary">목록으로</a>
+              <% if (currentUser && (currentUser.role === 'admin' || currentUser.id === item.creator_id)) { %>
+                <a href="/checklist/edit/<%= item.id %>" class="btn btn-primary">수정</a>
+              <% } %>
+              <% if (currentUser && currentUser.role === 'admin') { %>
+                <button type="button" class="btn btn-danger" onclick="deleteChecklistItem('<%= item.id %>')">삭제</button>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</main>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">삭제 확인</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>정말로 이 항목을 삭제하시겠습니까?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-btn">삭제</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>
+
+<script>
+  function deleteChecklistItem(id) {
+    $('#deleteConfirmModal').modal('show');
+    $('#confirm-delete-btn').off('click').on('click', function() {
+      fetch(`/checklist/api/items/${id}`, {
+        method: 'DELETE'
+      })
+      .then(response => response.json().then(data => ({ ok: response.ok, data })))
+      .then(({ ok, data }) => {
+        alert(data.message || (ok ? '삭제되었습니다.' : '오류가 발생했습니다.'));
+        $('#deleteConfirmModal').modal('hide');
+        if (ok) {
+          window.location.href = '/checklist';
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('삭제 처리 중 오류가 발생했습니다.');
+        $('#deleteConfirmModal').modal('hide');
+      });
+    });
+  }
+</script>

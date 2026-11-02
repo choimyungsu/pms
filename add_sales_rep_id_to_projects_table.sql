@@ -1,0 +1,1 @@
+ALTER TABLE tb_projects ADD COLUMN sales_rep_id INT, ADD FOREIGN KEY (sales_rep_id) REFERENCES tb_user(id);

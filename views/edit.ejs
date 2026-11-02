@@ -1,0 +1,159 @@
+
+<%- include('partials/header') %>
+<%- include('partials/sidebar') %>
+
+<!-- Main content -->
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">명함 정보 수정</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card card-primary card-outline">
+                <div class="card-body">
+                    <form action="/cards/update/<%= card.id %>" method="POST" enctype="multipart/form-data">
+                        <input type="hidden" id="current-card-id" value="<%= card.id %>">
+                        <input type="hidden" name="oldImagePath" value="<%= card.image_path %>">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <h5 class="mb-3">명함 이미지</h5>
+                                <img src="<%= card.image_path %>" class="img-fluid rounded mb-3" alt="Business Card">
+                                <div class="mb-3">
+                                    <label for="businessCard" class="form-label">이미지 변경</label>
+                                    <input class="form-control" type="file" id="businessCard" name="businessCard" accept="image/*">
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <h5 class="mb-3">상세 정보</h5>
+                                <!-- input fields -->
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">이름</label><div class="col-sm-9"><input type="text" class="form-control" name="name" value="<%= card.name || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">회사명</label><div class="col-sm-9"><input type="text" class="form-control" name="company" value="<%= card.company || '' %>"></div></div>
+                                <div class="mb-2 row">
+                                    <label class="col-sm-3 col-form-label">고객구분</label>
+                                    <div class="col-sm-9">
+                                        <select class="form-select" name="customer_type" id="customer_type">
+                                            <option value="">선택</option>
+                                            <option value="고객" <%= card.customer_type === '고객' ? 'selected' : '' %>>고객</option>
+                                            <option value="협력사" <%= card.customer_type === '협력사' ? 'selected' : '' %>>협력사</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-2 row" id="customer_subtype_row" style="display: none;">
+                                    <label class="col-sm-3 col-form-label">고객 상세구분</label>
+                                    <div class="col-sm-9">
+                                        <select class="form-select" name="customer_subtype">
+                                            <option value="">선택</option>
+                                            <option value="공공" <%= card.customer_subtype === '공공' ? 'selected' : '' %>>공공</option>
+                                            <option value="기업" <%= card.customer_subtype === '기업' ? 'selected' : '' %>>기업</option>
+                                            <option value="금융" <%= card.customer_subtype === '금융' ? 'selected' : '' %>>금융</option>
+                                            <option value="국방" <%= card.customer_subtype === '국방' ? 'selected' : '' %>>국방</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-2 row">
+                                    <label class="col-sm-3 col-form-label">제조사</label>
+                                    <div class="col-sm-9">
+                                        <input type="text" class="form-control" name="manufacturer" value="<%= card.manufacturer || '' %>">
+                                    </div>
+                                </div>
+                                <div class="mb-2 row">
+                                    <label class="col-sm-3 col-form-label">계약여부</label>
+                                    <div class="col-sm-9">
+                                        <select class="form-select" name="contract_status">
+                                            <option value="">선택</option>
+                                            <option value="계약" <%= card.contract_status === '계약' ? 'selected' : '' %>>계약</option>
+                                            <option value="미계약" <%= card.contract_status === '미계약' ? 'selected' : '' %>>미계약</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="mb-2 row">
+                                    <label class="col-sm-3 col-form-label">관련명함</label>
+                                    <div class="col-sm-9">
+                                        <input type="text" class="form-control" id="related-cards-input" placeholder="이름/회사명으로 검색 후 선택" autocomplete="off">
+                                        <div id="related-cards-list" class="mt-2">
+                                            <% if (card.related_cards && card.related_cards.length) { %>
+                                                <% card.related_cards.forEach(function(rc) { %>
+                                                    <span class="badge bg-info text-dark me-1 mb-1 related-card-tag" data-id="<%= rc.id %>"><%= rc.name %> (<%= rc.company %>) <i class="fa fa-times remove-related-card" style="cursor:pointer;"></i></span>
+                                                <% }); %>
+                                            <% } %>
+                                        </div>
+                                        <input type="hidden" name="related_card_ids" id="related_card_ids" value="<%= card.related_cards ? card.related_cards.map(rc => rc.id).join(',') : '' %>">
+                                    </div>
+                                </div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">부서</label><div class="col-sm-9"><input type="text" class="form-control" name="department" value="<%= card.department || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">직책</label><div class="col-sm-9"><input type="text" class="form-control" name="position" value="<%= card.position || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">이메일</label><div class="col-sm-9"><input type="email" class="form-control" name="email" value="<%= card.email || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">핸드폰</label><div class="col-sm-9"><input type="text" class="form-control" name="mobile" value="<%= card.mobile || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">전화</label><div class="col-sm-9"><input type="text" class="form-control" name="phone" value="<%= card.phone || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">팩스</label><div class="col-sm-9"><input type="text" class="form-control" name="fax" value="<%= card.fax || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">홈페이지</label><div class="col-sm-9"><input type="text" class="form-control" name="website" value="<%= card.website || '' %>"></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">주소</label><div class="col-sm-9"><textarea class="form-control" name="address" rows="3"><%= card.address || '' %></textarea></div></div>
+                                <div class="mb-2 row"><label class="col-sm-3 col-form-label">메모</label><div class="col-sm-9"><textarea class="form-control" name="memo" rows="3"><%= card.memo || '' %></textarea></div></div>
+                                <div class="mb-3 row"><div class="col-sm-9 offset-sm-3"><div class="form-check"><input class="form-check-input" type="checkbox" name="email_opt_in" value="true" <%= card.email_opt_in ? 'checked' : '' %>><label class="form-check-label">이메일 수신에 동의합니다.</label></div></div></div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal"><i class="fa-solid fa-trash"></i> 삭제</button>
+                            <div>
+                                <a href="/cards/list" class="btn btn-secondary me-2"><i class="fa-solid fa-list-ul"></i> 목록으로</a>
+                                <button type="submit" class="btn btn-success"><i class="fa-solid fa-check"></i> 수정 완료</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">삭제 확인</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body"><p>정말로 이 명함 정보를 삭제하시겠습니까?</p></div>
+            <div class="modal-footer">
+                <form action="/cards/delete/<%= card.id %>" method="POST">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="submit" class="btn btn-danger">삭제</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('partials/footer') %>
+
+<script src="/js/api/card-autocomplete.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const customerType = document.getElementById('customer_type');
+        const customerSubtypeRow = document.getElementById('customer_subtype_row');
+        const contractStatus = document.querySelector('[name="contract_status"]');
+
+        function toggleCustomerSubtype() {
+            if (customerType.value === '고객') {
+                customerSubtypeRow.style.display = '';
+                contractStatus.required = true;
+            } else {
+                customerSubtypeRow.style.display = 'none';
+                contractStatus.required = false;
+            }
+        }
+
+        customerType.addEventListener('change', toggleCustomerSubtype);
+
+        // Initial check on page load
+        toggleCustomerSubtype();
+    });
+</script>

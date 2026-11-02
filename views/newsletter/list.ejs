@@ -1,0 +1,94 @@
+
+<%- include('../partials/header', { page: 'newsletter_list' }) %>
+<%- include('../partials/sidebar', { page: 'newsletter_list' }) %>
+
+<!-- Main content -->
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">보낸 뉴스레터</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fa-solid fa-paper-plane"></i> 보낸 뉴스레터 목록</h3>
+                    <div class="card-tools">
+                        <a href="/newsletter/create" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus"></i> 새 뉴스레터 작성</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <% if (typeof message !== 'undefined' && message) { %>
+                        <div class="alert alert-success" role="alert">
+                            <%= message %>
+                        </div>
+                    <% } %>
+                    <% if (typeof error !== 'undefined' && error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <%= error %>
+                        </div>
+                    <% } %>
+                    <table id="newsletterTable" class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>제목</th>
+                                <th>발송일</th>
+                                <th>상태</th>
+                                <th>액션</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% newsletters.forEach(nl => { %>
+                                <tr>
+                                    <td><%= nl.id %></td>
+                                    <td><%= nl.subject %></td>
+                                    <td><%= new Date(nl.sent_at).toLocaleString() %></td>
+                                    <td>
+                                        <% if (nl.status === 'draft') { %>
+                                            <span class="badge bg-warning">초안</span>
+                                        <% } else { %>
+                                            <span class="badge bg-success">발송완료</span>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <% if (nl.status === 'draft') { %>
+                                            <a href="/newsletter/edit/<%= nl.id %>" class="btn btn-warning btn-sm"><i class="fa-solid fa-edit"></i> 수정</a>
+                                        <% } %>
+                                        <a href="/newsletter/view/<%= nl.id %>" class="btn btn-info btn-sm"><i class="fa-solid fa-eye"></i> 보기</a>
+                                        <% if (currentUser && currentUser.role === 'admin') { %>
+                                            <form action="/newsletter/delete/<%= nl.id %>" method="POST" style="display: inline-block;" onsubmit="return confirm('정말로 이 뉴스레터를 삭제하시겠습니까?');">
+                                                <button type="submit" class="btn btn-danger btn-sm"><i class="fa-solid fa-trash-alt"></i> 삭제</button>
+                                            </form>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<script>
+$(function () {
+    $('#newsletterTable').DataTable({
+        "responsive": true, 
+        "lengthChange": false, 
+        "autoWidth": false,
+        "buttons": ["excel", "colvis"],
+        "order": [[ 0, "desc" ]]
+    });
+
+    $('#newsletterTable').DataTable().buttons().container().appendTo('#newsletterTable_wrapper .col-md-6:eq(0)');
+});
+</script>

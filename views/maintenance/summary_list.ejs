@@ -1,0 +1,494 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<% 
+    // Ensure teams is defined to avoid ReferenceError
+    if (typeof teams === 'undefined') {
+        var teams = { '기술1팀': [], '기술2팀': [], '기술3팀': [] };
+    }
+%>
+
+<style>
+    .btn-xs {
+        padding: .1rem .2rem !important; /* Further reduce padding and add !important */
+        font-size: .6rem !important; /* Further reduce font size and add !important */
+        line-height: 1 !important;
+        border-radius: .1rem !important;
+    }
+    #maintenanceSummaryTable {
+        font-size: 0.6em; /* Further reduce table font size */
+    }
+    #maintenanceSummaryTable th, #maintenanceSummaryTable td {
+        white-space: nowrap; /* Prevent text wrapping */
+    }
+    .dt-buttons .btn.btn-xs i {
+        font-size: 0.6em !important; /* Adjust icon size */
+    }
+    /* Team Colors */
+    .bg-team-1 { background-color: #fffacd !important; } /* Light Yellow (Lemon Chiffon) */
+    .bg-team-2 { background-color: #e0ffe0 !important; } /* Light Green */
+    .bg-team-3 { background-color: #ffe4b5 !important; } /* Light Orange (Moccasin) */
+    
+    .team-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+        margin-left: 0.5rem;
+        border-radius: 0.25rem;
+        display: inline-block;
+    }
+</style>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <% 
+                        let team1Count = 0;
+                        let team2Count = 0;
+                        let team3Count = 0;
+                        let totalCount = summaries.length;
+                        
+                        let team1TotalCost = 0;
+                        let team2TotalCost = 0;
+                        let team3TotalCost = 0;
+                        let grandTotalCost = 0;
+
+                        const calculateAnnualCost = (costText) => {
+                            if (!costText || typeof costText !== 'string') return 0;
+                            
+                            // Extract numbers (removing commas)
+                            const amountMatch = costText.replace(/,/g, '').match(/\d+/);
+                            if (!amountMatch) return 0;
+                            let amount = parseInt(amountMatch[0]);
+
+                            // (n년) 처리
+                            const yearMatch = costText.match(/\((\d+)년\)/);
+                            if (yearMatch) {
+                                const years = parseInt(yearMatch[1]);
+                                return years > 0 ? amount / years : amount;
+                            }
+
+                            // (년) 처리
+                            if (costText.includes('(년)')) {
+                                return amount;
+                            }
+
+                            // (월) 처리
+                            if (costText.includes('(월)')) {
+                                return amount * 12;
+                            }
+
+                            return amount; // 기본값
+                        };
+
+                        summaries.forEach(s => {
+                            const annualCost = calculateAnnualCost(s.cost);
+                            grandTotalCost += annualCost;
+                            
+                            if (s.dept_name === '기술1팀') {
+                                team1Count++;
+                                team1TotalCost += annualCost;
+                            } else if (s.dept_name === '기술2팀') {
+                                team2Count++;
+                                team2TotalCost += annualCost;
+                            } else if (s.dept_name === '기술3팀') {
+                                team3Count++;
+                                team3TotalCost += annualCost;
+                            }
+                        });
+
+                        const formatKRW = (num) => {
+                            return new Intl.NumberFormat('ko-KR').format(Math.round(num)) + '원';
+                        };
+                    %>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center">
+                        <h3 class="mb-0">
+                            <%= page_title %>
+                            <span class="team-badge bg-secondary text-white">
+                                전체: <%= totalCount %>건
+                                <% if (user && user.role === 'admin') { %>
+                                    (연 <%= formatKRW(grandTotalCost) %>)
+                                <% } %>
+                            </span>
+                            <span class="team-badge bg-team-1">
+                                기술1팀: <%= team1Count %>건
+                                <% if (user && user.role === 'admin') { %>
+                                    (연 <%= formatKRW(team1TotalCost) %>)
+                                <% } %>
+                            </span>
+                            <span class="team-badge bg-team-2">
+                                기술2팀: <%= team2Count %>건
+                                <% if (user && user.role === 'admin') { %>
+                                    (연 <%= formatKRW(team2TotalCost) %>)
+                                <% } %>
+                            </span>
+                            <span class="team-badge bg-team-3">
+                                기술3팀: <%= team3Count %>건
+                                <% if (user && user.role === 'admin') { %>
+                                    (연 <%= formatKRW(team3TotalCost) %>)
+                                <% } %>
+                            </span>
+                        </h3>
+                        <ol class="breadcrumb mb-0">
+                            <li class="breadcrumb-item"><a href="/">Home</a></li>
+                            <li class="breadcrumb-item active"><%= page_title %></li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">유지보수 요약 목록</h3>
+                    <div class="card-tools">
+                        <a href="/maintenance/summary/create" class="btn btn-primary btn-xs me-1">새 유지보수 등록</a>
+                        <button type="button" class="btn btn-success btn-xs me-1" data-bs-toggle="modal" data-bs-target="#uploadExcelModal">엑셀 업로드</button>
+                        <a href="/maintenance/summary/download-excel" class="btn btn-info btn-xs me-1">엑셀 다운로드</a>
+                        <a href="/maintenance/summary/download-template" class="btn btn-secondary btn-xs">템플릿 다운로드</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Team Tabs -->
+                    <ul class="nav nav-tabs mb-3" id="teamTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all-members" type="button" role="tab">전체</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="team1-tab" data-bs-toggle="tab" data-bs-target="#team1-members" type="button" role="tab">기술1팀</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="team2-tab" data-bs-toggle="tab" data-bs-target="#team2-members" type="button" role="tab">기술2팀</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="team3-tab" data-bs-toggle="tab" data-bs-target="#team3-members" type="button" role="tab">기술3팀</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content mb-4" id="teamTabsContent">
+                        <div class="tab-pane fade show active" id="all-members" role="tabpanel">
+                            <p class="text-muted small">팀 탭을 선택하여 부서원별 필터링을 할 수 있습니다.</p>
+                        </div>
+                        <div class="tab-pane fade" id="team1-members" role="tabpanel">
+                            <% if (teams['기술1팀'] && teams['기술1팀'].length > 0) { %>
+                                <% teams['기술1팀'].forEach(u => { %>
+                                    <button class="btn btn-outline-primary btn-sm me-1 mb-1 filter-member" data-name="<%= u.name %>"><%= u.name %></button>
+                                <% }) %>
+                            <% } else { %>
+                                <p class="text-muted small">등록된 부서원이 없습니다.</p>
+                            <% } %>
+                        </div>
+                        <div class="tab-pane fade" id="team2-members" role="tabpanel">
+                            <% if (teams['기술2팀'] && teams['기술2팀'].length > 0) { %>
+                                <% teams['기술2팀'].forEach(u => { %>
+                                    <button class="btn btn-outline-success btn-sm me-1 mb-1 filter-member" data-name="<%= u.name %>"><%= u.name %></button>
+                                <% }) %>
+                            <% } else { %>
+                                <p class="text-muted small">등록된 부서원이 없습니다.</p>
+                            <% } %>
+                        </div>
+                        <div class="tab-pane fade" id="team3-members" role="tabpanel">
+                            <% if (teams['기술3팀'] && teams['기술3팀'].length > 0) { %>
+                                <% teams['기술3팀'].forEach(u => { %>
+                                    <button class="btn btn-outline-warning btn-sm me-1 mb-1 filter-member" data-name="<%= u.name %>"><%= u.name %></button>
+                                <% }) %>
+                            <% } else { %>
+                                <p class="text-muted small">등록된 부서원이 없습니다.</p>
+                            <% } %>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-2 d-flex align-items-center">
+                        <span class="me-3 small text-muted">엔지니어 구분:</span>
+                        <div class="form-check form-check-inline mb-0">
+                            <input class="form-check-input filter-role-checkbox" type="checkbox" id="checkMainEngineer" value="main" checked>
+                            <label class="form-check-label small" for="checkMainEngineer">정엔지니어</label>
+                        </div>
+                        <div class="form-check form-check-inline mb-0">
+                            <input class="form-check-input filter-role-checkbox" type="checkbox" id="checkSubEngineer" value="sub" checked>
+                            <label class="form-check-label small" for="checkSubEngineer">부엔지니어</label>
+                        </div>
+                    </div>
+                    
+                    <input type="hidden" id="currentFilterName" value="">
+
+                    <table id="maintenanceSummaryTable" class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>구분</th>
+                                <th>고객사</th>
+                                <th>사업명</th>
+                                <% if (user && user.role === 'admin') { %>
+                                    <th>비용</th>
+                                <% } %>
+                                <th>유지보수시작일</th>
+                                <th>유지보수종료일</th>
+                                <th>품목</th>
+                                <th>정엔지니어</th>
+                                <th>부엔지니어</th>
+                                <th>영업담당</th>
+                                <th>점검방식</th>
+                                <th>고객담당자</th>
+                                <th>고객연락처</th>
+                                <th>고객이메일</th>
+                                <th>점검위치</th>
+                                <th>비고</th>
+                                <th>첨부파일</th>
+                                <th>지원</th>
+                                <th>수정</th>
+                                <th>삭제</th>
+                                <th>정기점검</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% summaries.forEach(summary => { 
+                                let rowClass = '';
+                                if (summary.dept_name === '기술1팀') rowClass = 'bg-team-1';
+                                else if (summary.dept_name === '기술2팀') rowClass = 'bg-team-2';
+                                else if (summary.dept_name === '기술3팀') rowClass = 'bg-team-3';
+                            %>
+                                <tr class="<%= rowClass %>">
+                                    <td><%= summary.division %></td>
+                                    <td><%= summary.customer_company %></td>
+                                    <td>
+                                        <a href="/maintenance/summary/<%= summary.id %>"><%= summary.project_name %></a>
+                                        <% if (summary.dept_name) { %>
+                                            <span class="badge <%= rowClass %> text-dark" style="font-size: 0.5rem; padding: 0.1rem 0.2rem; vertical-align: middle; margin-left: 3px; border: 1px solid #ddd;" title="담당부서">
+                                                <%= summary.dept_name %>
+                                            </span>
+                                        <% } %>
+                                        <% if (summary.inspection_method) { 
+                                            let badgeClass = 'bg-secondary';
+                                            if (summary.inspection_method === '월점검') {
+                                                badgeClass = 'bg-primary';
+                                            } else if (summary.inspection_method === '장애시' || summary.inspection_method === '장애 시') {
+                                                badgeClass = 'bg-danger';
+                                            }
+                                        %>
+                                            <span class="badge <%= badgeClass %> text-white" style="font-size: 0.5rem; padding: 0.1rem 0.2rem; vertical-align: middle; margin-left: 2px; opacity: 0.8;" title="점검방식">
+                                                <%= summary.inspection_method %>
+                                            </span>
+                                        <% } %>
+                                    </td>
+                                    <% if (user && user.role === 'admin') { %>
+                                        <td><%= summary.cost %></td>
+                                    <% } %>
+                                    <td><%= summary.maintenance_start_date %></td>
+                                    <td>
+                                        <%= summary.maintenance_end_date %>
+                                        <% 
+                                            if (summary.maintenance_end_date) {
+                                                const endDate = new Date(summary.maintenance_end_date);
+                                                const today = new Date();
+                                                today.setHours(0, 0, 0, 0); // 날짜 비교를 위해 시간 초기화
+                                                if (endDate < today) { 
+                                        %>
+                                            <i class="fas fa-exclamation-circle text-danger ms-1" title="유지보수 종료됨"></i>
+                                        <% 
+                                                }
+                                            } 
+                                        %>
+                                    </td>
+                                    <td>
+                                        <% if (summary.items && summary.items.length > 0) { 
+                                            let itemNames = summary.items.map(i => i.item_name);
+                                            let chunks = [];
+                                            for (let i = 0; i < itemNames.length; i += 4) {
+                                                chunks.push(itemNames.slice(i, i + 4).join(', '));
+                                            }
+                                        %>
+                                            <%- chunks.join('<br>') %>
+                                        <% } else { %>
+                                            -
+                                        <% } %>
+                                    </td>
+                                    <td><%= summary.main_engineer %></td>
+                                    <td><%= summary.sub_engineer %></td>
+                                    <td><%= summary.sales_manager %></td>
+                                    <td><%= summary.inspection_method %></td>
+                                    <td><%= summary.customer_contact_person %></td>
+                                    <td><%= summary.customer_contact %></td>
+                                    <td><%= summary.customer_email %></td>
+                                    <td><%= summary.inspection_location %></td>
+                                    <td><%- summary.remarks %></td>
+                                    <td><%= summary.attachment_count %></td>
+                                    <td>
+                                        <a href="/maintenance/summary/<%= summary.id %>/support" class="btn btn-warning btn-xs">지원</a>
+                                    </td>
+                                    <td>
+                                        <a href="/maintenance/summary/edit/<%= summary.id %>" class="btn btn-info btn-xs">수정</a>
+                                    </td>
+                                    <td>
+                                        <% if (user && (user.role === 'admin' || user.role === 'operations_manager' || user.id === summary.creator_id)) { %>
+                                            <form action="/maintenance/summary/<%= summary.id %>/delete" method="POST" onsubmit="return confirm('정말로 삭제하시겠습니까?');">
+                                                <button type="submit" class="btn btn-danger btn-xs">삭제</button>
+                                            </form>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <a href="/maintenance/summary/<%= summary.id %>/inspections" class="btn btn-primary btn-xs">정기점검</a>
+                                    </td>
+                               </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Excel Upload Modal -->
+<div class="modal fade" id="uploadExcelModal" tabindex="-1" aria-labelledby="uploadExcelModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadExcelModalLabel">엑셀 업로드</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/maintenance/summary/upload-excel" method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="excelFile" class="form-label">엑셀 파일 선택</label>
+                        <input class="form-control" type="file" id="excelFile" name="excelFile" accept=".xlsx, .xls">
+                    </div>
+                    <button type="submit" class="btn btn-primary">업로드</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>
+
+<script>
+    $(function () {
+        $('#maintenanceSummaryTable').DataTable({
+            "paging": true,
+            "lengthChange": false,
+            "searching": true,
+            "ordering": true,
+            "info": true,
+            "autoWidth": false,
+            "responsive": true,
+            "stateSave": true,
+            "pageLength": 20, // Default to 20 rows per page
+            "dom": '<"row"<"col-sm-6"B><"col-sm-6 text-end"f>>rtip', // Buttons on left, search on right
+            "buttons": [
+                {
+                    extend: 'colvis',
+                    text: '<i class="fas fa-columns"></i> 컬럼 보기',
+                    className: 'btn-xs' // Apply btn-xs to the colvis button
+                },
+                {
+                    text: '전체선택',
+                    className: 'btn btn-secondary btn-xs ms-1',
+                    action: function (e, dt) {
+                        dt.columns().visible(true);
+                    }
+                },
+                {
+                    text: '전체해제',
+                    className: 'btn btn-secondary btn-xs ms-1',
+                    action: function (e, dt) {
+                        dt.columns().visible(false);
+                        <% if (user && user.role === 'admin') { %>
+                            dt.columns([0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 17, 18, 19, 20]).visible(true);
+                        <% } else { %>
+                            dt.columns([0, 1, 2, 3, 4, 5, 6, 7, 15, 16, 17, 18, 19]).visible(true);
+                        <% } %>
+                    }
+                }
+            ],
+            "columns": [
+                { "visible": true }, // 구분
+                { "visible": true }, // 고객사
+                { "visible": true }, // 사업명
+                <% if (user && user.role === 'admin') { %>
+                { "visible": true }, // 비용
+                <% } %>
+                { "visible": true }, // 유지보수시작일
+                { "visible": true }, // 유지보수종료일
+                { "visible": true }, // 품목
+                { "visible": true }, // 정엔지니어
+                { "visible": true }, // 부엔지니어
+                { "visible": false }, // 영업담당
+                { "visible": false }, // 점검방식
+                { "visible": false }, // 고객담당자
+                { "visible": false }, // 고객연락처
+                { "visible": false }, // 고객이메일
+                { "visible": false }, // 점검위치
+                { "visible": false }, // 비고
+                { "visible": true }, // 첨부파일
+                { "visible": true }, // 지원
+                { "visible": true }, // 수정
+                { "visible": true }, // 삭제
+                { "visible": true } // 정기점검
+            ],
+            "language": {
+                "url": "/js/datatables/ko.json"
+            }
+        });
+
+        // Custom search function for engineer name and role
+        $.fn.dataTable.ext.search.push(
+            function( settings, data, dataIndex ) {
+                const filterName = $('#currentFilterName').val();
+                if (!filterName) return true;
+                
+                const showMain = $('#checkMainEngineer').is(':checked');
+                const showSub = $('#checkSubEngineer').is(':checked');
+                
+                // If no role is selected, hide everything that matches the filter name
+                if (!showMain && !showSub) return false;
+
+                // Column indices:
+                // If admin: 0:구분, 1:고객사, 2:사업명, 3:비용, 4:시작, 5:종료, 6:품목, 7:정, 8:부
+                // If not: 0:구분, 1:고객사, 2:사업명, 3:시작, 4:종료, 5:품목, 6:정, 7:부
+                const isAdmin = <%= (user && user.role === 'admin') ? 'true' : 'false' %>;
+                const mainColIdx = isAdmin ? 7 : 6;
+                const subColIdx = isAdmin ? 8 : 7;
+                
+                const mainEng = data[mainColIdx] || '';
+                const subEng = data[subColIdx] || '';
+                
+                let match = false;
+                if (showMain && mainEng.includes(filterName)) match = true;
+                if (showSub && subEng.includes(filterName)) match = true;
+                
+                return match;
+            }
+        );
+
+        // Filter button click event
+        $('.filter-member').on('click', function() {
+            const name = $(this).data('name');
+            
+            // Toggle active state
+            if ($(this).hasClass('active')) {
+                $(this).removeClass('active');
+                $('#currentFilterName').val('');
+            } else {
+                $('.filter-member').removeClass('active');
+                $(this).addClass('active');
+                $('#currentFilterName').val(name);
+            }
+            
+            $('#maintenanceSummaryTable').DataTable().draw();
+        });
+
+        // Role checkbox change event
+        $('.filter-role-checkbox').on('change', function() {
+            $('#maintenanceSummaryTable').DataTable().draw();
+        });
+
+        // Reset filter when '전체' tab is clicked
+        $('#all-tab').on('click', function() {
+            $('.filter-member').removeClass('active');
+            $('#currentFilterName').val('');
+            $('#maintenanceSummaryTable').DataTable().draw();
+        });
+    });
+</script>

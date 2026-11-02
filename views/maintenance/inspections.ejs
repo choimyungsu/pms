@@ -1,0 +1,93 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">정기점검 관리: <%= summary.project_name %></h3>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-end">
+                        <li class="breadcrumb-item"><a href="/">Home</a></li>
+                        <li class="breadcrumb-item"><a href="/maintenance/summary">유지보수(요약)</a></li>
+                        <li class="breadcrumb-item active">정기점검</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">새 정기점검 등록</h3>
+                </div>
+                <div class="card-body">
+                    <form action="/maintenance/summary/<%= summary.id %>/inspections" method="POST" enctype="multipart/form-data">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="title" class="form-label">제목</label>
+                                <input type="text" class="form-control" id="title" name="title" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="inspection_date" class="form-label">점검일</label>
+                                <input type="date" class="form-control" id="inspection_date" name="inspection_date" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="attachment" class="form-label">첨부파일</label>
+                            <input type="file" class="form-control" id="attachment" name="attachment">
+                        </div>
+                        <button type="submit" class="btn btn-primary">등록</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3 class="card-title">정기점검 이력</h3>
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>제목</th>
+                                <th>점검일</th>
+                                <th>첨부파일</th>
+                                <th>등록일</th>
+                                <th>삭제</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% inspections.forEach(inspection => { %>
+                                <tr>
+                                    <td><%= inspection.title %></td>
+                                    <td><%= new Date(inspection.inspection_date).toLocaleDateString() %></td>
+                                    <td>
+                                        <% if (inspection.attachment_path) { %>
+                                            <a href="<%= inspection.attachment_path %>" target="_blank"><%= inspection.attachment_original_name %></a>
+                                        <% } else { %>
+                                            없음
+                                        <% } %>
+                                    </td>
+                                    <td><%= new Date(inspection.created_at).toLocaleString() %></td>
+                                    <td>
+                                        <% if (user && (user.role === 'admin' || user.id === inspection.creator_id)) { %>
+                                            <form action="/maintenance/summary/<%= summary.id %>/inspections/<%= inspection.id %>/delete" method="POST" onsubmit="return confirm('정말로 삭제하시겠습니까?');">
+                                                <button type="submit" class="btn btn-danger btn-xs">삭제</button>
+                                            </form>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>

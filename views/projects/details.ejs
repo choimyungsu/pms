@@ -1,0 +1,868 @@
+<%- include('../partials/header', { page: 'project_details' }) %>
+<%- include('../partials/sidebar', { page: 'project_details' }) %>
+
+
+<link rel="stylesheet" href="/css/frappe-gantt.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.17/themes/default/style.min.css" />
+<link rel="stylesheet" href="//code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0"><%= title %></h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <ul class="nav nav-tabs" id="projectDetailTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="project-detail-tab" data-bs-toggle="tab" data-bs-target="#project-detail" type="button" role="tab" aria-controls="project-detail" aria-selected="true">프로젝트 상세</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="wbs-tab" data-bs-toggle="tab" data-bs-target="#wbs" type="button" role="tab" aria-controls="wbs" aria-selected="false">WBS</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="gantt-tab" data-bs-toggle="tab" data-bs-target="#gantt-frappe" type="button" role="tab" aria-controls="gantt-frappe" aria-selected="false">간트</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="knowledge-tab" data-bs-toggle="tab" data-bs-target="#knowledge" type="button" role="tab" aria-controls="knowledge" aria-selected="false">자료</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="memo-tab" data-bs-toggle="tab" data-bs-target="#memo" type="button" role="tab" aria-controls="memo" aria-selected="false">메모</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="minutes-tab" data-bs-toggle="tab" data-bs-target="#minutes" type="button" role="tab" aria-controls="minutes" aria-selected="false">회의록</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="issues-tab" data-bs-toggle="tab" data-bs-target="#issues" type="button" role="tab" aria-controls="issues" aria-selected="false">이슈</button>
+                </li>
+            </ul>
+            <div class="tab-content" id="projectDetailTabContent">
+                <div class="tab-pane fade show active" id="project-detail" role="tabpanel" aria-labelledby="project-detail-tab">
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">프로젝트 정보</h3>
+                                </div>
+                                <div class="card-body">
+                                    <p style="white-space: pre-wrap;"><strong>설명:</strong> <%= project.description %></p>
+                                    <p><strong>시작일:</strong> <%= project.start_date ? new Date(project.start_date).toLocaleDateString() : '' %></p>
+                                    <p><strong>종료일:</strong> <%= project.end_date ? new Date(project.end_date).toLocaleDateString() : '' %></p>
+                                    <p><strong>상태:</strong> <%= project.status %></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">참여 인력</h3>
+                                </div>
+                                <div class="card-body">
+                                    <% if (currentUser && currentUser.role === 'admin') { %>
+                                    <h5>사용자 할당</h5>
+                                    <form action="/projects/<%= project.id %>/users" method="POST" class="mb-3">
+                                        <div class="input-group">
+                                            <select name="user_id" class="form-select">
+                                                <% allUsers.forEach(user => { %>
+                                                    <% if (!assignedUsers.find(au => au.id === user.id)) { %>
+                                                        <option value="<%= user.id %>"><%= user.name %></option>
+                                                    <% } %>
+                                                <% }) %>
+                                            </select>
+                                            <button type="submit" class="btn btn-success">추가</button>
+                                        </div>
+                                    </form>
+                                    <hr>
+                                    <% } %>
+                                    <h5>할당된 사용자</h5>
+                                    <ul class="list-group">
+                                        <% assignedUsers.forEach(user => { %>
+                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                <%= user.name %>
+                                                <% if (currentUser && currentUser.role === 'admin') { %>
+                                                <form action="/projects/<%= project.id %>/users/remove" method="POST">
+                                                    <input type="hidden" name="user_id" value="<%= user.id %>">
+                                                    <button type="submit" class="btn btn-sm btn-danger">제거</button>
+                                                </form>
+                                                <% } %>
+                                            </li>
+                                        <% }) %>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="wbs" role="tabpanel" aria-labelledby="wbs-tab">
+                    <%- include('wbs_custom') %>
+                </div>
+                <div class="tab-pane fade" id="gantt-frappe" role="tabpanel" aria-labelledby="gantt-tab">
+                    <div class="card mt-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h3 class="card-title mb-0">프로젝트 간트 차트</h3>
+                            <div class="btn-group" role="group" aria-label="Gantt View Mode">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-view-mode="Day">일</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-view-mode="Week">주</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-view-mode="Month">월</button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <svg class="gantt-container"></svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="knowledge" role="tabpanel" aria-labelledby="knowledge-tab">
+                    <div class="card mt-3">
+                        <div class="card-header d-flex align-items-center">
+                            <h3 class="card-title">연결된 자료</h3>
+                            <% if (currentUser) { %>
+                            <div class="ms-auto">
+                                <button class="btn btn-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#createAndLinkKnowledgeModal">새 자료 등록 및 연결</button>
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#linkKnowledgeModal">기존 자료 연결</button>
+                            </div>
+                            <% } %>
+                        </div>
+                        <div class="card-body">
+                            <% if (currentUser) { %>
+                            <table id="linkedKnowledgeTable" class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>문서 제목</th>
+                                        <th>구분</th>
+                                        <th>상태</th>
+                                        <th>시작일</th>
+                                        <th>종료일</th>
+                                        <th>첨부파일</th>
+                                        <th>등록일</th>
+                                        <th>관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="linkedKnowledgeTableBody">
+                                    <% linkedKnowledge.forEach(item => { %>
+                                        <tr id="knowledge-row-<%= item.id %>">
+                                            <td><a href="/knowledge/detail/<%= item.id %>" target="_blank"><%= item.title %></a></td>
+                                            <td><%= item.type %></td>
+                                            <td><%= item.status %></td>
+                                            <td><%= item.start_date ? new Date(item.start_date).toLocaleDateString() : '' %></td>
+                                            <td><%= item.end_date ? new Date(item.end_date).toLocaleDateString() : '' %></td>
+                                            <td>
+                                                <% if (item.attachments && item.attachments.length > 0) { %>
+                                                    <ul class="list-unstyled mb-0">
+                                                        <% item.attachments.forEach(attachment => { %>
+                                                            <li><a href="/knowledge/api/attachments/<%= attachment.id %>/download"><%= attachment.original_name %></a></li>
+                                                        <% }) %>
+                                                    </ul>
+                                                <% } else { %>
+                                                    없음
+                                                <% } %>
+                                            </td>
+                                            <td><%= new Date(item.created_at).toLocaleDateString() %></td>
+                                            <td>
+                                                <% if (currentUser && (currentUser.role === 'admin' || currentUser.id === item.creator_id)) { %>
+                                                <button class="btn btn-danger btn-sm" onclick="unlinkKnowledge(<%= project.id %>, <%= item.id %>)">연결 해제</button>
+                                                <% } %>
+                                            </td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                            <% } else { %>
+                            <div class="alert alert-info mt-3" role="alert">
+                                연결된 자료는 관리자만 볼 수 있습니다.
+                            </div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="memo" role="tabpanel" aria-labelledby="memo-tab">
+                    <div class="card mt-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h3 class="card-title">메모</h3>
+                            <div class="ms-auto">
+                                <a href="/memo/create?projectId=<%= project.id %>" class="btn btn-primary btn-sm">새 메모 작성</a>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>제목</th>
+                                        <th>작성자</th>
+                                        <th>작성일</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% if (memos && memos.length > 0) { %>
+                                        <% memos.forEach(memo => { %>
+                                            <tr>
+                                                <td><a href="/memo/<%= memo.id %>" target="_blank"><%= memo.title %></a></td>
+                                                <td><%= memo.creator_name %></td>
+                                                <td><%= new Date(memo.created_at).toLocaleDateString() %></td>
+                                            </tr>
+                                        <% }) %>
+                                    <% } else { %>
+                                        <tr>
+                                            <td colspan="3" class="text-center">연결된 메모가 없습니다.</td>
+                                        </tr>
+                                    <% } %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="minutes" role="tabpanel" aria-labelledby="minutes-tab">
+                    <div class="card mt-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h3 class="card-title">회의록</h3>
+                            <div class="ms-auto">
+                                <a href="/minutes/create?projectId=<%= project.id %>" class="btn btn-primary btn-sm">새 회의록 작성</a>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>회의명</th>
+                                        <th>작성자</th>
+                                        <th>회의일</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% if (minutes && minutes.length > 0) { %>
+                                        <% minutes.forEach(minute => { %>
+                                            <tr>
+                                                <td><a href="/minutes/view/<%= minute.id %>" target="_blank"><%= minute.title %></a></td>
+                                                <td><%= minute.creator_name %></td>
+                                                <td><%= minute.meeting_date ? new Date(minute.meeting_date).toLocaleDateString() : '' %></td>
+                                            </tr>
+                                        <% }) %>
+                                    <% } else { %>
+                                        <tr>
+                                            <td colspan="3" class="text-center">연결된 회의록이 없습니다.</td>
+                                        </tr>
+                                    <% } %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="issues" role="tabpanel" aria-labelledby="issues-tab">
+                    <div class="card mt-3">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h3 class="card-title">이슈 목록</h3>
+                            <div class="ms-auto">
+                                <a href="/issues/create?project_id=<%= project.id %>" class="btn btn-primary btn-sm">새 이슈 등록</a>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>제목</th>
+                                        <th>상태</th>
+                                        <th>담당자</th>
+                                        <th>등록일</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% if (issues && issues.length > 0) { %>
+                                        <% issues.forEach(issue => { %>
+                                            <tr>
+                                                <td><a href="/issues/<%= issue.id %>"><%= issue.title %></a></td>
+                                                <td><%= issue.status %></td>
+                                                <td><%= issue.assignee_name || '없음' %></td>
+                                                <td><%= new Date(issue.created_at).toLocaleDateString() %></td>
+                                            </tr>
+                                        <% }) %>
+                                    <% } else { %>
+                                        <tr>
+                                            <td colspan="4" class="text-center">이 프로젝트에 해당하는 이슈가 없습니다.</td>
+                                        </tr>
+                                    <% } %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<!-- Create And Link Knowledge Modal -->
+<div class="modal fade" id="createAndLinkKnowledgeModal" tabindex="-1" aria-labelledby="createAndLinkKnowledgeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createAndLinkKnowledgeModalLabel">새 자료 등록 및 연결</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="createAndLinkKnowledgeForm" class="dropzone" action="/projects/<%= project.id %>/knowledge/create-and-link" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="new_knowledge_title" class="form-label">제목</label>
+                        <input type="text" class="form-control" id="new_knowledge_title" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_knowledge_category_id" class="form-label">카테고리</label>
+                        <div id="new_knowledge_category_tree"></div>
+                        <input type="hidden" id="selected_category_id" name="category_id" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_knowledge_type" class="form-label">구분</label>
+                        <select class="form-select" id="new_knowledge_type" name="type">
+                            <option value="">선택</option>
+                            <option value="설명">설명</option>
+                            <option value="자료">자료</option>
+                            <option value="이슈">이슈</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_knowledge_description1" class="form-label">설명1</label>
+                        <textarea class="form-control" id="new_knowledge_description1" name="description1" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_knowledge_description2" class="form-label">설명2</label>
+                        <textarea class="form-control" id="new_knowledge_description2" name="description2" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_knowledge_status" class="form-label">상태</label>
+                        <input type="text" class="form-control" id="new_knowledge_status" name="status">
+                    </div>
+                    <div class="mb-3">
+                        <label for="new_knowledge_assignee" class="form-label">담당자</label>
+                        <select class="form-select" id="new_knowledge_assignee" name="assignee">
+                            <option value="">선택</option>
+                            <% allUsers.forEach(user => { %>
+                                <option value="<%= user.id %>"><%= user.name %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="new_knowledge_start_date" class="form-label">시작일</label>
+                            <input type="date" class="form-control" id="new_knowledge_start_date" name="start_date">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="new_knowledge_end_date" class="form-label">종료일</label>
+                            <input type="date" class="form-control" id="new_knowledge_end_date" name="end_date">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="new_knowledge_planned_date" class="form-label">예정일</label>
+                            <input type="date" class="form-control" id="new_knowledge_planned_date" name="planned_date">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="attachments" class="form-label">첨부파일</label>
+                        <div id="drop-zone" class="border rounded p-5 text-center" style="border-style: dashed !important;">
+                            <p>여기로 파일을 드래그하거나 클릭하여 업로드하세요.</p>
+                            <input type="file" class="form-control" id="attachments" name="attachments" multiple style="display: none;">
+                        </div>
+                        <div id="file-list" class="mt-2"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="submit" class="btn btn-primary">등록 및 연결</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Link Knowledge Modal -->
+<div class="modal fade" id="linkKnowledgeModal" tabindex="-1" aria-labelledby="linkKnowledgeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="linkKnowledgeModalLabel">기존 자료 연결</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="knowledgeSearchInput" class="form-label">지식 문서 검색</label>
+                    <input type="text" class="form-control" id="knowledgeSearchInput" placeholder="문서 제목으로 검색...">
+                </div>
+                <div id="knowledgeSearchResults">
+                    <!-- Search results will be populated here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" id="linkSelectedKnowledgeBtn" disabled>선택한 자료 추가</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit WBS Task Modal -->
+<div class="modal fade" id="editWbsTaskModal" tabindex="-1" aria-labelledby="editWbsTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editWbsTaskModalLabel">WBS 태스크 수정</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editWbsTaskForm" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="_method" value="PUT">
+                    <div class="mb-3">
+                        <label for="edit_task_name" class="form-label">태스크명</label>
+                        <input type="text" class="form-control" id="edit_task_name" name="task_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_parent_id" class="form-label">상위 태스크</label>
+                        <select class="form-select" id="edit_parent_id" name="parent_id">
+                            <option value="">없음</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_start_date" class="form-label">시작일</label>
+                            <input type="date" class="form-control" id="edit_start_date" name="start_date">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_end_date" class="form-label">종료일</label>
+                            <input type="date" class="form-control" id="edit_end_date" name="end_date">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_progress" class="form-label">진척율</label>
+                        <input type="number" class="form-control" id="edit_progress" name="progress" min="0" max="100">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_assigned_user_id" class="form-label">담당자</label>
+                        <select class="form-select" id="edit_assigned_user_id" name="assigned_user_id">
+                            <option value="">선택</option>
+                            <% allUsers.forEach(user => { %>
+                                <option value="<%= user.id %>"><%= user.name %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                    <button type="submit" class="btn btn-primary">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Excel Modal -->
+<div class="modal fade" id="uploadExcelModal" tabindex="-1" aria-labelledby="uploadExcelModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadExcelModalLabel">WBS 엑셀 업로드</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="uploadExcelForm" action="/projects/<%= project.id %>/wbs/upload-excel" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="wbsExcelFile" class="form-label">엑셀 파일 선택</label>
+                        <input class="form-control" type="file" id="wbsExcelFile" name="wbsExcelFile" accept=".xlsx, .xls" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                    <button type="submit" class="btn btn-primary">업로드</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/js/frappe-gantt.min.js"></script>
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.17/jstree.min.js"></script>
+<script src="https://cdn.datatables.net/colreorder/1.6.1/js/dataTables.colReorder.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const projectId = <%= project.id %>;
+        const wbsData = <%- JSON.stringify(wbsTasks) %>;
+        let gantt;
+
+        function renderGanttChart() {
+            const ganttContainer = document.querySelector('.gantt-container');
+            if (!ganttContainer) return;
+
+            ganttContainer.innerHTML = '';
+
+            const tasks = wbsData
+                .filter(task => task.data.start_date && task.data.end_date)
+                .map(task => ({
+                    id: String(task.id),
+                    name: task.text,
+                    start: task.data.start_date.split('T')[0],
+                    end: task.data.end_date.split('T')[0],
+                    progress: task.data.progress || 0,
+                    dependencies: task.parent && task.parent !== '#' ? String(task.parent) : null
+                }));
+
+            if (tasks.length > 0) {
+                gantt = new Gantt(ganttContainer, tasks, {
+                    header_height: 50,
+                    column_width: 30,
+                    step: 24,
+                    view_modes: ['Day', 'Week', 'Month'],
+                    bar_height: 20,
+                    bar_corner_radius: 3,
+                    arrow_curve: 5,
+                    padding: 18,
+                    view_mode: 'Week',
+                    date_format: 'YYYY-MM-DD',
+                    custom_popup_html: function(task) {
+                        return `
+                            <div class="details-container" style="padding:10px; min-width: 200px;">
+                              <h5>${task.name}</h5>
+                              <p>기간: ${task._start.toLocaleDateString()} - ${task._end.toLocaleDateString()}</p>
+                              <p>진행률: ${task.progress}%</p>
+                            </div>
+                        `;
+                    }
+                });
+
+                document.querySelectorAll('[data-view-mode]').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const viewMode = this.getAttribute('data-view-mode');
+                        gantt.change_view_mode(viewMode);
+
+                        document.querySelectorAll('[data-view-mode]').forEach(btn => btn.classList.remove('active'));
+                        this.classList.add('active');
+                    });
+                });
+
+            } else {
+                ganttContainer.innerHTML = '<p>간트 차트에 표시할 태스크가 없습니다. (시작일, 종료일이 모두 지정되어야 합니다)</p>';
+            }
+        }
+
+        document.getElementById('projectDetailTab').addEventListener('shown.bs.tab', function (event) {
+            if (event.target.id === 'gantt-tab') {
+                renderGanttChart();
+            }
+        });
+
+        if (window.location.hash) {
+            const tabToShow = document.querySelector(`button[data-bs-target="${window.location.hash}"]`);
+            if (tabToShow) {
+                new bootstrap.Tab(tabToShow).show();
+                if (window.location.hash === '#gantt-frappe') {
+                    renderGanttChart();
+                }
+            }
+        }
+
+        // --- Knowledge Linking Logic ---
+        const linkKnowledgeModal = new bootstrap.Modal(document.getElementById('linkKnowledgeModal'));
+        const searchInput = document.getElementById('knowledgeSearchInput');
+        const searchResultsContainer = document.getElementById('knowledgeSearchResults');
+        const linkSelectedBtn = document.getElementById('linkSelectedKnowledgeBtn');
+        let selectedKnowledgeId = null;
+
+        searchInput.addEventListener('keyup', async (e) => {
+            const searchTerm = e.target.value;
+            if (searchTerm.length < 2) {
+                searchResultsContainer.innerHTML = '';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/projects/knowledge/search?term=${searchTerm}`);
+                const results = await response.json();
+                
+                let html = '<ul class="list-group">';
+                if (results.length > 0) {
+                    results.forEach(item => {
+                        html += `<li class="list-group-item list-group-item-action" style="cursor:pointer;" data-id="${item.id}">${item.title}</li>`;
+                    });
+                } else {
+                    html += '<li class="list-group-item">검색 결과가 없습니다.</li>';
+                }
+                html += '</ul>';
+                searchResultsContainer.innerHTML = html;
+
+            } catch (error) {
+                console.error('Search error:', error);
+                searchResultsContainer.innerHTML = '<div class="alert alert-danger">검색 중 오류가 발생했습니다.</div>';
+            }
+        });
+
+        searchResultsContainer.addEventListener('click', (e) => {
+            if (e.target && e.target.matches('li.list-group-item-action')) {
+                // Remove active class from all other items
+                const allItems = searchResultsContainer.querySelectorAll('li');
+                allItems.forEach(item => item.classList.remove('active'));
+                
+                // Add active class to the clicked item
+                e.target.classList.add('active');
+                selectedKnowledgeId = e.target.dataset.id;
+                linkSelectedBtn.disabled = false;
+            }
+        });
+
+        linkSelectedBtn.addEventListener('click', async () => {
+            if (!selectedKnowledgeId) return;
+
+            try {
+                const response = await fetch(`/projects/${projectId}/knowledge`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ knowledge_id: selectedKnowledgeId })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    linkKnowledgeModal.hide();
+                    showNotification('success', result.message);
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showNotification('error', result.message);
+                }
+            } catch (error) {
+                console.error('Link error:', error);
+                showNotification('error', '자료 연결 중 오류가 발생했습니다.');
+            }
+        });
+
+        // Reset modal on hide
+        document.getElementById('linkKnowledgeModal').addEventListener('hidden.bs.modal', function () {
+            searchInput.value = '';
+            searchResultsContainer.innerHTML = '';
+            linkSelectedBtn.disabled = true;
+            selectedKnowledgeId = null;
+        });
+
+        // --- Create and Link Knowledge Logic ---
+        const createAndLinkKnowledgeForm = document.getElementById('createAndLinkKnowledgeForm');
+        const createAndLinkKnowledgeModal = new bootstrap.Modal(document.getElementById('createAndLinkKnowledgeModal'));
+        const categoryTreeContainer = document.getElementById('new_knowledge_category_tree');
+        const selectedCategoryIdInput = document.getElementById('selected_category_id');
+        const newKnowledgeTypeSelect = document.getElementById('new_knowledge_type'); // Added for type dropdown
+
+        let uploadedFiles = [];
+
+        function renderFileList() {
+            const fileList = document.getElementById('file-list');
+            fileList.innerHTML = '';
+            uploadedFiles.forEach((file, index) => {
+                const div = document.createElement('div');
+                div.className = 'd-flex justify-content-between align-items-center mb-1';
+                div.innerHTML = `
+                    <span>${file.name}</span>
+                    <button type="button" class="btn btn-sm btn-danger remove-file-btn" data-index="${index}">삭제</button>
+                `;
+                fileList.appendChild(div);
+            });
+        }
+
+        function updateFileList(files) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (!uploadedFiles.some(f => f.name === file.name && f.size === file.size)) {
+                    uploadedFiles.push(file);
+                }
+            }
+            renderFileList();
+        }
+
+        // File handling for createAndLinkKnowledgeForm
+        const newKnowledgeFileInput = document.getElementById('attachments');
+        const newKnowledgeDropZone = document.getElementById('drop-zone');
+        const newKnowledgeFileList = document.getElementById('file-list');
+
+        newKnowledgeFileInput.addEventListener('change', function(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                updateFileList(files);
+                newKnowledgeFileInput.value = ''; // Clear input to allow re-uploading same file
+            }
+        });
+
+        newKnowledgeDropZone.addEventListener('click', function() {
+            newKnowledgeFileInput.click();
+        });
+
+        newKnowledgeDropZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            newKnowledgeDropZone.classList.add('dragover');
+        });
+
+        newKnowledgeDropZone.addEventListener('dragenter', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            newKnowledgeDropZone.classList.add('dragover');
+        });
+
+        newKnowledgeDropZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            newKnowledgeDropZone.classList.remove('dragover');
+        });
+
+        newKnowledgeDropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            newKnowledgeDropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                updateFileList(files);
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (e.target && e.target.classList.contains('remove-file-btn')) {
+                const index = e.target.dataset.index;
+                uploadedFiles.splice(index, 1);
+                renderFileList();
+            }
+        });
+
+        // Initialize jstree when modal is shown
+        document.getElementById('createAndLinkKnowledgeModal').addEventListener('show.bs.modal', async function () {
+            try {
+                const response = await fetch('/projects/knowledge/categories');
+                const categories = await response.json();
+
+                const jstreeData = categories.map(cat => ({
+                    id: cat.id,
+                    parent: cat.parent_id ? cat.parent_id : '#',
+                    text: cat.name
+                }));
+
+                // Destroy existing jstree instance if it exists
+                if ($(categoryTreeContainer).jstree(true)) {
+                    $(categoryTreeContainer).jstree(true).destroy();
+                }
+
+                $(categoryTreeContainer).jstree({
+                    'core': {
+                        'data': jstreeData,
+                        'check_callback': true // Allow modifications if needed
+                    },
+                    'plugins': ["wholerow"]
+                });
+
+                $(categoryTreeContainer).on('select_node.jstree', function (e, data) {
+                    selectedCategoryIdInput.value = data.instance.get_node(data.selected[0]).id;
+                });
+
+            } catch (error) {
+                console.error('Error loading categories for jstree:', error);
+                showNotification('error', '카테고리 트리를 불러오는 중 오류가 발생했습니다.');
+            }
+
+            
+        });
+
+        // Reset modal on hide
+        document.getElementById('createAndLinkKnowledgeModal').addEventListener('hidden.bs.modal', function () {
+            if ($(categoryTreeContainer).jstree(true)) {
+                $(categoryTreeContainer).jstree(true).destroy();
+            }
+            selectedCategoryIdInput.value = ''; // Clear selected category
+            createAndLinkKnowledgeForm.reset(); // Reset form fields
+            uploadedFiles = []; // Clear uploaded files array
+            renderFileList(); // Clear file list UI
+        });
+
+        createAndLinkKnowledgeForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = new FormData(createAndLinkKnowledgeForm);
+            uploadedFiles.forEach(file => {
+                formData.append('attachments', file);
+            });
+
+            try {
+                const response = await fetch(`/projects/${projectId}/knowledge/create-and-link`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    createAndLinkKnowledgeModal.hide();
+                    showNotification('success', result.message);
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showNotification('error', result.message);
+                }
+            } catch (error) {
+                console.error('Create and Link error:', error);
+                showNotification('error', '자료 등록 및 연결 중 오류가 발생했습니다.');
+            }
+        });
+
+        // Initialize DataTable
+        $('#linkedKnowledgeTable').DataTable({
+            "language": {
+                "url": "/js/datatables/ko.json"
+            },
+            "order": [[ 3, "desc" ]]
+        });
+
+        // Apply resizable to table headers
+        $('#linkedKnowledgeTable th').resizable({
+            handles: 'e', // East handle for resizing
+            minWidth: 50, // Minimum width for columns
+            stop: function(event, ui) {
+                // Adjust DataTable column width after resize
+                $('#linkedKnowledgeTable').DataTable().columns().invalidate('dom');
+                $('#linkedKnowledgeTable').DataTable().draw();
+            }
+        });
+    });
+
+    async function unlinkKnowledge(projectId, knowledgeId) {
+        if (!confirm('정말로 이 자료와의 연결을 해제하시겠습니까?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/projects/${projectId}/knowledge/${knowledgeId}`, {
+                method: 'DELETE'
+            });
+            const result = await response.json();
+
+            if (response.ok) {
+                document.getElementById(`knowledge-row-${knowledgeId}`).remove();
+                showNotification('success', result.message);
+            } else {
+                showNotification('error', result.message);
+            }
+        } catch (error) {
+            console.error('Unlink error:', error);
+            showNotification('error', '연결 해제 중 오류가 발생했습니다.');
+        }
+    }
+</script>
+
+
+<style>
+    .gantt .bar-label {
+        font-weight: bold;
+        fill: #fff;
+        dominant-baseline: central;
+        text-anchor: middle;
+    }
+    .gantt .bar-progress {
+        fill: rgba(255, 255, 255, 0.5);
+    }
+    .gantt .bar-milestone .bar {
+        fill: #f8a543;
+    }
+</style>

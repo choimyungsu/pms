@@ -1,0 +1,89 @@
+<%- include('../partials/header', { page: 'research-log' }) %>
+<%- include('../partials/sidebar', { page: 'research-log' }) %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">연구일지 목록</h3>
+                </div>
+                <div class="col-sm-6 text-end">
+                    <% if (currentUser && currentUser.role === 'admin') { %>
+                        <a href="/research-log/create" class="btn btn-primary">새 연구일지 작성</a>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="projectFilter" class="form-label">연구과제별 필터링:</label>
+                        <select class="form-select" id="projectFilter">
+                            <option value="">-- 전체 연구과제 --</option>
+                            <% if (projects && projects.length > 0) { %>
+                                <% projects.forEach(project => { %>
+                                    <option value="<%= project.id %>" <%= selectedProjectId == project.id ? 'selected' : '' %>><%= project.project_name %></option>
+                                <% }) %>
+                            <% } %>
+                        </select>
+                    </div>
+                    <table class="table table-bordered" id="researchLogTable">
+                        <thead>
+                            <tr>
+                                <th>제목</th>
+                                <th>연구목적</th>
+                                <th>작성자</th>
+                                <th>소속</th>
+                                <th>작성일</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% logs.forEach(log => { %>
+                                <tr>
+                                    <td><a href="/research-log/<%= log.id %>"><%= log.research_title %></a></td>
+                                    <td>
+                                        <% if (log.research_purpose && log.research_purpose.length > 30) { %>
+                                            <%= log.research_purpose.substring(0, 30) + '...' %>
+                                        <% } else { %>
+                                            <%= log.research_purpose %>
+                                        <% } %>
+                                    </td>
+                                    <td><%= log.author %></td>
+                                    <td><%= log.department %></td>
+                                    <td><%= new Date(log.creation_date).toLocaleDateString() %></td>
+                                    <td>
+                                        <a href="/research-log/<%= log.id %>" class="btn btn-sm btn-info">상세보기</a>
+                                        <% if (currentUser && currentUser.role === 'admin') { %>
+                                            <a href="/research-log/edit/<%= log.id %>" class="btn btn-sm btn-warning">수정</a>
+                                            <form action="/research-log/delete/<%= log.id %>" method="POST" style="display:inline;" onsubmit="return confirm('정말로 이 연구일지를 삭제하시겠습니까?');">
+                                                <button type="submit" class="btn btn-sm btn-danger">삭제</button>
+                                            </form>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    document.getElementById('projectFilter').addEventListener('change', function() {
+        const selectedProjectId = this.value;
+        let url = '/research-log';
+        if (selectedProjectId) {
+            url += `?project_id=${selectedProjectId}`;
+        }
+        window.location.href = url;
+    });
+</script>
+
+<%- include('../partials/footer') %>

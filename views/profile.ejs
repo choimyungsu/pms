@@ -1,0 +1,144 @@
+<%- include('partials/header', { page: 'profile' }) %>
+<%- include('partials/sidebar', { page: 'profile' }) %>
+
+<!-- Main content -->
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">내 정보</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fa-solid fa-user-edit"></i> 내 정보 수정</h3>
+                </div>
+                <div class="card-body">
+                    <% if (typeof message !== 'undefined' && message) { %>
+                        <div class="alert alert-success" role="alert">
+                            <%= message %>
+                        </div>
+                    <% } %>
+                    <% if (typeof error !== 'undefined' && error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <%= error %>
+                        </div>
+                    <% } %>
+                    <form action="/profile" method="POST">
+                        <div class="mb-3 row">
+                            <label for="email" class="col-sm-3 col-form-label">이메일</label>
+                            <div class="col-sm-9">
+                                <input type="email" class="form-control" id="email" name="email" value="<%= user.email %>" required>
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label for="name" class="col-sm-3 col-form-label">이름</label>
+                            <div class="col-sm-9">
+                                <input type="text" class="form-control" id="name" name="name" value="<%= user.name %>" required>
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label class="col-sm-3 col-form-label">테마 색상</label>
+                            <div class="col-sm-9">
+                                <div id="color-palette" style="display: flex; flex-wrap: wrap; gap: 5px; border: 1px solid #ced4da; padding: 10px; border-radius: 0.25rem;">
+                                    <% const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#00FFFF', '#FF00FF', '#C0C0C0', '#808080', '#800000', '#808000', '#008000', '#800080', '#008080', '#000080', '#FFA500', '#A52A2A', '#DA70D6', '#EE82EE', '#FFC0CB', '#FFD700', '#ADFF2F', '#7FFF00', '#DDA0DD', '#BA55D3', '#4B0082', '#8A2BE2', '#6A5ACD', '#483D8B', '#00CED1', '#20B2AA', '#4682B4', '#6495ED', '#B0C4DE', '#ADD8E6', '#87CEEB', '#B0E0E6', '#AFEEEE', '#E0FFFF', '#F0FFFF', '#F5F5DC', '#F0F8FF', '#FAEBD7', '#000000', '#696969', '#778899', '#B22222', '#CD5C5C', '#DC143C', '#FF6347', '#FF4500', '#FF8C00', '#FFDAB9']; %>
+                                    <% colors.forEach(color => { %>
+                                        <span class="color-swatch" style="width: 25px; height: 25px; border: 1px solid #ccc; cursor: pointer; background-color: <%= color %>;" data-color="<%= color %>"></span>
+                                    <% }); %>
+                                </div>
+                                <input type="hidden" id="user_color" name="user_color" value="<%= user.user_color || '#000000' %>">
+                                <div id="color-message" class="mt-2"></div>
+                                <div id="selected-color-display" style="width: 50px; height: 25px; border: 1px solid #ccc; margin-top: 10px;"></div>
+                            </div>
+                        </div>
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const colorSwatches = document.querySelectorAll('.color-swatch');
+                                const hiddenColorInput = document.getElementById('user_color');
+                                const colorMessageDiv = document.getElementById('color-message');
+                                const selectedColorDisplay = document.getElementById('selected-color-display');
+                                let selectedColor = hiddenColorInput.value;
+
+                                // Function to update active swatch and display
+                                function updateActiveSwatch() {
+                                    colorSwatches.forEach(swatch => {
+                                        if (swatch.dataset.color === selectedColor) {
+                                            swatch.style.border = '2px solid blue'; // Highlight selected color
+                                        } else {
+                                            swatch.style.border = '1px solid #ccc'; // Reset border
+                                        }
+                                    });
+                                    selectedColorDisplay.style.backgroundColor = selectedColor; // Update display
+                                }
+
+                                // Function to check color availability
+                                async function checkColorAvailability(color) {
+                                    try {
+                                        const response = await fetch('/profile/check-color', {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json'
+                                            },
+                                            body: JSON.stringify({ color: color })
+                                        });
+                                        const data = await response.json();
+                                        if (data.inUse) {
+                                            colorMessageDiv.innerHTML = '<div class="alert alert-warning">이 색상은 다른 사용자가 사용 중입니다.</div>';
+                                        } else {
+                                            colorMessageDiv.innerHTML = '';
+                                        }
+                                    } catch (error) {
+                                        console.error('Error checking color availability:', error);
+                                        colorMessageDiv.innerHTML = '<div class="alert alert-danger">색상 확인 중 오류가 발생했습니다.</div>';
+                                    }
+                                }
+
+                                // Initial highlight and check
+                                updateActiveSwatch();
+                                checkColorAvailability(selectedColor);
+
+                                colorSwatches.forEach(swatch => {
+                                    swatch.addEventListener('click', function() {
+                                        selectedColor = this.dataset.color;
+                                        hiddenColorInput.value = selectedColor;
+                                        updateActiveSwatch();
+                                        checkColorAvailability(selectedColor);
+                                    });
+                                });
+                            });
+                        </script>
+                        
+                        <div class="mb-3 row">
+                            <label for="current_password" class="col-sm-3 col-form-label">현재 비밀번호</label>
+                            <div class="col-sm-9">
+                                <input type="password" class="form-control" id="current_password" name="current_password" required>
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label for="new_password" class="col-sm-3 col-form-label">새 비밀번호</label>
+                            <div class="col-sm-9">
+                                <input type="password" class="form-control" id="new_password" name="new_password" placeholder="변경하지 않으려면 비워두세요">
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label for="confirm_new_password" class="col-sm-3 col-form-label">새 비밀번호 확인</label>
+                            <div class="col-sm-9">
+                                <input type="password" class="form-control" id="confirm_new_password" name="confirm_new_password" placeholder="새 비밀번호를 다시 입력하세요">
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> 정보 업데이트</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('partials/footer') %>

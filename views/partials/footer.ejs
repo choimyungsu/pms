@@ -1,0 +1,104 @@
+<footer class="app-footer">
+        <div class="float-end d-none d-sm-inline">Anything you want</div>
+        <strong>Copyright &copy; 2025 <a href="#">제이원아이티</a>.</strong> All rights reserved.
+        <script>
+        $(document).ready(function() {
+            // Initialize Bootstrap dropdowns
+            $('.dropdown-toggle').each(function() {
+                new bootstrap.Dropdown(this);
+            });
+        });
+    </script>
+</footer>
+</div>
+
+<!-- Notification Modal -->
+<div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="notificationModalLabel"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <i id="notificationIcon" class="fas fa-3x mb-3"></i>
+                    <p id="notificationMessage"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Bootstrap 5 -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- DataTables & Plugins -->
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.colVis.min.js"></script>
+<!-- AdminLTE App -->
+<script src="https://cdn.jsdelivr.net/npm/admin-lte@4.0.0-beta1/dist/js/adminlte.min.js"></script>
+<!-- SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.12.2/dist/sweetalert2.all.min.js"></script>
+
+<!-- JQuery UI -->
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
+<!-- jstree JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.17/jstree.min.js"></script>
+
+<script>
+    // Client-side helper function to format date for MySQL
+    function formatDateForMySQLClient(date) {
+        if (!date) return null;
+        let d = new Date(date);
+        if (isNaN(d.getTime())) {
+            return null;
+        }
+
+        // 로컬 시간을 그대로 사용하여 MySQL DATETIME 형식으로 변환
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        const seconds = String(d.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }
+
+    // 알림 모달을 표시하는 함수
+    function showNotification(type, message) {
+        const icon = document.getElementById('notificationIcon');
+        const title = document.getElementById('notificationModalLabel');
+        const messageEl = document.getElementById('notificationMessage');
+
+        if (type === 'success') {
+            icon.className = 'fas fa-check-circle fa-3x mb-3';
+            icon.style.color = '#28a745';
+            title.textContent = '성공!';
+        } else if (type === 'error') {
+            icon.className = 'fas fa-exclamation-circle fa-3x mb-3';
+            icon.style.color = '#dc3545';
+            title.textContent = '오류!';
+        } else if (type === 'warning') {
+            icon.className = 'fas fa-exclamation-triangle fa-3x mb-3';
+            icon.style.color = '#ffc107';
+            title.textContent = '경고!';
+        }
+
+        messageEl.textContent = message;
+
+        const notificationModal = new bootstrap.Modal(document.getElementById('notificationModal'));
+        notificationModal.show();
+
+        // 2초 후 자동으로 닫기
+        setTimeout(() => {
+            notificationModal.hide();
+        }, 2000);
+    }
+</script>

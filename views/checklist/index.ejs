@@ -1,0 +1,575 @@
+<%- include('../partials/header', { page: 'checklist' }) %>
+<%- include('../partials/sidebar', { page: 'checklist' }) %>
+
+<style>
+/* Page specific styles */
+.checklist-page .app-content {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 135px); /* Adjust this value based on header/footer heights */
+}
+.checklist-page .app-content > .container-fluid {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.checklist-page #split-row {
+  display: flex;
+  flex-wrap: nowrap;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.checklist-page #tree-col {
+  min-width: 200px;
+  max-width: 600px;
+  flex: 0 0 320px;
+  transition: flex-basis 0.1s;
+  display: flex;
+  flex-direction: column;
+}
+.checklist-page #splitter-bar {
+  width: 6px;
+  background: #eee;
+  cursor: col-resize;
+  z-index: 10;
+}
+.checklist-page #right-col {
+  min-width: 0;
+  flex: 1 1 0%;
+  display: flex;
+  flex-direction: column;
+}
+.checklist-page .card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.checklist-page .card-body {
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* Drop zone styles */
+#drop-zone {
+  transition: background-color 0.2s ease;
+}
+#drop-zone.dragover {
+  background-color: #e9ecef;
+}
+</style>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">체크리스트</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div id="split-row">
+                <div id="tree-col">
+                    <div class="card card-primary card-outline">
+                        <div class="card-header">
+                            <div class="card-tools">
+                                <button type="button" class="btn btn-tool" id="add-category-btn" title="새 카테고리 추가">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <button type="button" class="btn btn-tool" id="edit-category-btn" title="카테고리명 수정">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-tool" id="delete-category-btn" title="선택된 카테고리 삭제" style="<%= isAdmin ? '' : 'display:none;' %>">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                <button type="button" class="btn btn-tool" id="expand-all-btn" title="모두 확장">
+                                    <i class="fas fa-plus-square"></i>
+                                </button>
+                                <button type="button" class="btn btn-tool" id="collapse-all-btn" title="모두 축소">
+                                    <i class="fas fa-minus-square"></i>
+                                </button>
+                                <input type="text" id="category-search-input" class="form-control form-control-sm d-inline-block w-auto ms-2" placeholder="트리명 찾기">
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="category-tree"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="splitter-bar"></div>
+                <div id="right-col">
+                    <div class="card card-primary card-outline">
+                        <div class="card-header">
+                            <h3 class="card-title" id="checklist-list-title">체크리스트 목록</h3>
+                            <div class="card-tools">
+                                <button type="button" class="btn btn-primary btn-sm" id="add-checklist-btn" title="체크리스트 등록">
+                                    <i class="fas fa-plus"></i> 체크리스트 등록
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="checklist-table" class="table table-bordered table-striped" style="width:100%">
+                                    <thead>
+                                        <tr>
+                                            <th>제목</th>
+                                            <th>담당자</th>
+                                            <th>작성자</th>
+                                            <th>등록일</th>
+                                            <th>첨부파일</th>
+                                            <th>수정/삭제</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Checklist Item Modal -->
+    <div class="modal fade" id="checklist-modal" tabindex="-1" aria-labelledby="checklist-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="checklist-modal-label">체크리스트 정보</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="checklist-form">
+                        <input type="hidden" id="checklist-id" name="id">
+                        <input type="hidden" id="checklist-category-id" name="category_id">
+                        <div class="mb-3">
+                            <label for="checklist-title" class="form-label">제목</label>
+                            <input type="text" class="form-control" id="checklist-title" name="title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="checklist-content" class="form-label">내용</label>
+                            <textarea class="form-control" id="checklist-content" name="content" rows="5"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="checklist-assignee-id" class="form-label">담당자</label>
+                            <select class="form-select" id="checklist-assignee-id" name="assignee_id">
+                                <!-- User options will be populated here -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="checklist-attachments" class="form-label">첨부파일</label>
+                            <div id="drop-zone" class="border rounded p-5 text-center" style="border-style: dashed !important;">
+                                <p>여기로 파일을 드래그하거나 클릭하여 업로드하세요.</p>
+                                <input type="file" id="checklist-attachments" name="attachments" multiple style="display: none;">
+                            </div>
+                            <div id="file-list" class="mt-2"></div>
+                            <div id="current-attachments" class="mt-2"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                    <button type="button" class="btn btn-primary" id="save-checklist-btn">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification & Delete Modals (reused from knowledge) -->
+    <div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center pb-4">
+                    <div class="mb-3">
+                        <i id="notificationIcon" class="fas fa-check-circle" style="font-size: 4rem; color: #28a745;"></i>
+                    </div>
+                    <h5 class="modal-title" id="notificationModalLabel">성공!</h5>
+                    <p id="notificationMessage" class="text-muted">작업이 완료되었습니다.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteConfirmModalLabel">삭제 확인</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="deleteConfirmModalBody">
+                    <p>정말로 삭제하시겠습니까?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-danger" id="confirm-delete-btn">삭제</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    function showNotification(type, message) {
+        const colors = { success: '#28a745', error: '#dc3545', warning: '#ffc107' };
+        const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle' };
+        const titles = { success: '성공', error: '오류', warning: '경고' };
+        $('#notificationIcon').removeClass().addClass('fas ' + icons[type]).css('color', colors[type]);
+        $('#notificationModalLabel').text(titles[type]);
+        $('#notificationMessage').text(message);
+        $('#notificationModal').modal('show');
+        setTimeout(() => $('#notificationModal').modal('hide'), 2000);
+    }
+
+    $(document).ready(function() {
+        const currentUser = <%- JSON.stringify(currentUser || {}) %>;
+        let currentCategoryId = null;
+        let checklistTable;
+        let uploadedFiles = [];
+        let allUsers = [];
+
+        const isAdmin = currentUser && currentUser.role === 'admin';
+
+        // Fetch all users for assignee dropdown
+        function fetchUsers() {
+            $.get('/admin/users/json', function(users) {
+                allUsers = users;
+                const assigneeSelect = $('#checklist-assignee-id');
+                assigneeSelect.empty();
+                allUsers.forEach(user => {
+                    assigneeSelect.append(`<option value="${user.id}">${user.name}</option>`);
+                });
+            }).fail(function() {
+                showNotification('error', '사용자 목록을 불러오는데 실패했습니다.');
+            });
+        }
+        fetchUsers();
+
+        checklistTable = $('#checklist-table').DataTable({
+            "ajax": {
+                "url": '/checklist/api/items',
+                "dataSrc": "",
+                "data": function(d) {
+                    d.category_id = currentCategoryId;
+                },
+                "error": function(xhr) {
+                    showNotification('error', xhr.responseJSON?.message || '목록을 불러오는 중 오류가 발생했습니다.');
+                    checklistTable.clear().draw();
+                }
+            },
+            "columns": [
+                {
+                    "data": "title",
+                    "render": function(data, type, row) {
+                        return `<a href="/checklist/detail/${row.id}">${data}</a>`;
+                    }
+                },
+                { "data": "assignee_name" },
+                { "data": "creator_name" },
+                { 
+                    "data": "created_at",
+                    "render": function(data) {
+                        return data ? new Date(data).toLocaleDateString() : '';
+                    }
+                },
+                {
+                    "data": "attachments",
+                    "render": data => (data && data.length > 0) ? `${data.length}개` : '없음',
+                    "orderable": false
+                },
+                {
+                    "data": null,
+                    "render": function(data, type, row) {
+                        const isCreator = currentUser.id === row.creator_id;
+                        let buttons = '';
+                        if (isAdmin || isCreator) {
+                            buttons += `<a href="/checklist/edit/${row.id}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-edit"></i></a> `;
+                            buttons += `<button type="button" class="btn btn-sm btn-outline-danger delete-checklist-btn" data-id="${row.id}"><i class="fas fa-trash"></i></button>`;
+                        }
+                        return buttons;
+                    },
+                    "orderable": false
+                }
+            ],
+            "language": { "url": "/js/datatables/ko.json" }
+        });
+
+        function loadCategoriesForJSTree() {
+            $.get('/checklist/api/categories', function(categories) {
+                const jstreeData = categories.map(cat => ({
+                    id: cat.id,
+                    parent: cat.parent_id === null ? '#' : cat.parent_id,
+                    text: cat.name
+                }));
+
+                $('#category-tree').jstree('destroy').empty().jstree({
+                    'core': { 'data': jstreeData, 'check_callback': true },
+                    'plugins': ['wholerow', 'search', 'dnd'],
+                     'contextmenu': {
+                        'items': function(node) {
+                            var tree = $('#category-tree').jstree(true);
+                            var items = {
+                                "Create": {
+                                    "label": "새 카테고리 생성",
+                                    "action": function() {
+                                        node = tree.create_node(node, { text: '새 카테고리' });
+                                        tree.edit(node);
+                                    }
+                                },
+                                "Rename": {
+                                    "label": "카테고리명 수정",
+                                    "action": function() { tree.edit(node); }
+                                }
+                            };
+                            if (isAdmin) {
+                                items["Delete"] = {
+                                    "label": "카테고리 삭제",
+                                    "action": function() {
+                                        $('#deleteConfirmModalBody').html('<p>이 카테고리를 삭제하시겠습니까? 하위 카테고리 및 포함된 모든 항목이 삭제됩니다.</p>');
+                                        $('#deleteConfirmModal').modal('show');
+                                        $('#confirm-delete-btn').off('click').on('click', function() {
+                                            $.ajax({
+                                                url: `/checklist/api/categories/${node.id}`,
+                                                method: 'DELETE',
+                                                success: function(response) {
+                                                    showNotification('success', response.message);
+                                                    $('#deleteConfirmModal').modal('hide');
+                                                    tree.delete_node(node);
+                                                },
+                                                error: function(xhr) {
+                                                    showNotification('error', xhr.responseJSON?.message);
+                                                    $('#deleteConfirmModal').modal('hide');
+                                                }
+                                            });
+                                        });
+                                    }
+                                };
+                            }
+                            return items;
+                        }
+                    }
+                }).on('select_node.jstree', function(e, data) {
+                    currentCategoryId = data.node.id;
+                    $('#checklist-list-title').text(`체크리스트 목록 (${data.node.text})`);
+                    checklistTable.ajax.reload();
+                }).on('rename_node.jstree', function(e, data) {
+                    const id = data.node.id;
+                    const newName = data.text;
+                    const parent_id = data.node.parent === '#' ? null : data.node.parent;
+                    const url = id.startsWith('j') ? '/checklist/api/categories' : `/checklist/api/categories/${id}`;
+                    const method = id.startsWith('j') ? 'POST' : 'PUT';
+                    $.ajax({
+                        url: url,
+                        method: method,
+                        contentType: 'application/json',
+                        data: JSON.stringify({ name: newName, parent_id: parent_id }),
+                        success: function(response) {
+                            showNotification('success', response.message);
+                            if (method === 'POST') data.instance.set_id(data.node, response.id);
+                        },
+                        error: function(xhr) {
+                            showNotification('error', xhr.responseJSON?.message);
+                            loadCategoriesForJSTree();
+                        }
+                    });
+                }).on('move_node.jstree', function (e, data) {
+                    $.ajax({
+                        url: `/checklist/api/categories/${data.node.id}`,
+                        method: 'PUT',
+                        contentType: 'application/json',
+                        data: JSON.stringify({ name: data.node.text, parent_id: data.parent === '#' ? null : data.parent }),
+                        success: function (response) {
+                            showNotification('success', '카테고리가 이동되었습니다.');
+                        },
+                        error: function (xhr) {
+                            showNotification('error', '카테고리 이동 중 오류가 발생했습니다.');
+                             loadCategoriesForJSTree();
+                        }
+                    });
+                });
+            });
+        }
+
+        loadCategoriesForJSTree();
+
+        let to = null;
+        $('#category-search-input').on('keyup', function() {
+            if (to) clearTimeout(to);
+            to = setTimeout(() => { $('#category-tree').jstree(true).search($(this).val()); }, 250);
+        });
+
+        $('#expand-all-btn').on('click', () => $('#category-tree').jstree(true).open_all());
+        $('#collapse-all-btn').on('click', () => $('#category-tree').jstree(true).close_all());
+        
+        $('#add-category-btn, #edit-category-btn').on('click', function() {
+            const tree = $('#category-tree').jstree(true);
+            const selectedNode = tree.get_selected(true)[0];
+            if (this.id === 'add-category-btn') {
+                const newNode = tree.create_node(selectedNode || '#', { text: '새 카테고리' });
+                tree.edit(newNode);
+            } else if (this.id === 'edit-category-btn' && selectedNode) {
+                tree.edit(selectedNode);
+            } else if (this.id === 'edit-category-btn' && !selectedNode) {
+                showNotification('warning', '수정할 카테고리를 선택해주세요.');
+            }
+        });
+
+        $('#delete-category-btn').on('click', function() {
+             const tree = $('#category-tree').jstree(true);
+             const selectedNode = tree.get_selected(true)[0];
+             if (!selectedNode) return showNotification('warning', '삭제할 카테고리를 선택하세요.');
+             $('#deleteConfirmModalBody').html('<p>이 카테고리를 삭제하시겠습니까? 하위 카테고리 및 포함된 모든 항목이 삭제됩니다.</p>');
+             $('#deleteConfirmModal').modal('show');
+             $('#confirm-delete-btn').off('click').on('click', function() {
+                 $.ajax({
+                     url: `/checklist/api/categories/${selectedNode.id}`,
+                     method: 'DELETE',
+                     success: (res) => {
+                         showNotification('success', res.message);
+                         $('#deleteConfirmModal').modal('hide');
+                         tree.delete_node(selectedNode);
+                     },
+                     error: (xhr) => {
+                         showNotification('error', xhr.responseJSON?.message);
+                         $('#deleteConfirmModal').modal('hide');
+                     }
+                 });
+             });
+        });
+        
+        $('#add-checklist-btn').on('click', function() {
+            if (!currentCategoryId) {
+                showNotification('warning', '먼저 카테고리를 선택하세요.');
+                return;
+            }
+            $('#checklist-form')[0].reset();
+            $('#checklist-id').val('');
+            $('#checklist-category-id').val(currentCategoryId);
+            $('#checklist-modal-label').text('새 체크리스트 등록');
+            $('#checklist-assignee-id').val(currentUser.id); // Default to current user
+            $('#current-attachments, #file-list').empty();
+            uploadedFiles = [];
+            $('#checklist-modal').modal('show');
+        });
+
+        $('#checklist-table tbody').on('click', '.delete-checklist-btn', function() {
+            const id = $(this).data('id');
+            $('#deleteConfirmModalBody').html('<p>이 항목을 삭제하시겠습니까?</p>');
+            $('#deleteConfirmModal').modal('show');
+            $('#confirm-delete-btn').off('click').on('click', function() {
+                $.ajax({
+                    url: `/checklist/api/items/${id}`,
+                    method: 'DELETE',
+                    success: function(res) {
+                        showNotification('success', res.message);
+                        $('#deleteConfirmModal').modal('hide');
+
+                        checklistTable.ajax.reload();
+                    },
+                    error: function(xhr) {
+                        showNotification('error', xhr.responseJSON?.message);
+                        $('#deleteConfirmModal').modal('hide');
+                    }
+                });
+            });
+        });
+        
+        // Drag and drop file upload
+        const fileInput = $('#checklist-attachments');
+        const dropZone = $('#drop-zone');
+        
+        function renderFileList() {
+            const fileList = $('#file-list');
+            fileList.empty();
+            uploadedFiles.forEach((file, index) => {
+                fileList.append(`<div class="d-flex justify-content-between align-items-center mb-1"><span>${file.name}</span><button type="button" class="btn btn-sm btn-danger remove-file-btn" data-index="${index}">삭제</button></div>`);
+            });
+        }
+        function updateFileList(files) {
+            for (let file of files) {
+                if (!uploadedFiles.some(f => f.name === file.name && f.size === file.size)) {
+                    uploadedFiles.push(file);
+                }
+            }
+            renderFileList();
+        }
+
+        fileInput.on('change', (e) => updateFileList(e.target.files));
+        dropZone.on('click', () => fileInput.trigger('click'));
+        dropZone.on('dragover dragenter', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.addClass('dragover'); });
+        dropZone.on('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); dropZone.removeClass('dragover'); });
+        dropZone.on('drop', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            dropZone.removeClass('dragover');
+            updateFileList(e.originalEvent.dataTransfer.files);
+        });
+        $(document).on('click', '.remove-file-btn', function() {
+            uploadedFiles.splice($(this).data('index'), 1);
+            renderFileList();
+        });
+
+        $('#save-checklist-btn').on('click', function() {
+            const id = $('#checklist-id').val();
+            const formData = new FormData($('#checklist-form')[0]);
+            uploadedFiles.forEach(file => formData.append('attachments', file));
+
+            if (id) {
+                const attachmentsToDelete = Array.from($('#current-attachments .attachment-to-delete')).map(el => $(el).data('id'));
+                formData.append('attachments_to_delete', JSON.stringify(attachmentsToDelete));
+            }
+            
+            $.ajax({
+                url: id ? `/checklist/api/items/${id}` : '/checklist/api/items',
+                method: id ? 'PUT' : 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    showNotification('success', response.message);
+                    $('#checklist-modal').modal('hide');
+                    checklistTable.ajax.reload();
+                },
+                error: function(xhr) {
+                    showNotification('error', xhr.responseJSON?.message);
+                }
+            });
+        });
+        
+        // Splitter bar logic
+        const splitter = document.getElementById('splitter-bar');
+        const treeCol = document.getElementById('tree-col');
+        let isDragging = false;
+        splitter.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            document.body.style.cursor = 'col-resize';
+            const startX = e.pageX;
+            const initialWidth = treeCol.offsetWidth;
+            function onMouseMove(e) {
+                if (!isDragging) return;
+                const newWidth = initialWidth + (e.pageX - startX);
+                if (newWidth > 200 && newWidth < 600) {
+                    treeCol.style.flexBasis = `${newWidth}px`;
+                }
+            }
+            function onMouseUp() {
+                isDragging = false;
+                document.body.style.cursor = '';
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            }
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+    });
+</script>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,80 @@
+<%- include('../partials/header', { page: (issue && issue.id) ? 'issue_edit' : 'issue_create' }) %>
+<%- include('../partials/sidebar', { page: (issue && issue.id) ? 'issue_edit' : 'issue_create' }) %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0"><%= (issue && issue.id) ? '이슈 수정' : '새 이슈 등록' %></h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-body">
+                    <form action="<%= (issue && issue.id) ? '/issues/' + issue.id + '/update' : '/issues' %>" method="POST">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">제목 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="title" name="title" value="<%= issue ? issue.title : '' %>" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="project_id" class="form-label">프로젝트 연결</label>
+                                <select class="form-select" id="project_id" name="project_id">
+                                    <option value="">프로젝트 선택</option>
+                                    <% projects.forEach(project => { %>
+                                        <option value="<%= project.id %>" <%= (issue && issue.project_id == project.id) ? 'selected' : '' %> >
+                                            <%= project.name %>
+                                        </option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="status" class="form-label">상태 <span class="text-danger">*</span></label>
+                                <select class="form-select" id="status" name="status" required>
+                                    <option value="진행중" <%= (issue && issue.status == '진행중') ? 'selected' : '' %>>진행중</option>
+                                    <option value="완료" <%= (issue && issue.status == '완료') ? 'selected' : '' %>>완료</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="assignee_id" class="form-label">담당자</label>
+                            <select class="form-select" id="assignee_id" name="assignee_id">
+                                <option value="">담당자 선택</option>
+                                <% users.forEach(user => { %>
+                                    <option value="<%= user.id %>" <%= (issue && issue.assignee_id == user.id) ? 'selected' : '' %>>
+                                        <%= user.name %>
+                                    </option>
+                                <% }); %>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="content" class="form-label">이슈 내용</label>
+                            <textarea class="form-control" id="content" name="content" rows="10"><%= issue ? issue.content : '' %></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary"><%= (issue && issue.id) ? '수정' : '등록' %></button>
+                        <a href="/issues" class="btn btn-secondary">취소</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<script src="https://cdn.ckeditor.com/ckeditor5/35.3.2/classic/ckeditor.js"></script>
+<script>
+    ClassicEditor
+        .create( document.querySelector( '#content' ) )
+        .catch( error => {
+            console.error( error );
+        } );
+</script>

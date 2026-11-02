@@ -1,0 +1,68 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<!-- Main content -->
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">일정 등록</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fa-solid fa-calendar-plus"></i> 새 일정 추가</h3>
+                </div>
+                <div class="card-body">
+                    <% if (typeof message !== 'undefined' && message) { %>
+                        <div class="alert alert-success" role="alert">
+                            <%= message %>
+                        </div>
+                    <% } %>
+                    <% if (typeof error !== 'undefined' && error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <%= error %>
+                        </div>
+                    <% } %>
+                    <form action="/schedule/api/events" method="POST">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">제목</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="start" class="form-label">시작</label>
+                            <input type="datetime-local" class="form-control" id="start" name="start" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="end" class="form-label">종료 (선택 사항)</label>
+                            <input type="datetime-local" class="form-control" id="end" name="end">
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="allDay" name="allDay" value="true">
+                            <label class="form-check-label" for="allDay">종일</label>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">설명 (선택 사항)</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="color" class="form-label">색상</label>
+                            <input type="color" class="form-control form-control-color" id="color" name="color" value="#3788d8">
+                        </div>
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> 일정 저장</button>
+                            <a href="/schedule" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> 취소</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>

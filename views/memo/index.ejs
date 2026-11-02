@@ -1,0 +1,56 @@
+<%- include('../partials/header', { page: 'memo' }) %>
+<%- include('../partials/sidebar', { page: 'memo' }) %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">메모 목록</h3>
+                </div>
+                <div class="col-sm-6 text-end">
+                    <a href="/memo/create" class="btn btn-primary">새 메모 작성</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-body">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>제목</th>
+                                <th>작성자</th>
+                                <th>작성일</th>
+                                <th>작업</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% memos.forEach(memo => { %>
+                                <tr>
+                                    <td><a href="/memo/<%= memo.id %>"><%= memo.title %></a></td>
+                                    <td><%= memo.creator_name %></td>
+                                    <td><%= new Date(memo.created_at).toLocaleDateString() %></td>
+                                    <td>
+                                        <a href="/memo/<%= memo.id %>" class="btn btn-sm btn-info">보기</a>
+                                        <% if (currentUser.role === 'admin' || currentUser.id === memo.creator_id) { %>
+                                            <a href="/memo/<%= memo.id %>/edit" class="btn btn-sm btn-primary">수정</a>
+                                            <form action="/memo/<%= memo.id %>/delete" method="POST" style="display:inline-block;"
+                                                onsubmit="return confirm('정말로 이 메모를 삭제하시겠습니까?');">
+                                                <button type="submit" class="btn btn-sm btn-danger">삭제</button>
+                                            </form>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>

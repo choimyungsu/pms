@@ -1,0 +1,933 @@
+<%- include('../partials/header', { page: 'knowledge' }) %>
+<%- include('../partials/sidebar', { page: 'knowledge' }) %>
+
+<style>
+/* Knowledge page specific styles */
+.knowledge-page .app-content {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 135px); /* Adjust this value based on header/footer heights */
+}
+.knowledge-page .app-content > .container-fluid {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.knowledge-page #split-row {
+  display: flex;
+  flex-wrap: nowrap;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.knowledge-page #tree-col {
+  min-width: 200px;
+  max-width: 600px;
+  flex: 0 0 320px;
+  transition: flex-basis 0.1s;
+  display: flex;
+  flex-direction: column;
+}
+.knowledge-page #splitter-bar {
+  width: 6px;
+  background: #eee;
+  cursor: col-resize;
+  z-index: 10;
+}
+.knowledge-page #right-col {
+  min-width: 0;
+  flex: 1 1 0%;
+  display: flex;
+  flex-direction: column;
+}
+.knowledge-page .card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.knowledge-page .card-body {
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* Mobile responsive styles for knowledge page */
+@media (max-width: 768px) {
+  .knowledge-page .app-content {
+    height: auto; /* Reset height for mobile */
+  }
+  .knowledge-page #split-row {
+    flex-direction: column;
+  }
+  .knowledge-page #tree-col {
+    flex: none;
+    width: 100%;
+    max-width: none;
+    margin-bottom: 1rem;
+  }
+  .knowledge-page #splitter-bar {
+    display: none;
+  }
+  .knowledge-page #right-col {
+    flex: none;
+    width: 100%;
+  }
+  .knowledge-page .card-tools {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .knowledge-page .card-tools .btn {
+    margin-bottom: 0.25rem;
+  }
+  .knowledge-page #category-search-input {
+    width: 100% !important;
+    margin-top: 0.5rem;
+  }
+  .knowledge-page .table-responsive {
+    font-size: 0.875rem;
+  }
+  .knowledge-page .table-responsive th,
+  .knowledge-page .table-responsive td {
+    padding: 0.5rem 0.25rem;
+  }
+  .knowledge-page .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* Drop zone styles */
+#drop-zone {
+  transition: background-color 0.2s ease;
+}
+#drop-zone.dragover {
+  background-color: #e9ecef;
+}
+</style>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">지식 관리</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div id="split-row">
+                <div id="tree-col">
+                    <div class="card card-primary card-outline">
+                        <div class="card-header">
+                            <div class="card-tools">
+                                <button type="button" class="btn btn-tool" id="add-category-btn" title="새 카테고리 추가">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <button type="button" class="btn btn-tool" id="edit-category-btn" title="카테고리명 수정">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-tool" id="delete-category-btn" title="선택된 카테고리 삭제" style="<%= isAdmin ? '' : 'display:none;' %>">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                <button type="button" class="btn btn-tool" id="expand-all-btn" title="모두 확장">
+                                    <i class="fas fa-plus-square"></i>
+                                </button>
+                                <button type="button" class="btn btn-tool" id="collapse-all-btn" title="모두 축소">
+                                    <i class="fas fa-minus-square"></i>
+                                </button>
+                                <input type="text" id="category-search-input" class="form-control form-control-sm d-inline-block w-auto ms-2" placeholder="트리명 찾기">
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="category-tree"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="splitter-bar"></div>
+                <div id="right-col">
+                    <div class="card card-primary card-outline">
+                        <div class="card-header">
+                            <h3 class="card-title" id="knowledge-list-title">지식 목록</h3>
+                            <div class="card-tools">
+                                <button type="button" class="btn btn-primary btn-sm" id="add-knowledge-btn" title="지식 등록">
+                                    <i class="fas fa-plus"></i> 지식등록
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="knowledge-table" class="table table-bordered table-striped" style="width:100%">
+                                    <thead>
+                                        <tr>
+                                            <th>제목</th>
+                                            <th>구분</th>
+                                            <th>상태</th>
+                                            <th>생성자</th>
+                                            <th>담당자</th>
+                                            <th>시작일</th>
+                                            <th>종료일</th>
+                                            <th>계획일</th>
+                                            <th>첨부파일</th>
+                                            <th>수정/삭제</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Knowledge items will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Modal (for editing existing categories) -->
+    <div class="modal fade" id="category-modal" tabindex="-1" aria-labelledby="category-modal-label" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="category-modal-label">카테고리 관리</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="category-form">
+                        <input type="hidden" id="category-id" name="id">
+                        <div class="mb-3">
+                            <label for="category-name" class="form-label">카테고리 이름</label>
+                            <input type="text" class="form-control" id="category-name" name="name" required />
+                        </div>
+                        <div class="mb-3">
+                            <label for="category-parent" class="form-label">상위 카테고리</label>
+                            <select class="form-select" id="category-parent" name="parent_id">
+                                <option value="">없음</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                    <button type="button" class="btn btn-primary" id="save-category-btn">저장</button>
+                    <button type="button" class="btn btn-danger" id="delete-category-btn" style="display:none;">삭제</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Knowledge Item Modal -->
+    <div class="modal fade" id="knowledge-modal" tabindex="-1" aria-labelledby="knowledge-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="knowledge-modal-label">지식 정보</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="knowledge-form">
+                        <input type="hidden" id="knowledge-id" name="id">
+                        <input type="hidden" id="knowledge-category-id" name="category_id">
+                        <div class="mb-3">
+                            <label for="knowledge-title" class="form-label">제목</label>
+                            <input type="text" class="form-control" id="knowledge-title" name="title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="knowledge-type" class="form-label">구분</label>
+                            <select class="form-select" id="knowledge-type" name="type" required>
+                                <option value="">선택</option>
+                                <option value="회의">회의</option>
+                                <option value="보고">보고</option>
+                                <option value="요구사항">요구사항</option>
+                                <option value="설명">설명</option>
+                                <option value="이슈">이슈</option>
+                                <option value="자료">자료</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="knowledge-description1" class="form-label">설명1</label>
+                            <textarea class="form-control" id="knowledge-description1" name="description1" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="knowledge-description2" class="form-label">설명2</label>
+                            <textarea class="form-control" id="knowledge-description2" name="description2" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="knowledge-status" class="form-label">상태</label>
+                            <input type="text" class="form-control" id="knowledge-status" name="status">
+                        </div>
+                        <div class="mb-3">
+                            <label for="knowledge-assignee" class="form-label">담당자</label>
+                            <input type="text" class="form-control" id="knowledge-assignee" name="assignee">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="knowledge-start-date" class="form-label">시작일</label>
+                                <input type="date" class="form-control" id="knowledge-start-date" name="start_date">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="knowledge-end-date" class="form-label">종료일</label>
+                                <input type="date" class="form-control" id="knowledge-end-date" name="end_date">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="knowledge-planned-date" class="form-label">계획일</label>
+                                <input type="date" class="form-control" id="knowledge-planned-date" name="planned_date">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="knowledge-attachments" class="form-label">첨부파일</label>
+                            <div id="drop-zone" class="border rounded p-5 text-center" style="border-style: dashed !important;">
+                                <p>여기로 파일을 드래그하거나 클릭하여 업로드하세요.</p>
+                                <input type="file" class="form-control" id="knowledge-attachments" name="attachments" multiple style="display: none;">
+                            </div>
+                            <div id="file-list" class="mt-2"></div>
+                            <div id="current-attachments" class="mt-2"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                    <button type="button" class="btn btn-primary" id="save-knowledge-btn">저장</button>
+                    <button type="button" class="btn btn-danger" id="delete-knowledge-btn" style="display:none;">삭제</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Modal -->
+    <div class="modal fade" id="notificationModal" tabindex="-1" aria-labelledby="notificationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center pb-4">
+                    <div class="mb-3">
+                        <i id="notificationIcon" class="fas fa-check-circle" style="font-size: 4rem; color: #28a745;"></i>
+                    </div>
+                    <h5 class="modal-title" id="notificationModalLabel">성공!</h5>
+                    <p id="notificationMessage" class="text-muted">작업이 완료되었습니다.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteConfirmModalLabel">삭제 확인</h5>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                </div>
+                <div class="modal-body" id="deleteConfirmModalBody">
+                    <p>이 노드를 삭제하시겠습니까? 하위 노드도 함께 삭제됩니다.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-danger" id="confirm-delete-btn">삭제</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    function showNotification(type, message) {
+        const colors = {
+            success: '#28a745',
+            error: '#dc3545',
+            warning: '#ffc107'
+        };
+        const icons = {
+            success: 'fa-check-circle',
+            error: 'fa-exclamation-circle',
+            warning: 'fa-exclamation-triangle'
+        };
+        const titles = {
+            success: '성공',
+            error: '오류',
+            warning: '경고'
+        };
+        $('#notificationIcon').removeClass().addClass('fas ' + icons[type]).css('color', colors[type]);
+        $('#notificationModalLabel').text(titles[type]);
+        $('#notificationMessage').text(message);
+        $('#notificationModal').modal('show');
+        setTimeout(() => {
+            $('#notificationModal').modal('hide');
+        }, 2000);
+    }
+
+    $(document).ready(function() {
+        // Initialize Bootstrap dropdowns for dynamic elements
+        $(document).on('click', '.dropdown-toggle', function() {
+            console.log('Dropdown toggle clicked:', this);
+            if (!$(this).hasClass('dropdown-initialized')) {
+                try {
+                    new bootstrap.Dropdown(this);
+                    $(this).addClass('dropdown-initialized');
+                    console.log('Dropdown initialized for:', this);
+                } catch (e) {
+                    console.error('Dropdown initialization error:', e);
+                }
+            }
+        });
+
+        const currentUser = <%- JSON.stringify(currentUser || {}) %>;
+        let currentCategoryId = null;
+        let knowledgeTable;
+        let uploadedFiles = [];
+
+        const isAdmin = currentUser && currentUser.role === 'admin';
+
+        knowledgeTable = $('#knowledge-table').DataTable({
+            "paging": true,
+            "lengthChange": false,
+            "searching": true,
+            "ordering": true,
+            "info": true,
+            "autoWidth": false,
+            "responsive": true,
+            "ajax": {
+                "url": '/knowledge/api/items',
+                "dataSrc": "",
+                "data": function(d) {
+                    console.log('Ajax request data:', { category_id: currentCategoryId, user_id: currentUser.id });
+                    d.category_id = currentCategoryId;
+                    d.user_id = currentUser.id; // Send user_id for backend permission filtering
+                },
+                "error": function(xhr, error, thrown) {
+                    console.error('DataTable Ajax error:', xhr.responseJSON || xhr.statusText);
+                    let errorMessage = '지식 목록을 불러오는 중 오류가 발생했습니다.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    } else if (xhr.status === 403) {
+                        errorMessage = '이 카테고리의 지식을 볼 수 있는 권한이 없습니다.';
+                    }
+                    showNotification('error', errorMessage);
+                    knowledgeTable.clear().draw();
+                }
+            },
+            "columns": [
+                {
+                    "data": "title",
+                    "render": function(data, type, row) {
+                        return `<a href="/knowledge/detail/${row.id}">${data}</a>`;
+                    }
+                },
+                { "data": "type" },
+                { "data": "status" },
+                { "data": "creator_name" },
+                { "data": "assignee" },
+                { "data": "start_date" },
+                { "data": "end_date" },
+                { "data": "planned_date" },
+                {
+                    "data": "attachments",
+                    "render": function(data) {
+                        if (data && data.length > 0) {
+                            return `${data.length}개`;
+                        }
+                        return '없음';
+                    },
+                    "orderable": false
+                },
+                {
+                    "data": null,
+                    "render": function(data, type, row) {
+                        const isCreator = currentUser.id === row.creator_id;
+                        const isAdmin = currentUser.role === 'admin';
+                        console.log(`Row ${row.id}: isCreator=${isCreator}, isAdmin=${isAdmin}, created_by=${row.created_by}, user_id=${currentUser.id}`);
+                        let buttons = '';
+                        if (isCreator || isAdmin) {
+                            buttons += `<a href="/knowledge/edit/${row.id}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-edit"></i></a>`;
+                            buttons += `<button type="button" class="btn btn-sm btn-outline-danger delete-knowledge-btn" data-id="${row.id}"><i class="fas fa-trash"></i></button>`;
+                        }
+                        return buttons;
+                    },
+                    "orderable": false
+                }
+            ],
+            "language": {
+                "url": "/js/datatables/ko.json"
+            }
+        });
+
+        function loadCategoriesForJSTree() {
+            $.get('/knowledge/api/categories', function(categories) {
+                const jstreeData = categories.map(cat => ({
+                    id: cat.id,
+                    parent: cat.parent_id === null ? '#' : cat.parent_id,
+                    text: cat.name,
+                    data: {
+                        name: cat.name,
+                        parent_id: cat.parent_id
+                    }
+                }));
+
+                $('#category-tree').jstree('destroy').empty();
+                $('#category-tree').jstree({
+                    'core': {
+                        'data': jstreeData,
+                        'check_callback': true,
+                        'themes': {
+                            'name': 'default',
+                            'dots': true,
+                            'icons': true
+                        }
+                    },
+                    'plugins': ['wholerow', 'contextmenu', 'search'],
+                    'contextmenu': {
+                        'items': function(node) {
+                            var tree = $('#category-tree').jstree(true);
+                            var items = {
+                                "Create": {
+                                    "separator_before": false,
+                                    "separator_after": true,
+                                    "label": "새 카테고리 생성",
+                                    "action": function(obj) {
+                                        node = tree.create_node(node, {
+                                            text: '새 카테고리'
+                                        });
+                                        tree.edit(node);
+                                    }
+                                },
+                                "Rename": {
+                                    "separator_before": false,
+                                    "separator_after": false,
+                                    "label": "카테고리명 수정",
+                                    "action": function(obj) {
+                                        tree.edit(node);
+                                    }
+                                }
+                            };
+                            if (isAdmin) {
+                                items["Delete"] = {
+                                    "separator_before": true,
+                                    "separator_after": false,
+                                    "label": "카테고리 삭제",
+                                    "action": function(obj) {
+                                        $('#deleteConfirmModalBody').html('<p>이 카테고리를 삭제하시겠습니까? 하위 카테고리도 함께 삭제됩니다.</p>');
+                                        $('#deleteConfirmModal').modal('show');
+                                        $('#confirm-delete-btn').off('click').on('click', function() {
+                                            $.ajax({
+                                                url: `/knowledge/api/categories/${node.id}`,
+                                                method: 'DELETE',
+                                                success: function(response) {
+                                                    showNotification('success', response.message || '카테고리 삭제 완료');
+                                                    $('#deleteConfirmModal').modal('hide');
+                                                    tree.delete_node(node);
+                                                    if (currentCategoryId === node.id) {
+                                                        currentCategoryId = null;
+                                                        $('#knowledge-list-title').text('지식 목록');
+                                                        knowledgeTable.ajax.reload();
+                                                    }
+                                                },
+                                                error: function(xhr) {
+                                                    const errorMessage = xhr.responseJSON ? xhr.responseJSON.message : '카테고리 삭제 실패';
+                                                    showNotification('error', errorMessage);
+                                                    $('#deleteConfirmModal').modal('hide');
+                                                }
+                                            });
+                                        });
+                                    }
+                                };
+                            }
+                            return items;
+                        }
+                    }
+                });
+
+                $('#category-tree').on('ready.jstree', function() {
+                    const tree = $(this).jstree(true);
+                    tree.open_all();
+                    const categoryIdFromUrl = new URLSearchParams(window.location.search).get('category_id');
+                    if (categoryIdFromUrl) {
+                        tree.select_node(categoryIdFromUrl);
+                    } else if (jstreeData.length > 0) {
+                        const firstRootNode = jstreeData.find(n => n.parent === '#');
+                        if (firstRootNode) {
+                            tree.select_node(firstRootNode.id);
+                        }
+                    }
+                });
+
+                $('#category-tree').on('select_node.jstree', function(e, data) {
+                    currentCategoryId = data.node.id;
+                    $('#knowledge-list-title').text(`지식 목록 (${data.node.text})`);
+                    knowledgeTable.ajax.reload();
+                });
+
+                $('#category-tree').on('rename_node.jstree', function(e, data) {
+                    const id = data.node.id;
+                    const newName = data.text;
+                    const parent_id = data.node.parent === '#' ? null : data.node.parent;
+                    const url = id.startsWith('j') ? '/knowledge/api/categories' : `/knowledge/api/categories/${id}`;
+                    const method = id.startsWith('j') ? 'POST' : 'PUT';
+
+                    $.ajax({
+                        url: url,
+                        method: method,
+                        contentType: 'application/json',
+                        data: JSON.stringify({ name: newName, parent_id: parent_id }),
+                        success: function(response) {
+                            showNotification('success', response.message || '카테고리 저장 완료');
+                            if (id.startsWith('j')) {
+                                data.instance.set_id(data.node, response.id);
+                            }
+                            loadCategoriesForJSTree();
+                        },
+                        error: function(xhr) {
+                            const errorMessage = xhr.responseJSON ? xhr.responseJSON.message : '카테고리 저장 오류';
+                            showNotification('error', errorMessage);
+                            loadCategoriesForJSTree();
+                        }
+                    });
+                });
+
+                const parentSelect = $('#category-parent');
+                parentSelect.empty().append('<option value="">없음</option>');
+                categories.forEach(cat => {
+                    parentSelect.append(`<option value="${cat.id}">${cat.name}</option>`);
+                });
+            }).fail(function(xhr) {
+                console.error('Category load error:', xhr.responseJSON || xhr.statusText);
+                showNotification('error', '카테고리 로드 실패');
+            });
+        }
+
+        loadCategoriesForJSTree();
+
+        let to = null;
+        $('#category-search-input').on('keyup', function() {
+            if (to) clearTimeout(to);
+            to = setTimeout(() => {
+                const v = $(this).val();
+                $('#category-tree').jstree(true).search(v);
+            }, 250);
+        });
+
+        $('#expand-all-btn').on('click', () => {
+            $('#category-tree').jstree(true).open_all();
+        });
+
+        $('#collapse-all-btn').on('click', () => {
+            $('#category-tree').jstree(true).close_all();
+        });
+
+        $('#add-category-btn').on('click', function() {
+            const tree = $('#category-tree').jstree(true);
+            if (!tree) {
+                showNotification('error', '트리가 초기화되지 않았습니다.');
+                return;
+            }
+            const selectedNode = tree.get_selected(true)[0] || null;
+            const newNode = tree.create_node(selectedNode, { text: '새 카테고리' });
+            tree.edit(newNode);
+        });
+
+        $('#edit-category-btn').on('click', function() {
+            const tree = $('#category-tree').jstree(true);
+            if (!tree) {
+                showNotification('error', '트리가 초기화되지 않았습니다.');
+                return;
+            }
+            const selectedNode = tree.get_selected(true)[0];
+            if (!selectedNode) {
+                showNotification('warning', '수정할 카테고리를 선택해주세요.');
+                return;
+            }
+            tree.edit(selectedNode);
+        });
+
+        $('#delete-category-btn').on('click', function() {
+            const tree = $('#category-tree').jstree(true);
+            if (!tree) {
+                showNotification('error', '트리가 초기화되지 않았습니다.');
+                return;
+            }
+            const selectedNode = tree.get_selected(true)[0];
+            if (!selectedNode || !selectedNode.id) {
+                showNotification('warning', '삭제할 카테고리를 선택하세요.');
+                return;
+            }
+            $('#deleteConfirmModalBody').html('<p>이 카테고리를 삭제하시겠습니까? 하위 카테고리도 함께 삭제됩니다.</p>');
+            $('#deleteConfirmModal').modal('show');
+            $('#confirm-delete-btn').off('click').on('click', function() {
+                $.ajax({
+                    url: `/knowledge/api/categories/${selectedNode.id}`,
+                    method: 'DELETE',
+                    success: function(response) {
+                        showNotification('success', response.message || '카테고리 삭제 완료');
+                        $('#deleteConfirmModal').modal('hide');
+                        tree.delete_node(selectedNode);
+                        if (currentCategoryId === selectedNode.id) {
+                            currentCategoryId = null;
+                            $('#knowledge-list-title').text('지식 목록');
+                            knowledgeTable.ajax.reload();
+                        }
+                    },
+                    error: function(xhr) {
+                        const errorMessage = xhr.responseJSON ? xhr.responseJSON.message : '카테고리 삭제 오류';
+                        showNotification('error', errorMessage);
+                        $('#deleteConfirmModal').modal('hide');
+                    }
+                });
+            });
+        });
+
+        $('#save-category-btn').on('click', function() {
+            const id = $('#category-id').val();
+            const name = $('#category-name').val();
+            const parent_id = $('#category-parent').val() || null;
+            const url = id ? `/knowledge/api/categories/${id}` : '/knowledge/api/categories';
+            const method = id ? 'PUT' : 'POST';
+
+            $.ajax({
+                url: url,
+                method: method,
+                contentType: 'application/json',
+                data: JSON.stringify({ name, parent_id }),
+                success: function(response) {
+                    showNotification('success', response.message || '카테고리 저장 완료');
+                    $('#category-modal').modal('hide');
+                    loadCategoriesForJSTree();
+                },
+                error: function(xhr) {
+                    const errorMessage = xhr.responseJSON ? xhr.responseJSON.message : '카테고리 저장 오류';
+                    showNotification('error', errorMessage);
+                }
+            });
+        });
+
+        $('#delete-category-btn').on('click', function() {
+            const id = $('#category-id').val();
+            if (!id) {
+                showNotification('warning', '삭제할 카테고리를 선택하세요.');
+                return;
+            }
+            $('#deleteConfirmModal').modal('show');
+            $('#confirm-delete-btn').off('click').on('click', function() {
+                $.ajax({
+                    url: `/knowledge/api/categories/${id}`,
+                    method: 'DELETE',
+                    success: function(response) {
+                        showNotification('success', response.message || '카테고리 삭제 완료');
+                        $('#deleteConfirmModal').modal('hide');
+                        $('#category-modal').modal('hide');
+                        loadCategoriesForJSTree();
+                        if (currentCategoryId === id) {
+                            currentCategoryId = null;
+                            $('#knowledge-list-title').text('지식 목록');
+                            knowledgeTable.ajax.reload();
+                        }
+                    },
+                    error: function(xhr) {
+                        const errorMessage = xhr.responseJSON ? xhr.responseJSON.message : '카테고리 삭제 오류';
+                        showNotification('error', errorMessage);
+                        $('#deleteConfirmModal').modal('hide');
+                    }
+                });
+            });
+        });
+
+        $('#add-knowledge-btn').on('click', function() {
+            if (!currentCategoryId) {
+                showNotification('warning', '먼저 카테고리를 선택하세요.');
+                return;
+            }
+            $('#knowledge-form')[0].reset();
+            $('#knowledge-id').val('');
+            $('#knowledge-category-id').val(currentCategoryId);
+            $('#knowledge-modal-label').text('새 지식 등록');
+            $('#delete-knowledge-btn').hide();
+            $('#current-attachments').empty();
+            uploadedFiles = [];
+            renderFileList();
+            $('#knowledge-modal').modal('show');
+        });
+
+        $('#knowledge-table tbody').on('click', '.delete-knowledge-btn', function() {
+            const id = $(this).data('id');
+            console.log(`Delete button clicked for knowledge item ${id} by user ${currentUser.id}`);
+            $('#deleteConfirmModalBody').html('<p>이 지식을 삭제하시겠습니까? 삭제된 데이터는 복구할 수 없습니다.</p>');
+            $('#deleteConfirmModal').modal('show');
+            $('#confirm-delete-btn').off('click').on('click', function() {
+                $.ajax({
+                    url: `/knowledge/api/items/${id}`,
+                    method: 'DELETE',
+                    success: function(response) {
+                        showNotification('success', response.message || '지식 삭제 완료');
+                        $('#deleteConfirmModal').modal('hide');
+                        knowledgeTable.ajax.reload();
+                    },
+                    error: function(xhr) {
+                        const errorMessage = xhr.responseJSON ? xhr.responseJSON.message : '지식 삭제 오류';
+                        showNotification('error', errorMessage);
+                        $('#deleteConfirmModal').modal('hide');
+                    }
+                });
+            });
+        });
+
+        const splitter = document.getElementById('splitter-bar');
+        const treeCol = document.getElementById('tree-col');
+        let isDragging = false;
+
+        splitter.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            document.body.style.cursor = 'col-resize';
+            const startX = e.pageX;
+            const initialTreeColWidth = treeCol.offsetWidth;
+
+            function onMouseMove(e) {
+                if (!isDragging) return;
+                const dx = e.pageX - startX;
+                let newWidth = initialTreeColWidth + dx;
+                const minWidth = 200;
+                const maxWidth = 600;
+                newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+                treeCol.style.flexBasis = `${newWidth}px`;
+            }
+
+            function onMouseUp() {
+                isDragging = false;
+                document.body.style.cursor = '';
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            }
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        const fileInput = $('#knowledge-attachments');
+        const dropZone = $('#drop-zone');
+
+        function renderFileList() {
+            const fileList = $('#file-list');
+            fileList.empty();
+            uploadedFiles.forEach((file, index) => {
+                fileList.append(`
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span>${file.name}</span>
+                        <button type="button" class="btn btn-sm btn-danger remove-file-btn" data-index="${index}">삭제</button>
+                    </div>
+                `);
+            });
+        }
+
+        function updateFileList(files) {
+            for (let file of files) {
+                if (!uploadedFiles.some(f => f.name === file.name && f.size === file.size)) {
+                    uploadedFiles.push(file);
+                }
+            }
+            renderFileList();
+            console.log('Uploaded files:', uploadedFiles.map(f => f.name));
+        }
+
+        fileInput.on('change', function(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                updateFileList(files);
+                fileInput.val('');
+            }
+        });
+
+        dropZone.on('click', function() {
+            fileInput.trigger('click');
+        });
+
+        dropZone.on('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.addClass('dragover');
+        });
+
+        dropZone.on('dragenter', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.addClass('dragover');
+        });
+
+        dropZone.on('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.removeClass('dragover');
+        });
+
+        dropZone.on('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.removeClass('dragover');
+            const files = e.originalEvent.dataTransfer.files;
+            if (files.length > 0) {
+                updateFileList(files);
+            }
+        });
+
+        $(document).on('click', '.remove-file-btn', function() {
+            const index = $(this).data('index');
+            uploadedFiles.splice(index, 1);
+            renderFileList();
+        });
+
+        $('#save-knowledge-btn').on('click', function() {
+            const id = $('#knowledge-id').val();
+            const url = id ? `/knowledge/api/items/${id}` : '/knowledge/api/items';
+            const method = id ? 'PUT' : 'POST';
+            const type = $('#knowledge-type').val();
+            const startDate = $('#knowledge-start-date').val();
+            const plannedDate = $('#knowledge-planned-date').val();
+            const requiredTypes = ['회의', '보고', '이슈'];
+
+            if (requiredTypes.includes(type)) {
+                if (!startDate) {
+                    showNotification('warning', '시작일은 필수 입력 항목입니다.');
+                    $('#knowledge-start-date').focus();
+                    return;
+                }
+                if (!plannedDate) {
+                    showNotification('warning', '계획일은 필수 입력 항목입니다.');
+                    $('#knowledge-planned-date').focus();
+                    return;
+                }
+            }
+
+            const formData = new FormData($('#knowledge-form')[0]);
+            uploadedFiles.forEach(file => {
+                formData.append('attachments', file);
+            });
+
+            if (id) {
+                const attachmentsToDelete = [];
+                $('#current-attachments .attachment-to-delete').each(function() {
+                    attachmentsToDelete.push($(this).data('id'));
+                });
+                formData.append('attachments_to_delete', JSON.stringify(attachmentsToDelete));
+            }
+
+            $.ajax({
+                url: url,
+                method: method,
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    showNotification('success', response.message || '지식 저장 완료');
+                    $('#knowledge-modal').modal('hide');
+                    knowledgeTable.ajax.reload();
+                },
+                error: function(xhr) {
+                    const errorMessage = xhr.responseJSON ? xhr.responseJSON.message : '지식 저장 오류';
+                    showNotification('error', errorMessage);
+                }
+            });
+        });
+    });
+</script>
+
+<%- include('../partials/footer') %>

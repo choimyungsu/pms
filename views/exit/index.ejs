@@ -1,0 +1,194 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<main class="app-main">
+  <div class="app-content-header">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-sm-6">
+          <h3 class="mb-0"><%= page_title %></h3>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="app-content">
+    <div class="container-fluid">
+
+            <!-- 퇴실 점검 체크리스트 폼 -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>금일 퇴실 점검</h5>
+                </div>
+                <div class="card-body">
+                    <form action="/exit" method="POST">
+                        <div class="mb-3">
+                            <label for="check_date" class="form-label">점검일</label>
+                            <input type="date" class="form-control" id="check_date" name="check_date">
+                        </div>
+                        <div class="mb-3">
+                            <label for="checker_name" class="form-label">점검자</label>
+                            <input type="text" class="form-control" id="checker_name" value="<%= user && user.name ? user.name : '알수없음' %>" readonly>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="ac_check" id="ac_check">
+                            <label class="form-check-label" for="ac_check">
+                                에어컨 점검
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="light_check" id="light_check">
+                            <label class="form-check-label" for="light_check">
+                                전등 소등 점검
+                            </label>
+                        </div>                        
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="air_purifier_check" id="air_purifier_check">
+                            <label class="form-check-label" for="air_purifier_check">
+                                공기청정기 점검
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="tech_lab_light_check" id="tech_lab_light_check">
+                            <label class="form-check-label" for="tech_lab_light_check">
+                                기술연구소 소등 점검
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="tech_lab_ac_check" id="tech_lab_ac_check">
+                            <label class="form-check-label" for="tech_lab_ac_check">
+                                기술연구소 에어컨 점검
+                            </label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="server_room_check" id="server_room_check">
+                            <label class="form-check-label" for="server_room_check">
+                                서버룸 점검
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary">점검 완료</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 퇴실 점검 기록 -->
+            <div class="card">
+                <div class="card-header">
+                    <h5>퇴실 점검 이력</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>저장일시</th>
+                                    <th>점검일시</th>
+                                    <th>점검자</th>
+                                    <th>에어컨</th>
+                                    <th>전등</th>                                    
+                                    <th>공기청정기</th>
+                                    <th>기술연구소 소등</th>
+                                    <th>기술연구소 에어컨</th>
+                                    <th>서버룸</th>
+                                    <% if (user && user.role === 'admin') { %>
+                                    <th>삭제</th>
+                                    <% } %>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% checklist.forEach(item => { %>
+                                    <tr>
+                                        <td><%= new Date(item.created_at).toLocaleString() %></td>
+                                        <td><%= new Date(item.check_date).toLocaleDateString() %></td>
+                                        <td><%= item.checker_name %></td>
+                                        <td><span class="badge bg-<%= Boolean(item.ac_check) ? 'success' : 'danger' %>"><%= Boolean(item.ac_check) ? '완료' : '미완료' %></span></td>
+                                        <td><span class="badge bg-<%= Boolean(item.light_check) ? 'success' : 'danger' %>"><%= Boolean(item.light_check) ? '완료' : '미완료' %></span></td>                                        
+                                        <td><span class="badge bg-<%= Boolean(item.air_purifier_check) ? 'success' : 'danger' %>"><%= Boolean(item.air_purifier_check) ? '완료' : '미완료' %></span></td>
+                                        <td><span class="badge bg-<%= Boolean(item.tech_lab_light_check) ? 'success' : 'danger' %>"><%= Boolean(item.tech_lab_light_check) ? '완료' : '미완료' %></span></td>
+                                        <td><span class="badge bg-<%= Boolean(item.tech_lab_ac_check) ? 'success' : 'danger' %>"><%= Boolean(item.tech_lab_ac_check) ? '완료' : '미완료' %></span></td>
+                                        <td><span class="badge bg-<%= Boolean(item.server_room_check) ? 'success' : 'danger' %>"><%= Boolean(item.server_room_check) ? '완료' : '미완료' %></span></td>
+                                        <% if (user && user.role === 'admin') { %>
+                                        <td><button class="btn btn-danger btn-sm" onclick="confirmDelete(<%= item.id %>)">삭제</button></td>
+                                        <% } %>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</main>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">삭제 확인</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                정말로 삭제하시겠습니까?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">삭제</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const todayString = `${yyyy}-${mm}-${dd}`;
+
+        const checkDateInput = document.getElementById('check_date');
+        checkDateInput.value = todayString;
+
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const y_yyyy = yesterday.getFullYear();
+        const y_mm = String(yesterday.getMonth() + 1).padStart(2, '0');
+        const y_dd = String(yesterday.getDate()).padStart(2, '0');
+        checkDateInput.min = `${y_yyyy}-${y_mm}-${y_dd}`;
+
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        const t_yyyy = tomorrow.getFullYear();
+        const t_mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+        const t_dd = String(tomorrow.getDate()).padStart(2, '0');
+        checkDateInput.max = `${t_yyyy}-${t_mm}-${t_dd}`;
+    });
+
+    let deleteId = null;
+    const deleteConfirmModal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+
+    function confirmDelete(id) {
+        deleteId = id;
+        deleteConfirmModal.show();
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        if (deleteId) {
+            fetch(`/exit/${deleteId}`, {
+                method: 'DELETE'
+            }).then(response => {
+                deleteConfirmModal.hide();
+                if (response.ok) {
+                    showNotification('success', '삭제되었습니다.');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    showNotification('error', '삭제에 실패했습니다.');
+                }
+            });
+        }
+    });
+</script>

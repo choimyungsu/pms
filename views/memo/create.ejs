@@ -1,0 +1,110 @@
+<%- include('../partials/header', { page: 'memo' }) %>
+<%- include('../partials/sidebar', { page: 'memo' }) %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">새 메모 작성</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-body">
+                    <form action="/memo" method="POST">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">제목</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="project_id" class="form-label">프로젝트</label>
+                            <select class="form-control" id="project_id" name="project_id">
+                                <option value="">-- 프로젝트 선택 --</option>
+                                <% projects.forEach(project => { %>
+                                    <option value="<%= project.id %>" <%= selectedProject && selectedProject.id === project.id ? 'selected' : '' %>><%= project.name %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="content" class="form-label">내용</label>
+                            <textarea class="form-control" id="content" name="content" rows="10"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">저장</button>
+                        <a href="/memo" class="btn btn-secondary">취소</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<script src="https://cdn.ckeditor.com/ckeditor5/35.3.2/classic/ckeditor.js"></script>
+<script>
+    // Custom Upload Adapter Plugin
+    function MyUploadAdapterPlugin(editor) {
+        editor.plugins.get('FileRepository').createUploadAdapter = (loader) => {
+            return new MyUploadAdapter(loader);
+        };
+    }
+
+    // Custom Upload Adapter Class
+    class MyUploadAdapter {
+        constructor(loader) {
+            this.loader = loader;
+        }
+
+        upload() {
+            return this.loader.file
+                .then(file => new Promise((resolve, reject) => {
+                    const formData = new FormData();
+                    formData.append('image', file);
+
+                    fetch('/memo/upload-image', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            return response.json();
+                        } else {
+                            return response.text().then(text => {
+                                throw new Error(`Server responded with ${response.status}: ${text}`);
+                            });
+                        }
+                    })
+                    .then(data => {
+                        if (data.success && data.filePath) {
+                            resolve({
+                                default: data.filePath
+                            });
+                        } else {
+                            reject(data.message || 'Upload failed');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('CKEditor image upload failed:', error);
+                        reject(error);
+                    });
+                }));
+        }
+
+        abort() {
+            // Abort logic can be implemented here
+        }
+    }
+
+    // Initialize CKEditor with the custom adapter
+    ClassicEditor
+        .create(document.querySelector('#content'), {
+            extraPlugins: [MyUploadAdapterPlugin],
+        })
+        .catch(error => {
+            console.error(error);
+        });
+</script>

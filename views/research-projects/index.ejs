@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <%- include('../partials/head') %>
+    <title><%= title %></title>
+</head>
+<body>
+    <%- include('../partials/header') %>
+    <%- include('../partials/sidebar') %>
+
+    <div class="main-content">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex align-items-center">
+                            <h4 class="card-title mb-0 me-auto"><%= title %></h4>
+                            <a href="/research-projects/create" class="btn btn-primary btn-sm">새 연구과제 등록</a>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table id="researchProjectsTable" class="table table-striped table-bordered zero-configuration">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>과제명</th>
+                                            <th>시작일</th>
+                                            <th>종료일</th>
+                                            <th>참여자</th>
+                                            <th>작업</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% projects.forEach(project => { %>
+                                            <tr>
+                                                <td><%= project.id %></td>
+                                                <td><a href="/research-projects/<%= project.id %>"><%= project.project_name %></a></td>
+                                                <td><%= project.start_date ? project.start_date.substring(0, 10) : '' %></td>
+                                                <td><%= project.end_date ? project.end_date.substring(0, 10) : '' %></td>
+                                                <td><%= project.participants %></td>
+                                                <td>
+                                                    <a href="/research-projects/<%= project.id %>/edit" class="btn btn-info btn-sm">수정</a>
+                                                    <form action="/research-projects/<%= project.id %>/delete" method="POST" style="display:inline;" onsubmit="return confirm('정말로 이 연구과제를 삭제하시겠습니까?');">
+                                                        <button type="submit" class="btn btn-danger btn-sm">삭제</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        <% }) %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%- include('../partials/footer') %>
+    <%- include('../partials/scripts') %>
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.js"></script>
+    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.bootstrap5.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#researchProjectsTable').DataTable();
+        });
+    </script>
+</body>
+</html>

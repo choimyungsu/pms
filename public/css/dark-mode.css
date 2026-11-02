@@ -1,0 +1,187 @@
+/* Dark Mode Styles */
+body.dark-mode {
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+}
+
+.dark-mode .app-wrapper {
+    background-color: #2c2c2c;
+    color: #e0e0e0;
+}
+
+.dark-mode .app-header {
+    background-color: #252525 !important;
+    color: #e0e0e0;
+}
+
+.dark-mode .app-main {
+    background-color: #2c2c2c;
+    color: #e0e0e0;
+}
+
+.dark-mode .card {
+    background-color: #333;
+    border: 1px solid #444;
+    color: #e0e0e0;
+}
+
+.dark-mode .card-header {
+    background-color: #3a3a3a;
+    border-bottom: 1px solid #444;
+    color: #e0e0e0;
+}
+
+.dark-mode .list-group-item {
+    background-color: #333;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+.dark-mode a {
+    color: #8ab4f8;
+}
+
+.dark-mode .dropdown-menu {
+    background-color: #333;
+    border: 1px solid #444;
+}
+
+.dark-mode .dropdown-item {
+    color: #e0e0e0;
+}
+
+.dark-mode .dropdown-item:hover {
+    background-color: #444;
+}
+
+.dark-mode .sidebar-wrapper, .dark-mode .sidebar-menu {
+    background-color: #252525 !important;
+}
+
+.dark-mode .nav-link, .dark-mode .nav-item .nav-link {
+    color: #e0e0e0 !important;
+}
+
+.dark-mode .nav-link.active {
+    background-color: #0d6efd !important;
+    color: #ffffff !important;
+}
+
+.dark-mode .nav-item.menu-open .nav-link {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark-mode .nav-treeview .nav-link.active {
+    background-color: #0d6efd !important;
+    color: #ffffff !important;
+}
+
+.dark-mode .nav-treeview .nav-link {
+    background-color: #3a3a3a !important;
+}
+
+.dark-mode .nav-treeview .nav-link:hover {
+    background-color: #444 !important;
+}
+
+/* Dashboard Specific */
+.dark-mode .bg-today-schedule {
+    background-color: #5a4a1f !important;
+    color: #fff3cd !important;
+}
+
+.dark-mode .bg-issue-status {
+    background-color: #6b2c31 !important;
+    color: #f8d7da !important;
+}
+
+.dark-mode .bg-recent-knowledge {
+    background-color: #22543d !important;
+    color: #d1e7dd !important;
+}
+
+.dark-mode .bg-recent-cards {
+    background-color: #2c4a7e !important;
+    color: #cfe2ff !important;
+}
+
+.dark-mode .bg-warning {
+    background-color: #664d03 !important;
+    color: #ffecb5 !important;
+}
+
+/* Chart.js Dark Mode */
+.dark-mode #knowledgeUploadChart {
+    color: #e0e0e0;
+}
+
+.dark-mode .chart-container {
+    background-color: #333;
+}
+
+.dark-mode .app-footer {
+    background-color: #252525;
+    color: #e0e0e0;
+    border-top: 1px solid #444;
+}
+
+/* DataTables Dark Mode */
+.dark-mode .dataTables_wrapper {
+    color: #e0e0e0;
+}
+
+.dark-mode .table {
+    background-color: #2c2c2c;
+    color: #e0e0e0;
+}
+
+.dark-mode .table th,
+.dark-mode .table td {
+    border-color: #444;
+}
+
+.dark-mode .table thead th {
+    background-color: #3a3a3a;
+    color: #e0e0e0;
+}
+
+.dark-mode .table tbody tr {
+    background-color: #2c2c2c;
+}
+
+.dark-mode .table-striped tbody tr:nth-of-type(odd) {
+    background-color: #333;
+}
+
+.dark-mode .table-hover tbody tr:hover {
+    background-color: #3a3a3a;
+}
+
+.dark-mode .dataTables_length select,
+.dark-mode .dataTables_filter input {
+    background-color: #333;
+    color: #e0e0e0;
+    border: 1px solid #444;
+}
+
+.dark-mode .page-item .page-link {
+    background-color: #333;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+.dark-mode .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+}
+
+.dark-mode .page-item.disabled .page-link {
+    background-color: #2c2c2c;
+    border-color: #444;
+    color: #6c757d;
+}
+
+.dark-mode .dataTables_info {
+    color: #e0e0e0;
+}

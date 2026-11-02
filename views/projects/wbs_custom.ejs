@@ -1,0 +1,733 @@
+<style>
+    .wbs-list {
+        list-style: none;
+        padding: 0;
+    }
+    .wbs-item {
+        align-items: center;
+        border-bottom: 1px solid #eee;
+        background-color: #fff;
+        position: relative;
+    }
+    .wbs-item:hover {
+        background-color: #f9f9f9;
+    }
+    .wbs-item.dragging {
+        opacity: 0.5;
+    }
+    .wbs-item.drag-over {
+        border-top: 2px solid #007bff;
+    }
+    .wbs-item.drag-over-indent {
+        border-left: 2px solid #007bff;
+    }
+    .wbs-item-content {
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+    }
+    .wbs-indent {
+        width: 15px; /* Indentation width */
+        flex-shrink: 0;
+    }
+    .wbs-task-name {
+        font-weight: bold;
+        margin-right: 5px; /* Reduced margin */
+        font-size: 0.85em; /* Smaller font size */
+    }
+    .wbs-task-details {
+        font-size: 0.75em; /* Even smaller for details */
+        color: #666;
+    }
+    .wbs-actions button {
+        margin-left: 3px; /* Reduced margin */
+        padding: 2px 5px; /* Smaller padding for buttons */
+        font-size: 0.75em; /* Smaller font for buttons */
+    }
+    .wbs-depth-limit {
+        color: red;
+        font-weight: bold;
+        margin-left: 5px; /* Reduced margin */
+        font-size: 0.75em; /* Smaller font size */
+    }
+    /* Table specific styles */
+    .table-responsive {
+        overflow-x: auto;
+    }
+    .table th, .table td {
+        white-space: nowrap; /* Prevent text wrapping in table cells */
+        vertical-align: middle;
+        padding: 4px 6px; /* Reduced padding for table cells */
+        font-size: 0.85em; /* Smaller font size for table content */
+    }
+    .wbs-item td {
+        padding-top: 4px;
+        padding-bottom: 4px;
+    }
+    /* Adjust icon sizes if they are too large */
+    .fas, .far, .fal, .fab, .fa {
+        font-size: 0.85em; /* Adjust font-awesome icon size */
+    }
+</style>
+
+<div class="card mt-3">
+    <div class="card-header">
+        <h3 class="card-title">WBS (Work Breakdown Structure)</h3>
+    </div>
+    <div class="card-body">
+        <% if (currentUser) { %>
+        <h5>새 태스크 추가</h5>
+        <form id="createWbsTaskForm" class="mb-4">
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <input type="text" class="form-control" name="task_name" placeholder="태스크명" required>
+                </div>
+                <div class="col-md-2">
+                    <input type="date" class="form-control" name="start_date">
+                </div>
+                <div class="col-md-2">
+                    <input type="date" class="form-control" name="end_date">
+                </div>
+                <div class="col-md-1">
+                    <input type="number" class="form-control" name="progress" placeholder="진척율" min="0" max="100" value="0">
+                </div>
+                <div class="col-md-2">
+                    <select name="assigned_user_id" class="form-select">
+                        <option value="">담당자 선택</option>
+                        <% allUsers.forEach(user => { %>
+                            <option value="<%= user.id %>"><%= user.name %></option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary w-100">추가</button>
+                </div>
+            </div>
+            <div class="row g-2 mt-2">
+                <div class="col-md-4">
+                    <select name="parent_id" class="form-select" id="new_task_parent_id">
+                        <option value="">상위 태스크 (선택 사항)</option>
+                        <!-- Options will be dynamically added by JS -->
+                    </select>
+                </div>
+            </div>
+        </form>
+        <% } %>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">WBS 목록</h5>
+            <div class="btn-group" role="group">
+                <a href="/projects/<%= project.id %>/wbs/download" class="btn btn-primary btn-sm"><i class="fas fa-file-excel"></i> WBS 엑셀 다운로드</a>
+                <a href="/projects/wbs/template/download" class="btn btn-info btn-sm"><i class="fas fa-download"></i> 템플릿 다운로드</a>
+                <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#uploadExcelModal"><i class="fas fa-upload"></i> 엑셀 업로드</button>
+            </div>
+        </div>
+        <div id="wbsListContainer" class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead>
+                    <tr>
+                        <th style="width: 40%;">태스크 이름</th>
+                        <th style="width: 10%;">시작일</th>
+                        <th style="width: 10%;">종료일</th>
+                        <th style="width: 5%;">기간</th>
+                        <th style="width: 5%;">진척율</th>
+                        <th style="width: 10%;">담당자</th>
+                        <th style="width: 20%;">액션</th>
+                    </tr>
+                </thead>
+                <tbody id="wbsTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Edit WBS Task Modal (re-used from details.ejs, ensure IDs match) -->
+<div class="modal fade" id="editWbsTaskModal" tabindex="-1" aria-labelledby="editWbsTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editWbsTaskModalLabel">WBS 태스크 수정</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editWbsTaskForm" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="_method" value="PUT"> <!-- PUT 요청을 위한 hidden 필드 -->
+                    <div class="mb-3">
+                        <label for="edit_task_name" class="form-label">태스크명</label>
+                        <input type="text" class="form-control" id="edit_task_name" name="task_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_parent_id" class="form-label">상위 태스크</label>
+                        <select class="form-select" id="edit_parent_id" name="parent_id">
+                            <option value="">없음</option>
+                            <!-- Options will be dynamically added by JS -->
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_start_date" class="form-label">시작일</label>
+                            <input type="date" class="form-control" id="edit_start_date" name="start_date">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_end_date" class="form-label">종료일</label>
+                            <input type="date" class="form-control" id="edit_end_date" name="end_date">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_progress" class="form-label">진척율</label>
+                        <input type="number" class="form-control" id="edit_progress" name="progress" min="0" max="100">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_assigned_user_id" class="form-label">담당자</label>
+                        <select class="form-select" id="edit_assigned_user_id" name="assigned_user_id">
+                            <option value="">선택</option>
+                            <% allUsers.forEach(user => { %>
+                                <option value="<%= user.id %>"><%= user.name %></option>
+                            <% }) %>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                    <button type="submit" class="btn btn-primary">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Excel Modal -->
+<div class="modal fade" id="uploadExcelModal" tabindex="-1" aria-labelledby="uploadExcelModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadExcelModalLabel">WBS 엑셀 업로드</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="uploadExcelForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="wbsExcelFile" class="form-label">엑셀 파일 선택</label>
+                        <input class="form-control" type="file" id="wbsExcelFile" name="wbsExcelFile" accept=".xlsx, .xls" required>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="" id="deleteExistingWbs" name="deleteExistingWbs" checked>
+                        <label class="form-check-label" for="deleteExistingWbs">
+                            기존 WBS 데이터를 모두 삭제하고 업로드합니다.
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                    <button type="submit" class="btn btn-primary">업로드</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const projectId = <%= project.id %>;
+        const allUsers = <%- JSON.stringify(allUsers) %>;
+        const wbsTableBody = document.getElementById('wbsTableBody'); // Changed from wbsList
+        const createWbsTaskForm = document.getElementById('createWbsTaskForm');
+        const editWbsTaskForm = document.getElementById('editWbsTaskForm');
+        const uploadExcelForm = document.getElementById('uploadExcelForm');
+        const new_task_parent_id_select = document.getElementById('new_task_parent_id');
+        const edit_parent_id_select = document.getElementById('edit_parent_id');
+
+        let currentWbsData = []; // To store the fetched hierarchical WBS data
+
+        // Helper to show notifications (assuming showNotification function exists globally)
+        // function showNotification(type, message) {
+        //     // Placeholder for actual notification implementation
+        //     alert(message);
+        // }
+
+        // Recursive function to flatten WBS tasks and add depth
+        function flattenWbsTasks(tasks, flatList = [], depth = 0) {
+            tasks.forEach(task => {
+                flatList.push({ ...task, depth: depth });
+                if (task.children && task.children.length > 0) {
+                    flattenWbsTasks(task.children, flatList, depth + 1);
+                }
+            });
+            return flatList;
+        }
+
+        // Function to fetch and render WBS tasks
+        async function fetchAndRenderWbsTasks() {
+            try {
+                const response = await fetch(`/projects/${projectId}/wbs`);
+                const result = await response.json();
+                console.log('WBS fetch result:', result); // Debugging: Log the full result
+
+                if (result.success) {
+                    console.log('WBS fetch successful.'); // Debugging: Confirm success path
+                    currentWbsData = result.wbsTasks; // This is hierarchical
+                    const flattenedTasks = flattenWbsTasks(currentWbsData); // Flatten it
+                    renderWbsTable(flattenedTasks, wbsTableBody); // Render the table
+                    populateParentIdDropdowns(currentWbsData); // Dropdowns still need hierarchical data for options
+                } else if (result.message) { // Only show error if there's a specific message
+                    console.log('WBS fetch failed with message.', result.message); // Debugging: Confirm explicit error path
+                    showNotification('error', 'WBS 태스크를 불러오는 데 실패했습니다: ' + result.message);
+                } else {
+                    console.log('WBS fetch failed without specific message.', result); // Debugging: Confirm generic error path
+                    showNotification('error', 'WBS 태스크를 불러오는 데 실패했습니다. (알 수 없는 오류)');
+                }
+            } catch (error) {
+                console.error('Error fetching WBS tasks (network/parsing):', error); // Debugging: Confirm catch block execution
+                showNotification('error', 'WBS 태스크를 불러오는 중 오류 발생.');
+            }
+        }
+
+        // Function to render WBS table with indentation
+        function renderWbsTable(tasks, tableBodyElement) {
+            tableBodyElement.innerHTML = ''; // Clear existing table body
+            tasks.forEach(task => {
+                const row = document.createElement('tr');
+                row.classList.add('wbs-item'); // Keep wbs-item class for drag/drop if re-implemented
+                row.setAttribute('draggable', true);
+                row.dataset.taskId = task.id;
+                row.dataset.parentId = task.parent_id || '';
+                row.dataset.depth = task.depth;
+
+                const taskNameCell = document.createElement('td');
+                taskNameCell.style.paddingLeft = `${(task.depth * 20) + 8}px`; // 20px per depth level + default padding
+                taskNameCell.innerHTML = `
+                    <span class="wbs-task-name">${task.task_name}</span>
+                    ${task.depth >= 4 ? '<span class="wbs-depth-limit">(최대 깊이)</span>' : ''}
+                `;
+                row.appendChild(taskNameCell);
+
+                const startDateCell = document.createElement('td');
+                startDateCell.textContent = task.start_date ? new Date(task.start_date).toLocaleDateString() : '';
+                row.appendChild(startDateCell);
+
+                const endDateCell = document.createElement('td');
+                endDateCell.textContent = task.end_date ? new Date(task.end_date).toLocaleDateString() : '';
+                row.appendChild(endDateCell);
+
+                const durationCell = document.createElement('td');
+                durationCell.textContent = task.duration || 0;
+                row.appendChild(durationCell);
+
+                const progressCell = document.createElement('td');
+                progressCell.textContent = `${task.progress || 0}%`;
+                row.appendChild(progressCell);
+
+                const assigneeCell = document.createElement('td');
+                assigneeCell.textContent = task.assigned_user_name || '미정';
+                row.appendChild(assigneeCell);
+
+                const actionsCell = document.createElement('td');
+                actionsCell.innerHTML = `
+                    <button type="button" class="btn btn-sm btn-info edit-task-btn" data-task-id="${task.id}">수정</button>
+                    <button type="button" class="btn btn-sm btn-danger delete-task-btn" data-task-id="${task.id}">삭제</button>
+                `;
+                row.appendChild(actionsCell);
+
+                tableBodyElement.appendChild(row);
+            });
+            addDragAndDropListeners(tableBodyElement); // Re-attach D&D listeners to new rows
+        }
+
+        // Function to populate parent_id dropdowns
+        function populateParentIdDropdowns(tasks, currentTaskId = null) {
+            const flatTasks = [];
+            function flatten(arr, list, depth = 0) {
+                arr.forEach(task => {
+                    if (String(task.id) !== String(currentTaskId)) { // Exclude the task itself from its parent options
+                        list.push({ id: task.id, name: task.task_name, depth: depth });
+                        if (task.children && task.children.length > 0) {
+                            flatten(task.children, list, depth + 1);
+                        }
+                    }
+                });
+            }
+            flatten(tasks, flatTasks);
+
+            const createOptions = (selectElement) => {
+                const currentSelectedValue = selectElement.value;
+                selectElement.innerHTML = '<option value="">상위 태스크 (선택 사항)</option>';
+                flatTasks.forEach(task => {
+                    // Add checks for task.id and task.name
+                    if (task.id !== null && typeof task.id !== 'undefined' && task.name !== null && typeof task.name !== 'undefined') {
+                        const option = document.createElement('option');
+                        option.value = task.id;
+                        option.textContent = '--'.repeat(task.depth) + task.name;
+                        selectElement.appendChild(option);
+                    }
+                });
+                selectElement.value = currentSelectedValue; // Restore previously selected value
+            };
+
+            createOptions(new_task_parent_id_select);
+            createOptions(edit_parent_id_select);
+        }
+
+        // --- Drag and Drop Logic ---
+        let draggedItem = null;
+
+        function addDragAndDropListeners(container) {
+            container.querySelectorAll('.wbs-item').forEach(item => {
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragover', handleDragOver);
+                item.addEventListener('dragleave', handleDragLeave);
+                item.addEventListener('drop', handleDrop);
+                item.addEventListener('dragend', handleDragEnd);
+            });
+        }
+
+        function handleDragStart(e) {
+            draggedItem = this;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+            this.classList.add('dragging');
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+
+            const targetItem = this;
+            if (targetItem === draggedItem) return;
+
+            const bounding = targetItem.getBoundingClientRect();
+            const offset = bounding.y + (bounding.height / 2);
+
+            // Determine if dropping above, below, or as child
+            if (e.clientY < offset) {
+                targetItem.classList.remove('drag-over-indent');
+                targetItem.classList.add('drag-over'); // Above
+            } else {
+                targetItem.classList.remove('drag-over');
+                // Check for indentation (child)
+                const mouseX = e.clientX;
+                const targetRect = targetItem.getBoundingClientRect();
+                const targetDepth = parseInt(targetItem.dataset.depth);
+                const potentialNewDepth = targetDepth + 1;
+
+                // Minimum X position for a child drop (target's left edge + target's depth indent + 20px for new indent)
+                const minIndentForChild = targetRect.left + (targetDepth * 20) + 20;
+
+                if (potentialNewDepth < 5 && mouseX > minIndentForChild) { // Enforce max depth
+                    targetItem.classList.add('drag-over-indent'); // As child or below with indent
+                } else {
+                    targetItem.classList.remove('drag-over-indent');
+                    targetItem.classList.add('drag-over'); // Fallback to above/below if max depth reached
+                }
+            }
+        }
+
+        function handleDragLeave() {
+            this.classList.remove('drag-over', 'drag-over-indent');
+        }
+
+        async function handleDrop(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over', 'drag-over-indent');
+
+            if (draggedItem === this) return;
+
+            const targetItem = this;
+            const draggedTaskId = draggedItem.dataset.taskId;
+
+            const targetTaskId = targetItem.dataset.taskId;
+            const targetParentId = targetItem.dataset.parentId || null;
+            const targetDepth = parseInt(targetItem.dataset.depth);
+
+            let newParentId = null;
+            let newOrderIndex = 0; // This is the index within the *new* parent's children
+
+            const bounding = targetItem.getBoundingClientRect();
+            const offset = bounding.y + (bounding.height / 2);
+            const mouseX = e.clientX;
+            const targetRect = targetItem.getBoundingClientRect();
+
+            let dropType = '';
+            if (e.clientY < offset) {
+                dropType = 'above';
+            } else {
+                const potentialNewDepth = targetDepth + 1;
+                const minIndentForChild = targetRect.left + (targetDepth * 20) + 20;
+
+                if (potentialNewDepth < 5 && mouseX > minIndentForChild) {
+                    dropType = 'child';
+                } else {
+                    dropType = 'below';
+                }
+            }
+
+            // Prevent dropping a task as a child of itself or its own descendant
+            let isDescendant = false;
+            let tempParentIdCheck = targetTaskId; // Start checking from the target task itself
+            while (tempParentIdCheck) {
+                if (String(tempParentIdCheck) === String(draggedTaskId)) {
+                    isDescendant = true;
+                    break;
+                }
+                const parentTask = findTaskById(currentWbsData, tempParentIdCheck);
+                tempParentIdCheck = parentTask ? parentTask.parent_id : null;
+            }
+
+            if (isDescendant) {
+                window.showNotification('error', '태스크를 자신의 하위 태스크로 이동할 수 없습니다.');
+                return;
+            }
+
+            // Calculate newParentId and newOrderIndex based on dropType
+            if (dropType === 'above') {
+                newParentId = targetParentId;
+                // Find the index of targetItem among its siblings (tasks with same parentId)
+                const siblings = currentWbsData.filter(task => String(task.parent_id || '') === String(newParentId || ''))
+                                               .sort((a, b) => a.order_index - b.order_index);
+                newOrderIndex = siblings.findIndex(task => String(task.id) === String(targetTaskId));
+                if (newOrderIndex === -1) newOrderIndex = 0; // Should not happen if target is valid
+            } else if (dropType === 'below') {
+                newParentId = targetParentId;
+                const siblings = currentWbsData.filter(task => String(task.parent_id || '') === String(newParentId || ''))
+                                               .sort((a, b) => a.order_index - b.order_index);
+                newOrderIndex = siblings.findIndex(task => String(task.id) === String(targetTaskId)) + 1;
+                if (newOrderIndex === 0) newOrderIndex = siblings.length; // If target was last, append
+            } else if (dropType === 'child') {
+                newParentId = targetTaskId;
+                // New child will be the last child of the new parent
+                const childrenOfTarget = currentWbsData.filter(task => String(task.parent_id || '') === String(newParentId || ''))
+                                                        .sort((a, b) => a.order_index - b.order_index);
+                newOrderIndex = childrenOfTarget.length;
+            }
+
+            // Prevent exceeding max depth
+            const newCalculatedDepth = calculateDepthOfNewChild(currentWbsData, newParentId); // This function needs to return depth of parent
+            if (newCalculatedDepth > 5) { // If parent is already at depth 4, its child would be depth 5, which is too much
+                showNotification('error', '최대 5단계 깊이까지만 허용됩니다.');
+                return;
+            }
+
+            // Send update to backend
+            try {
+                const response = await fetch(`/projects/${projectId}/wbs/${draggedTaskId}/order-parent`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        new_parent_id: newParentId,
+                        new_order_index: newOrderIndex
+                    }),
+                });
+                const result = await response.json();
+                if (result.success) {
+                    window.showNotification('success', '태스크 순서 및 부모가 업데이트되었습니다.');
+                    fetchAndRenderWbsTasks(); // Re-fetch and re-render to reflect changes
+                } else {
+                    window.showNotification('error', '태스크 순서 및 부모 업데이트 실패: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error updating task order/parent:', error);
+                showNotification('error', '태스크 순서 및 부모 업데이트 중 오류 발생.');
+            }
+        }
+
+        function handleDragEnd() {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.wbs-item').forEach(item => {
+                item.classList.remove('drag-over', 'drag-over-indent');
+            });
+            draggedItem = null;
+        }
+
+        // Helper to find a task by ID in the hierarchical data
+        function findTaskById(tasks, id) {
+            for (const task of tasks) {
+                if (String(task.id) === String(id)) {
+                    return task;
+                }
+                if (task.children && task.children.length > 0) {
+                    const found = findTaskById(task.children, id);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+
+        // Helper to calculate depth of a potential new child
+        function calculateDepthOfNewChild(tasks, parentId) {
+            if (!parentId) return 0; // If no parent, it's a root task, so its children would be depth 1
+
+            const parentTask = findTaskById(tasks, parentId);
+            if (parentTask) {
+                return parentTask.depth + 1; // The depth of the new child
+            }
+            return 0; // Should not happen if parentId is valid
+        }
+
+        // --- CRUD Operations ---
+
+        // Create Task
+        if (createWbsTaskForm) {
+            createWbsTaskForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                const formData = new FormData(createWbsTaskForm);
+                const data = Object.fromEntries(formData.entries());
+
+                try {
+                    const response = await fetch(`/projects/${projectId}/wbs`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data),
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        window.showNotification('success', '새 태스크가 추가되었습니다.');
+                        createWbsTaskForm.reset();
+                        fetchAndRenderWbsTasks();
+                    } else {
+                        window.showNotification('error', '태스크 추가 실패: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Error adding task:', error);
+                    showNotification('error', '태스크 추가 중 오류 발생.');
+                }
+            });
+        }
+
+        // Edit Task (Modal)
+        wbsTableBody.addEventListener('click', async function(event) {
+            if (event.target.classList.contains('edit-task-btn')) {
+                const taskId = event.target.dataset.taskId;
+                const task = findTaskById(currentWbsData, taskId);
+
+                if (task) {
+                    document.getElementById('edit_task_name').value = task.task_name;
+                    document.getElementById('edit_start_date').value = task.start_date || '';
+                    document.getElementById('edit_end_date').value = task.end_date || '';
+                    document.getElementById('edit_progress').value = task.progress || 0;
+                    document.getElementById('edit_assigned_user_id').value = task.assigned_user_id || '';
+
+                    // Populate parent dropdown for edit modal
+                    populateParentIdDropdowns(currentWbsData, taskId); // Pass current task ID to exclude it
+                    document.getElementById('edit_parent_id').value = task.parent_id || '';
+
+                    // Set form action for update
+                    editWbsTaskForm.action = `/projects/${projectId}/wbs/${taskId}`;
+                    const editModal = new bootstrap.Modal(document.getElementById('editWbsTaskModal'));
+                    editModal.show();
+                }
+            }
+        });
+
+        if (editWbsTaskForm) {
+            editWbsTaskForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                const formData = new FormData(editWbsTaskForm);
+                const data = Object.fromEntries(formData.entries());
+
+                try {
+                    const response = await fetch(editWbsTaskForm.action, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data),
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        window.showNotification('success', '태스크가 성공적으로 업데이트되었습니다.');
+                        bootstrap.Modal.getInstance(document.getElementById('editWbsTaskModal')).hide();
+                        fetchAndRenderWbsTasks();
+                    } else {
+                        window.showNotification('error', '태스크 업데이트 실패: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Error updating task:', error);
+                    showNotification('error', '태스크 업데이트 중 오류 발생.');
+                }
+            });
+        }
+
+        // Delete Task
+        wbsTableBody.addEventListener('click', async function(event) {
+            if (event.target.classList.contains('delete-task-btn')) {
+                const taskId = event.target.dataset.taskId;
+                if (confirm('정말로 이 태스크와 모든 하위 태스크를 삭제하시겠습니까?')) {
+                    try {
+                        const response = await fetch(`/projects/${projectId}/wbs/${taskId}/delete`, {
+                            method: 'POST',
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            window.showNotification('success', '태스크가 성공적으로 삭제되었습니다.');
+                            fetchAndRenderWbsTasks();
+                        } else {
+                            window.showNotification('error', '태스크 삭제 실패: ' + result.message);
+                        }
+                    } catch (error) {
+                        console.error('Error deleting task:', error);
+                        window.showNotification('error', '태스크 삭제 중 오류 발생.');
+                    }
+                }
+            }
+        });
+
+        // Excel Upload
+        if (uploadExcelForm) {
+            uploadExcelForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                const fileInput = document.getElementById('wbsExcelFile');
+                const deleteExisting = document.getElementById('deleteExistingWbs').checked;
+                
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    showNotification('error', '업로드할 엑셀 파일을 선택해주세요.');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('wbsExcelFile', fileInput.files[0]);
+                formData.append('deleteExistingWbs', deleteExisting);
+
+                try {
+                    const response = await fetch(`/projects/${projectId}/wbs/upload-excel`, {
+                        method: 'POST',
+                        body: formData,
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        window.showNotification('success', '엑셀 파일이 성공적으로 업로드되었습니다.');
+                        bootstrap.Modal.getInstance(document.getElementById('uploadExcelModal')).hide();
+                        fetchAndRenderWbsTasks(); // Refresh the WBS list
+                        // location.reload(); // 페이지를 새로고침하여 간트차트 등 다른 부분도 업데이트
+                    } else {
+                        window.showNotification('error', '엑셀 업로드 실패: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Error uploading excel:', error);
+                    showNotification('error', '엑셀 업로드 중 오류 발생.');
+                }
+            });
+        }
+
+        // Initial fetch and render
+        fetchAndRenderWbsTasks();
+
+        // Handle tab change to ensure WBS tab is refreshed
+        const projectDetailTab = document.getElementById('projectDetailTab');
+        if (projectDetailTab) {
+            projectDetailTab.addEventListener('shown.bs.tab', function (event) {
+                if (event.target.id === 'wbs-tab') {
+                    fetchAndRenderWbsTasks();
+                }
+            });
+        }
+
+        // If the URL has #wbs, activate the WBS tab on load
+        if (window.location.hash === '#wbs') {
+            const wbsTab = new bootstrap.Tab(document.getElementById('wbs-tab'));
+            wbsTab.show();
+        }
+    });
+</script>

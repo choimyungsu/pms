@@ -1,0 +1,50 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<div class="main-content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>주간보고서 수정</h4>
+                    </div>
+                    <div class="card-body">
+                        <% if (error && error.length > 0) { %>
+                            <div class="alert alert-danger"><%= error %></div>
+                        <% } %>
+                        <% if (success && success.length > 0) { %>
+                            <div class="alert alert-success"><%= success %></div>
+                        <% } %>
+                        <form action="/weekly-reports/<%= report.id %>" method="POST">
+                            <div class="form-group">
+                                <label for="reportWeek">보고 주차</label>
+                                <select class="form-control" id="reportWeek" name="reportWeek">
+                                    <% reportWeekOptions.forEach(function(option) { %>
+                                        <option value="<%= option %>" <%= option === report.reportWeek ? 'selected' : '' %>><%= option %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="previousWeekPerformance">전주 실적 (<%= prevWeekStart %> ~ <%= prevWeekEnd %>)</label>
+                                <textarea class="form-control" id="previousWeekPerformance" name="previousWeekPerformance" rows="10" required><%= report.previousWeekPerformance %></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="currentWeekPlan">금주 계획 (<%= currWeekStart %> ~ <%= currWeekEnd %>)</label>
+                                <textarea class="form-control" id="currentWeekPlan" name="currentWeekPlan" rows="10" required><%= report.currentWeekPlan %></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="nextWeekPlan">다음주 계획 (<%= nextWeekStart %> ~ <%= nextWeekEnd %>)</label>
+                                <textarea class="form-control" id="nextWeekPlan" name="nextWeekPlan" rows="10"><%= report.nextWeekPlan %></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">저장</button>
+                            <a href="/weekly-reports/<%= report.id %>" class="btn btn-secondary">취소</a>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

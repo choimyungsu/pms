@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>연구일지 - <%= log.research_title %></title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    /* 화면/인쇄 공통 */
+    :root {
+      --border: #222;
+      --text: #111;
+      --muted: #666;
+      --bg: #fff;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: #e9ecef;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", Arial, sans-serif;
+      color: var(--text);
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .controls {
+        padding: 15px;
+        text-align: center;
+        background: #444;
+    }
+    .btn { display: inline-block; font-weight: 400; color: #fff; text-align: center; vertical-align: middle; cursor: pointer; user-select: none; background-color: transparent; border: 1px solid transparent; padding: .375rem .75rem; font-size: 1rem; line-height: 1.5; border-radius: .25rem; text-decoration: none; }
+    .btn-secondary { background-color: #6c757d; border-color: #6c757d; }
+    .btn-warning { color: #000; background-color: #ffc107; border-color: #ffc107; }
+    .btn-danger { background-color: #dc3545; border-color: #dc3545; }
+    .btn-info { background-color: #0dcaf0; border-color: #0dcaf0; }
+    .btn-success { background-color: #28a745; border-color: #28a745; }
+
+    /* A4 시트 */
+    .sheet {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 12mm auto;
+      padding: 14mm 16mm;
+      background: var(--bg);
+      box-shadow: 0 2px 12px rgba(0,0,0,.12);
+    }
+    @media print {
+      body { background: transparent; }
+      .controls { display: none; }
+      .sheet {
+        margin: 0;
+        box-shadow: none;
+        page-break-after: always;
+      }
+      @page { size: A4; margin: 12mm 14mm; }
+    }
+
+    h1.title { margin: 0 0 10px; text-align: center; font-size: 22pt; letter-spacing: .04em; font-weight: 700; }
+    .meta-table, .info-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; font-size: 11pt; }
+    .meta-table th, .meta-table td, .info-table th, .info-table td { border: 1px solid var(--border); padding: 6px 8px; vertical-align: middle; word-break: keep-all; }
+    .meta-table th, .info-table th { background: #f7f7f7; text-align: center; font-weight: 700; width: 22%; }
+    .meta-table td, .info-table td { background: #fff; }
+    .approval { display: grid; grid-template-columns: 28mm 1fr; gap: 8px; margin: 12px 0 16px; height: 42mm; }
+    .approval .stamp-title { border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; writing-mode: vertical-rl; text-orientation: upright; letter-spacing: .3em; font-weight: 800; font-size: 14pt; user-select: none; }
+    .approval .stamp-grid { border: 1px solid var(--border); display: grid; grid-template-columns: repeat(3, 1fr); height: 100%; }
+    .approval .cell { border-left: 1px solid var(--border); display: grid; grid-template-rows: 22px 1fr; }
+    .approval .cell:first-child { border-left: 0; }
+    .approval .cell .role { border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11pt; background: #f7f7f7; }
+    .approval .cell .sign { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 10pt; }
+    .section { border: 1px solid var(--border); margin-top: 10px; }
+    .section .section-head { background: #f7f7f7; border-bottom: 1px solid var(--border); padding: 6px 8px; font-weight: 700; font-size: 11.5pt; }
+    .section .section-body { padding: 10px 10px; min-height: 80mm; font-size: 11pt; line-height: 1.6; white-space: pre-wrap; }
+    .footer { margin-top: 16px; text-align: center; font-size: 10.5pt; color: #333; }
+    @media (max-width: 900px) {
+      .sheet { width: 100%; min-height: auto; margin: 0; padding: 14px; }
+      .approval { height: auto; }
+      .section .section-body { min-height: 200px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="controls">
+    <a href="/research-log" class="btn btn-secondary">목록으로</a>
+    <% if (currentUser && currentUser.role === 'admin') { %>
+        <a href="/research-log/edit/<%= log.id %>" class="btn btn-warning">수정</a>
+        <form action="/research-log/delete/<%= log.id %>" method="POST" style="display:inline;" onsubmit="return confirm('정말로 이 연구일지를 삭제하시겠습니까?');">
+            <button type="submit" class="btn btn-danger">삭제</button>
+        </form>
+    <% } %>
+    <button onclick="window.print()" class="btn btn-info">인쇄</button>
+    <a href="/research-log/download-docx/<%= log.id %>" class="btn btn-success">DOC 다운로드</a>
+  </div>
+
+  <main class="sheet">
+    <h1 class="title">연구일지</h1>
+    <table class="meta-table" aria-label="상단 메타 정보">
+      <colgroup>
+        <col style="width: 18%;">
+        <col style="width: 32%;">
+        <col style="width: 18%;">
+        <col style="width: 32%;">
+      </colgroup>
+      <tr>
+        <th>문서분류</th>
+        <td><%= log.doc_classification || '' %></td>
+        <th>페이지번호</th>
+        <td><%= log.page_number || '' %></td>
+      </tr>
+      <tr>
+        <th>작성자</th>
+        <td><%= log.author || '' %></td>
+        <th>작성일자</th>
+        <td><%= new Date(log.creation_date).toLocaleDateString('ko-KR') %></td>
+      </tr>
+    </table>
+    <p style="margin: 8px 0 0 0; font-size: 11pt;">아래와 같이 연구 일지를 제출합니다.</p>
+    <section class="approval" aria-label="결재란">
+      <div class="stamp-title">결 재</div>
+      <div class="stamp-grid">
+        <div class="cell"><div class="role">담당</div><div class="sign"></div></div>
+        <div class="cell"><div class="role">팀장</div><div class="sign"></div></div>
+        <div class="cell"><div class="role">소장</div><div class="sign"></div></div>
+      </div>
+    </section>
+    <table class="info-table" aria-label="기본 정보">
+      <colgroup>
+        <col style="width: 16%;">
+        <col style="width: 34%;">
+        <col style="width: 16%;">
+        <col style="width: 34%;">
+      </colgroup>
+      <tr>
+        <th>소속</th>
+        <td><%= log.department || '' %></td>
+        <th>작성자</th>
+        <td><%= log.author2 || log.author || '' %></td>
+      </tr>
+      <tr>
+        <th>연구제목</th>
+        <td colspan="3"><%= log.research_title || '' %></td>
+      </tr>
+      <tr>
+        <th>연구목적</th>        <td colspan="3" style="height: auto;"><%- log.research_purpose ? log.research_purpose.replace(/\n/g, '<br>') : '' %></td>
+      </tr>
+      <tr>
+        <th>참석자</th>
+        <td colspan="3"><%= log.attendees || '' %></td>
+      </tr>
+      <tr>
+        <th>회의장소</th>
+        <td colspan="3"><%= log.meeting_location || '' %></td>
+      </tr>
+    </table>
+    <section class="section" aria-labelledby="sec1">
+      <div class="section-head" id="sec1">연 구 주 요 내 용</div>      <div class="section-body" style="min-height: 40mm;"><%- log.main_content ? log.main_content.replace(/\n/g, '<br>') : '' %></div>
+    </section>
+    <section class="section" aria-labelledby="sec2">
+      <div class="section-head" id="sec2">연 구 기 대 효 과</div>      <div class="section-body" style="min-height: 30mm;"><%- log.expected_outcome ? log.expected_outcome.replace(/\n/g, '<br>') : '' %></div>
+    </section>
+    <div class="footer">㈜제이원아이티 기업부설연구소</div>
+  </main>
+</body>
+</html>

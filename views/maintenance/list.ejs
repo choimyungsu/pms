@@ -1,0 +1,252 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0"><%= page_title %></h3>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-end">
+                        <li class="breadcrumb-item"><a href="/">Home</a></li>
+                        <li class="breadcrumb-item active"><%= page_title %></li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between">
+                        <div class="d-flex">
+                            <form action="/maintenance" method="GET" class="input-group input-group-sm" style="width: 250px;">
+                                <input type="text" name="search" class="form-control" placeholder="Search" value="<%= typeof search !== 'undefined' ? search : '' %>">
+                                <button type="submit" class="btn btn-default"><i class="fas fa-search"></i></button>
+                            </form>
+                        </div>
+                        <div class="d-flex">
+                            <a href="/maintenance/create" class="btn btn-primary btn-sm me-1">새 유지보수 등록</a>
+                            <div class="btn-group ms-2">
+                                <a href="/maintenance?status=open" class="btn btn-<%= currentStatus === 'open' ? 'dark' : 'light' %> btn-sm">진행 중</a>
+                                <a href="/maintenance?status=closed" class="btn btn-<%= currentStatus === 'closed' ? 'dark' : 'light' %> btn-sm">종료됨</a>
+                                <a href="/maintenance?status=upcoming_due_date" class="btn btn-<%= currentStatus === 'upcoming_due_date' ? 'dark' : 'light' %> btn-sm">종료 예정</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>고객사</th>
+                                <th>사업명</th>
+                                <th>품목</th>
+                                <th>(유)종료일</th>
+                                <th>정</th>
+                                <th>영업</th>
+                                <th>동작</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% maintenanceList.forEach(item => { %>
+                                <tr>
+                                    <td><%= item.id %></td>
+                                    <td><%= item.customer_company %></td>
+                                    <td><%= item.project_name %></td>
+                                    <td><%= item.item %></td>
+                                    <td><%= item.maintenance_end_date ? new Date(item.maintenance_end_date).toLocaleDateString() : '' %></td>
+                                    <td><%= item.main_engineer %></td>
+                                    <td><%= item.sales_manager %></td>
+                                    <td>
+                                        <button type="button" class="btn btn-info btn-xs" data-bs-toggle="modal" data-bs-target="#detailsModal-<%= item.id %>">보기</button>
+                                        <a href="/maintenance/edit/<%= item.id %>" class="btn btn-info btn-xs">수정</a>
+                                        <% if (user && (user.isAdmin || user.email === 'jylee@jwonit.com')) { %>
+                                            <button class="btn btn-danger btn-xs" onclick="deleteMaintenance(<%= item.id %>)">삭제</button>
+                                        <% } %>
+                                        <% if (!item.closed_at) { %>
+                                            <button class="btn btn-warning btn-xs" onclick="closeMaintenance(<%= item.id %>)">종료</button>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer clearfix">
+                    <ul class="pagination pagination-sm m-0 float-right">
+                        <% if (currentPage > 1) { %>
+                            <li class="page-item"><a class="page-link" href="/maintenance?page=<%= currentPage - 1 %>&search=<%= search %>&status=<%= currentStatus %>">«</a></li>
+                        <% } %>
+                        <% for(let i = 1; i <= totalPages; i++) { %>
+                            <li class="page-item <%= i === currentPage ? 'active' : '' %>"><a class="page-link" href="/maintenance?page=<%= i %>&search=<%= search %>&status=<%= currentStatus %>"><%= i %></a></li>
+                        <% } %>
+                        <% if (currentPage < totalPages) { %>
+                            <li class="page-item"><a class="page-link" href="/maintenance?page=<%= currentPage + 1 %>&search=<%= search %>&status=<%= currentStatus %>">»</a></li>
+                        <% } %>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<% maintenanceList.forEach(item => { %>
+<div class="modal fade" id="detailsModal-<%= item.id %>" tabindex="-1" aria-labelledby="detailsModalLabel-<%= item.id %>" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detailsModalLabel-<%= item.id %>">유지보수 상세 정보</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <dl class="row">
+                    <dt class="col-sm-3">ID</dt><dd class="col-sm-9"><%= item.id %></dd>
+                    <dt class="col-sm-3">구분</dt><dd class="col-sm-9"><%= item.division %></dd>
+                    <dt class="col-sm-3">고객사</dt><dd class="col-sm-9"><%= item.customer_company %></dd>
+                    <dt class="col-sm-3">사업명</dt><dd class="col-sm-9"><%= item.project_name %></dd>
+                    <dt class="col-sm-3">검수일</dt><dd class="col-sm-9"><%= item.inspection_date ? new Date(item.inspection_date).toLocaleDateString() : '' %></dd>
+                    <dt class="col-sm-3">도입일</dt><dd class="col-sm-9"><%= item.introduction_date ? new Date(item.introduction_date).toLocaleDateString() : '' %></dd>
+                    <dt class="col-sm-3">(유)시작일</dt><dd class="col-sm-9"><%= item.maintenance_start_date ? new Date(item.maintenance_start_date).toLocaleDateString() : '' %></dd>
+                    <dt class="col-sm-3">(유)종료일</dt><dd class="col-sm-9"><%= item.maintenance_end_date ? new Date(item.maintenance_end_date).toLocaleDateString() : '' %></dd>
+                    <dt class="col-sm-3">품목</dt><dd class="col-sm-9"><%= item.item %></dd>
+                    <dt class="col-sm-3">제조사</dt><dd class="col-sm-9"><%= item.manufacturer %></dd>
+                    <dt class="col-sm-3">모델</dt><dd class="col-sm-9"><%= item.model %></dd>
+                    <dt class="col-sm-3">EoS</dt><dd class="col-sm-9"><%= item.eos %></dd>
+                    <dt class="col-sm-3">EoL</dt><dd class="col-sm-9"><%= item.eol %></dd>
+                    <dt class="col-sm-3">S/N</dt><dd class="col-sm-9"><%= item.serial_number %></dd>
+                    <dt class="col-sm-3">Firmware</dt><dd class="col-sm-9"><%= item.firmware_version %></dd>
+                    <dt class="col-sm-3">OS</dt><dd class="col-sm-9"><%= item.os_version %></dd>
+                    <dt class="col-sm-3">수량</dt><dd class="col-sm-9"><%= item.quantity %></dd>
+                    <dt class="col-sm-3">백계약업체</dt><dd class="col-sm-9"><%= item.back_contract_company %></dd>
+                    <dt class="col-sm-3">백계약</dt><dd class="col-sm-9"><%= item.back_contract_details %></dd>
+                    <dt class="col-sm-3">백계약일</dt><dd class="col-sm-9"><%= item.back_contract_date ? new Date(item.back_contract_date).toLocaleDateString() : '' %></dd>
+                    <dt class="col-sm-3">백계약종료일</dt><dd class="col-sm-9"><%= item.back_contract_end_date ? new Date(item.back_contract_end_date).toLocaleDateString() : '' %></dd>
+                    <dt class="col-sm-3">백계약담당자</dt><dd class="col-sm-9"><%= item.back_contract_manager %></dd>
+                    <dt class="col-sm-3">백계약연락처</dt><dd class="col-sm-9"><%= item.back_contract_contact %></dd>
+                    <dt class="col-sm-3">백계약이메일</dt><dd class="col-sm-9"><%= item.back_contract_email %></dd>
+                    <dt class="col-sm-3">정엔지니어</dt><dd class="col-sm-9"><%= item.main_engineer %></dd>
+                    <dt class="col-sm-3">부엔지니어</dt><dd class="col-sm-9"><%= item.sub_engineer %></dd>
+                    <dt class="col-sm-3">영업담당</dt><dd class="col-sm-9"><%= item.sales_manager %></dd>
+                    <dt class="col-sm-3">점검방식</dt><dd class="col-sm-9"><%= item.inspection_method %></dd>
+                    <dt class="col-sm-3">통합유지보수업체</dt><dd class="col-sm-9"><%= item.maintenance_department_company %></dd>
+                    <dt class="col-sm-3">담당자</dt><dd class="col-sm-9"><%= item.maintenance_manager %></dd>
+                    <dt class="col-sm-3">연락처</dt><dd class="col-sm-9"><%= item.maintenance_manager_contact %></dd>
+                    <dt class="col-sm-3">이메일</dt><dd class="col-sm-9"><%= item.maintenance_manager_email %></dd>
+                    <dt class="col-sm-3">고객담당자</dt><dd class="col-sm-9"><%= item.customer_contact_person %></dd>
+                    <dt class="col-sm-3">고객연락처</dt><dd class="col-sm-9"><%= item.customer_contact %></dd>
+                    <dt class="col-sm-3">고객이메일</dt><dd class="col-sm-9"><%= item.customer_email %></dd>
+                    <dt class="col-sm-3">고객사위치</dt><dd class="col-sm-9"><%= item.customer_location %></dd>
+                    <dt class="col-sm-3">점검위치</dt><dd class="col-sm-9"><%= item.inspection_location %></dd>
+                    <dt class="col-sm-3">견적파일명</dt><dd class="col-sm-9"><%= item.quotation_filename %></dd>
+                    <dt class="col-sm-3">비고</dt><dd class="col-sm-9"><%= item.remarks %></dd>
+                    <dt class="col-sm-3">첨부파일</dt><dd class="col-sm-9"><% if (item.attachment_path) { %><a href="/maintenance/download/<%= item.id %>" target="_blank"><%= item.attachment_original_name %></a><% } else { %>없음<% } %></dd>
+                    <dt class="col-sm-3">생성일</dt><dd class="col-sm-9"><%= item.created_at ? new Date(item.created_at).toLocaleString() : '' %></dd>
+                    <dt class="col-sm-3">종료일</dt><dd class="col-sm-9"><%= item.closed_at ? new Date(item.closed_at).toLocaleDateString() : '' %></dd>
+                </dl>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<% }) %>
+
+<%- include('../partials/footer') %>
+
+<script>
+    async function deleteMaintenance(id) {
+        Swal.fire({
+            title: '정말로 삭제하시겠습니까?',
+            text: '이 작업은 되돌릴 수 없습니다!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: '예, 삭제합니다!',
+            cancelButtonText: '취소'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    const response = await fetch(`/maintenance/${id}`, {
+                        method: 'DELETE',
+                    });
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        Swal.fire(
+                            '삭제 완료!',
+                            data.message || '유지보수 기록이 성공적으로 삭제되었습니다.',
+                            'success'
+                        ).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire(
+                            '삭제 실패!',
+                            data.message || '유지보수 기록 삭제에 실패했습니다.',
+                            'error'
+                        );
+                    }
+                } catch (error) {
+                    console.error('Error deleting maintenance:', error);
+                    Swal.fire(
+                        '오류 발생!',
+                        '서버 오류로 인해 삭제에 실패했습니다.',
+                        'error'
+                    );
+                }
+            }
+        });
+    }
+
+    async function closeMaintenance(id) {
+        Swal.fire({
+            title: '유지보수를 종료 처리하시겠습니까?',
+            text: '이 작업은 되돌릴 수 없습니다!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: '예, 종료합니다!',
+            cancelButtonText: '취소'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    const response = await fetch(`/maintenance/close/${id}`, {
+                        method: 'POST',
+                    });
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        Swal.fire(
+                            '종료 완료!',
+                            data.message || '유지보수 기록이 성공적으로 종료 처리되었습니다.',
+                            'success'
+                        ).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire(
+                            '종료 실패!',
+                            data.message || '유지보수 기록 종료 처리에 실패했습니다.',
+                            'error'
+                        );
+                    }
+                } catch (error) {
+                    console.error('Error closing maintenance:', error);
+                    Swal.fire(
+                        '오류 발생!',
+                        '서버 오류로 인해 종료 처리에 실패했습니다.',
+                        'error'
+                    );
+                }
+            }
+        });
+    }
+</script>

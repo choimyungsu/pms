@@ -1,0 +1,85 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<!-- Main content -->
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">회의록 목록</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fa-solid fa-file-lines"></i> 회의록 목록</h3>
+                    <div class="card-tools">
+                        <a href="/minutes/create" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus"></i> 새 회의록 작성</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <% if (typeof message !== 'undefined' && message) { %>
+                        <div class="alert alert-success" role="alert">
+                            <%= message %>
+                        </div>
+                    <% } %>
+                    <% if (typeof error !== 'undefined' && error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <%= error %>
+                        </div>
+                    <% } %>
+                    <table id="minutesTable" class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>회의명</th>
+                                <th>작성자</th>
+                                <th>작성일</th>
+                                <th>액션</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% minutes.forEach(m => { %>
+                                <tr>
+                                    <td><%= m.id %></td>
+                                    <td><%= m.title %></td>
+                                    <td><%= m.author_name %></td>
+                                    <td><%= new Date(m.createdAt).toLocaleString() %></td>
+                                    <td>
+                                        <a href="/minutes/view/<%= m.id %>" class="btn btn-info btn-sm me-1"><i class="fa-solid fa-eye"></i> 보기</a>
+                                        <% if (currentUser && (currentUser.role === 'admin' || currentUser.id === m.user_id)) { %>
+                                        <a href="/minutes/edit/<%= m.id %>" class="btn btn-warning btn-sm me-1"><i class="fa-solid fa-edit"></i> 수정</a>
+                                        <form action="/minutes/delete/<%= m.id %>" method="POST" style="display:inline;" onsubmit="return confirm('정말로 이 회의록을 삭제하시겠습니까?');">
+                                            <button type="submit" class="btn btn-danger btn-sm"><i class="fa-solid fa-trash"></i> 삭제</button>
+                                        </form>
+                                        <% } %>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<script>
+$(function () {
+    $('#minutesTable').DataTable({
+        "responsive": true, 
+        "lengthChange": false, 
+        "autoWidth": false,
+        "buttons": ["excel", "colvis"],
+        "order": [[ 0, "desc" ]]
+    });
+
+    $('#minutesTable').DataTable().buttons().container().appendTo('#minutesTable_wrapper .col-md-6:eq(0)');
+});
+</script>

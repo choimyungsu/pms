@@ -1,0 +1,37 @@
+{
+  "name": "gemini",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.10.0",
+    "bcryptjs": "^3.0.2",
+    "connect-flash": "^0.1.1",
+    "cookie-parser": "^1.4.7",
+    "docx": "^8.5.0",
+    "dompurify": "^3.2.6",
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "express-session": "^1.18.1",
+    "flexsearch": "^0.8.205",
+    "helmet": "^8.1.0",
+    "html-to-docx": "^1.8.0",
+    "jquery-ui": "^1.14.1",
+    "jsdom": "^26.1.0",
+    "multer": "^2.0.2",
+    "mysql2": "^3.14.1",
+    "nodemailer": "^7.0.5",
+    "selfsigned": "^3.0.1",
+    "sequelize": "^6.37.7",
+    "showdown": "^2.1.0",
+    "tesseract.js": "^6.0.1",
+    "xlsx": "^0.18.5"
+  }
+}

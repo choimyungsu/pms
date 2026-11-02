@@ -1,0 +1,32 @@
+<% if (item.checklists.length > 0) { %>
+    <% item.checklists.forEach((checklist, index) => { %>
+        <tr data-item-no="<%= item.item_no %>">
+            <% if (index === 0) { %>
+                <td rowspan="<%= item.checklists.length %>"><%= item.gubun_no %></td>
+                <td rowspan="<%= item.checklists.length %>"><%= item.gubun %></td>
+                <td rowspan="<%= item.checklists.length %>"><%= item.item_no %></td>
+                <td rowspan="<%= item.checklists.length %>"><%= item.item %></td>
+                <td rowspan="<%= item.checklists.length %>"><%= item.item_detail %></td>
+            <% } %>
+            <td><%= checklist.text %></td>
+            <% if (user && user.role === 'admin') { %>
+            <td>
+                <a href="/isms/edit/<%= checklist.id %>" class="btn btn-xs btn-warning">수정</a>
+                <a href="/isms/delete/<%= checklist.id %>" class="btn btn-xs btn-danger" onclick="return confirm('정말 삭제하시겠습니까?');">삭제</a>
+            </td>
+            <% } else { %>
+            <td></td>
+            <% } %>
+        </tr>
+    <% }) %>
+<% } else { %>
+    <tr data-item-no="<%= item.item_no %>">
+        <td><%= item.gubun_no %></td>
+        <td><%= item.gubun %></td>
+        <td><%= item.item_no %></td>
+        <td><%= item.item %></td>
+        <td><%= item.item_detail %></td>
+        <td>(체크리스트 없음)</td>
+        <td></td>
+    </tr>
+<% } %>

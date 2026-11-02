@@ -1,0 +1,341 @@
+<%- include('../partials/header', { page: 'dashboard' }) %>
+<%- include('../partials/sidebar', { page: 'dashboard' }) %>
+
+<style>
+    /* Custom styles for dashboard cards */
+    .card-header.bg-today-schedule {
+        background-color: #fff3cd; /* Light yellow */
+        color: #664d03;
+        border-bottom: 1px solid #ffecb5;
+    }
+    .card-header.bg-issue-status {
+        background-color: #f8d7da; /* Soft red */
+        color: #842029;
+        border-bottom: 1px solid #f5c2c7;
+    }
+    .card-header.bg-recent-knowledge {
+        background-color: #d1e7dd; /* Light green */
+        color: #0f5132;
+        border-bottom: 1px solid #badbcc;
+    }
+    .card-header.bg-recent-cards {
+        background-color: #cfe2ff; /* Light blue */
+        color: #052c65;
+        border-bottom: 1px solid #b6d4fe;
+    }
+    .card-header h3.card-title {
+        margin-bottom: 0;
+    }
+</style>
+
+<!-- Main content -->
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">대시보드</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Today's Schedule -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-today-schedule d-flex justify-content-between align-items-center">
+                            <h3 class="card-title mb-0"><a href="/schedule" style="text-decoration: none; color: inherit;"><i class="fa-solid fa-calendar-day"></i> 오늘 일정</a></h3>
+                            <a href="/schedule" class="btn btn-sm btn-primary ms-auto"><i class="fa-solid fa-plus"></i> 일정 등록</a>
+                        </div>
+                        <div class="card-body">
+                            <% if (todaySchedules && todaySchedules.length > 0) { %>
+                                <ul class="list-group list-group-flush">
+                                    <% todaySchedules.forEach(function(schedule) { %>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <strong><%= schedule.start.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) %></strong> - (<%= schedule.departmentName || '부서 없음' %> - <%= schedule.registrantName %>) <%= schedule.title %>
+                                            </div>
+                                            <button class="btn btn-outline-secondary btn-sm" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#scheduleDetailModal" 
+                                                    data-title="<%= schedule.title %>" 
+                                                    data-description="<%= schedule.description || '설명이 없습니다.' %>">
+                                                <i class="fa-solid fa-eye"></i>
+                                            </button>
+                                        </li>
+                                    <% }); %>
+                                </ul>
+                            <% } else { %>
+                                <p>오늘 일정이 없습니다.</p>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Schedule Detail Modal -->
+                <div class="modal fade" id="scheduleDetailModal" tabindex="-1" aria-labelledby="scheduleDetailModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="scheduleDetailModalLabel">일정 상세</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body" style="white-space: pre-wrap;">
+                                <!-- Description will be inserted here -->
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Issue Status -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-issue-status">
+                            <h3 class="card-title"><i class="fa-solid fa-triangle-exclamation"></i> 이슈 리스트</h3>
+                        </div>
+                        <div class="card-body">
+                            <% if (recentIssues && recentIssues.length > 0) { %>
+                                <ul class="list-group list-group-flush">
+                                    <% recentIssues.forEach(function(issue) { %>
+                                        <li class="list-group-item">
+                                            <a href="/issues/<%= issue.id %>">
+                                                <strong><%= issue.status %></strong>: <%= issue.title %> (<%= issue.assignee_name || '담당자 없음' %>) (<%= issue.created_at.toLocaleDateString('ko-KR') %>)
+                                            </a>
+                                        </li>
+                                    <% }); %>
+                                </ul>
+                            <% } else { %>
+                                <p>최근 이슈가 없습니다.</p>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Upcoming Maintenance Summary -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-warning">
+                            <h3 class="card-title"><i class="fa-solid fa-bell"></i> 한 달 이내 유지보수 종료 예정 (요약)</h3>
+                        </div>
+                        <div class="card-body">
+                            <% if (upcomingMaintenanceSummary && upcomingMaintenanceSummary.length > 0) { %>
+                                <ul class="list-group list-group-flush">
+                                    <% upcomingMaintenanceSummary.forEach(function(summary) { %>
+                                        <li class="list-group-item">
+                                            <a href="/maintenance/summary/<%= summary.id %>">
+                                                <strong><%= summary.customer_company %></strong> - <%= summary.item %> (<%= summary.maintenance_end_date ? new Date(summary.maintenance_end_date).toLocaleDateString('ko-KR') : '' %>)
+                                            </a>
+                                        </li>
+                                    <% }); %>
+                                </ul>
+                            <% } else { %>
+                                <p>한 달 이내 종료 예정인 유지보수 요약 항목이 없습니다.</p>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Knowledge -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-recent-knowledge">
+                            <h3 class="card-title"><i class="fa-solid fa-book"></i> 최근 지식</h3>
+                        </div>
+                        <div class="card-body">
+                            <% if (recentKnowledge && recentKnowledge.length > 0) { %>
+                                <ul class="list-group list-group-flush">
+                                    <% recentKnowledge.forEach(function(knowledge) { %>
+                                        <li class="list-group-item">
+                                            <a href="/knowledge/<%= knowledge.id %>">
+                                                <strong><%= knowledge.type %></strong>: <%= knowledge.title %> (<%= knowledge.created_at.toLocaleDateString('ko-KR') %>)
+                                            </a>
+                                        </li>
+                                    <% }); %>
+                                </ul>
+                            <% } else { %>
+                                <p>최근 지식이 없습니다.</p>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Recent Business Cards -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-recent-cards">
+                            <h3 class="card-title"><i class="fa-regular fa-address-card"></i> 최근 명함</h3>
+                        </div>
+                        <div class="card-body">
+                            <% if (recentCards && recentCards.length > 0) { %>
+                                <ul class="list-group list-group-flush">
+                                    <% recentCards.forEach(function(card) { %>
+                                        <li class="list-group-item">
+                                            <a href="/cards/<%= card.id %>">
+                                                <strong><%= card.name %></strong> - <%= card.company %> (<%= card.created_at.toLocaleDateString('ko-KR') %>)
+                                            </a>
+                                        </li>
+                                    <% }); %>
+                                </ul>
+                            <% } else { %>
+                                <p>최근 등록된 명함이 없습니다.</p>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Knowledge Upload Statistics Chart -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-recent-knowledge">
+                            <h3 class="card-title"><i class="fa-solid fa-chart-bar"></i> 지식 업로드 통계</h3>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 300px;">
+                                <canvas id="knowledgeUploadChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const scheduleDetailModal = document.getElementById('scheduleDetailModal');
+        scheduleDetailModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const title = button.getAttribute('data-title');
+            const description = button.getAttribute('data-description');
+
+            const modalTitle = scheduleDetailModal.querySelector('.modal-title');
+            const modalBody = scheduleDetailModal.querySelector('.modal-body');
+
+            modalTitle.textContent = title;
+            modalBody.textContent = description;
+        });
+    });
+</script>
+
+<%- include('../partials/footer') %>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let knowledgeUploadChart;
+
+    function getChartTextColor() {
+        return document.body.classList.contains('dark-mode') ? '#e0e0e0' : '#333';
+    }
+
+    function renderChart() {
+        const knowledgeStats = <%- JSON.stringify(knowledgeStats) %>;
+        const userNames = knowledgeStats.map(stat => stat.userName);
+        const uploadCounts = knowledgeStats.map(stat => stat.uploadCount);
+        const colorPalette = [
+            'rgba(255, 99, 132, 0.6)',
+            'rgba(54, 162, 235, 0.6)',
+            'rgba(255, 206, 86, 0.6)',
+            'rgba(75, 192, 192, 0.6)',
+            'rgba(153, 102, 255, 0.6)',
+            'rgba(255, 159, 64, 0.6)',
+            'rgba(255, 99, 132, 0.6)'
+        ];
+        const borderPalette = [
+            'rgba(255, 99, 132, 1)',
+            'rgba(54, 162, 235, 1)',
+            'rgba(255, 206, 86, 1)',
+            'rgba(75, 192, 192, 1)',
+            'rgba(153, 102, 255, 1)',
+            'rgba(255, 159, 64, 1)',
+            'rgba(255, 99, 132, 1)'
+        ];
+        const backgroundColors = [];
+        const borderColors = [];
+
+        for (let i = 0; i < uploadCounts.length; i++) {
+            backgroundColors.push(colorPalette[i % colorPalette.length]);
+            borderColors.push(borderPalette[i % borderPalette.length]);
+        }
+
+        const ctx = document.getElementById('knowledgeUploadChart').getContext('2d');
+        
+        if (knowledgeUploadChart) {
+            knowledgeUploadChart.destroy();
+        }
+
+        knowledgeUploadChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: userNames,
+                datasets: [{
+                    label: '업로드 건수',
+                    data: uploadCounts,
+                    backgroundColor: backgroundColors,
+                    borderColor: borderColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '업로드 건수',
+                            color: getChartTextColor()
+                        },
+                        ticks: {
+                            color: getChartTextColor()
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: '사용자',
+                            color: getChartTextColor()
+                        },
+                        ticks: {
+                            color: getChartTextColor()
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: '사용자별 지식 업로드 통계',
+                        color: getChartTextColor()
+                    },
+                    legend: {
+                        display: false,
+                        labels: {
+                            color: getChartTextColor()
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', renderChart);
+
+    // Override the setTheme function to also re-render the chart
+    const originalSetTheme = window.setTheme;
+    window.setTheme = function(theme) {
+        originalSetTheme(theme);
+        if (document.getElementById('knowledgeUploadChart')) {
+            renderChart();
+        }
+    }
+</script>

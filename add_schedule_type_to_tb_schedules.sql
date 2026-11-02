@@ -1,0 +1,2 @@
+ALTER TABLE tb_schedules
+ADD COLUMN scheduleType VARCHAR(50) NOT NULL DEFAULT '사내업무';

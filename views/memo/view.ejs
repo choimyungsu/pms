@@ -1,0 +1,53 @@
+<%- include('../partials/header', { page: 'memo' }) %>
+<style>
+    .card-body table,
+    .card-body th,
+    .card-body td {
+        border: 1px solid black;
+        border-collapse: collapse;
+        padding: 8px;
+    }
+</style>
+<%- include('../partials/sidebar', { page: 'memo' }) %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0"><%= memo.title %></h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-header clearfix">
+                    <div style="float: left;">
+                        <h4 class="card-title mb-0"><%= memo.title %></h4>
+                    </div>
+                    <div style="float: right;">
+                        <small class="text-muted">작성자: <%= memo.creator_name %> | 작성일: <%= new Date(memo.created_at).toLocaleDateString() %></small>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <%- memo.content %>
+                </div>
+                <div class="card-footer">
+                    <a href="/memo" class="btn btn-secondary">목록으로</a>
+                    <a href="/memo/<%= memo.id %>/download" class="btn btn-success">Word로 내려받기</a>
+                    <% if (currentUser.role === 'admin' || currentUser.id === memo.creator_id) { %>
+                        <a href="/memo/<%= memo.id %>/edit" class="btn btn-primary">수정</a>
+                        <form action="/memo/<%= memo.id %>/delete" method="POST" style="display:inline-block;"
+                            onsubmit="return confirm('정말로 이 메모를 삭제하시겠습니까?');">
+                            <button type="submit" class="btn btn-danger">삭제</button>
+                        </form>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>

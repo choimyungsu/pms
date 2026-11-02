@@ -1,0 +1,135 @@
+<%- include('../partials/header', { page: 'admin_users' }) %>
+<%- include('../partials/sidebar', { page: 'admin_users' }) %>
+
+<!-- Main content -->
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">사용자 관리</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fa-solid fa-users"></i> 사용자 목록</h3>
+                    <div class="card-tools">
+                        <a href="/admin/users/add" class="btn btn-primary btn-sm"><i class="fa-solid fa-user-plus"></i> 사용자 추가</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <% if (typeof message !== 'undefined' && message) { %>
+                        <div class="alert alert-success" role="alert">
+                            <%= message %>
+                        </div>
+                    <% } %>
+                    <% if (typeof error !== 'undefined' && error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <%= error %>
+                        </div>
+                    <% } %>
+                    <table id="userTable" class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>이메일</th>
+                                <th>이름</th>
+                                <th>부서</th>
+                                <th>직책</th>
+                                <th>직위</th>
+                                <th>입사일</th>
+                                <th>학력</th>
+                                <th>자격사항</th>
+                                <th>등급</th>
+                                <th>권한</th>
+                                <th>상태</th>
+                                <th>액션</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% users.forEach(user => { %>
+                                <tr>
+                                    <td><%= user.id %></td>
+                                    <td><%= user.email %></td>
+                                    <td><%= user.name %></td>
+                                    <td><%= user.department_name || '부서 없음' %></td>
+                                    <td><%= user.position %></td>
+                                    <td><%= user.title %></td>
+                                    <td><%= user.join_date || '' %></td>
+                                    <td><%= user.education || '' %></td>
+                                    <td title="<%= user.certifications %>"><%= user.certifications ? (user.certifications.length > 20 ? user.certifications.substring(0, 20) + '...' : user.certifications) : '' %></td>
+                                    <td><%= user.construction_grade || '' %></td>
+                                    <td>
+                                        <% if (user.role === 'admin') { %><span class="badge bg-danger">시스템 관리자</span><% } %>
+                                        <% if (user.role === 'operations_manager') { %><span class="badge bg-warning">운영 관리자</span><% } %>
+                                        <% if (user.role === 'user') { %><span class="badge bg-secondary">일반 사용자</span><% } %>
+                                    </td>
+                                    <td>
+                                        <% if (user.is_resigned) { %>
+                                            <span class="badge bg-dark">퇴사</span>
+                                        <% } else { %>
+                                            <span class="badge bg-success">재직</span>
+                                        <% } %>
+                                    </td>
+                                    <td>
+                                        <a href="/admin/users/edit/<%= user.id %>" class="btn btn-info btn-sm"><i class="fa-solid fa-edit"></i> 수정</a>
+                                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteUserModal" data-user-id="<%= user.id %>"><i class="fa-solid fa-trash"></i> 삭제</button>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Delete User Confirmation Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteUserModalLabel">사용자 삭제 확인</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                정말로 이 사용자를 삭제하시겠습니까?
+            </div>
+            <div class="modal-footer">
+                <form id="deleteUserForm" method="POST">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="submit" class="btn btn-danger">삭제</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>
+
+<script>
+$(function () {
+    $('#userTable').DataTable({
+        "responsive": true, 
+        "lengthChange": false, 
+        "autoWidth": false,
+        "buttons": ["excel", "colvis"],
+        "order": [[ 0, "asc" ]]
+    });
+
+    $('#userTable').DataTable().buttons().container().appendTo('#userTable_wrapper .col-md-6:eq(0)');
+
+    // Delete modal dynamic form action
+    $('#deleteUserModal').on('show.bs.modal', function (event) {
+        var button = $(event.relatedTarget); // Button that triggered the modal
+        var userId = button.data('user-id'); // Extract info from data-* attributes
+        var form = $('#deleteUserForm');
+        form.attr('action', '/admin/users/delete/' + userId);
+    });
+});
+</script>

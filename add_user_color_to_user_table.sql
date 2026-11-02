@@ -1,0 +1,2 @@
+ALTER TABLE tb_user
+ADD COLUMN user_color VARCHAR(7) DEFAULT '#000000';

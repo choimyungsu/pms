@@ -1,0 +1,376 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<style>
+/* Drop zone styles */
+#drop-zone {
+  transition: background-color 0.2s ease;
+}
+#drop-zone.dragover {
+  background-color: #e9ecef;
+}
+</style>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0"><%= page_title %></h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">지식 자료 수정</h5>
+                </div>
+                <div class="card-body">
+                    <% if (error) { %>
+                        <div class="alert alert-danger"><%= error %></div>
+                    <% } else { %>
+                        <form id="editKnowledgeForm" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="title" class="form-label">제목</label>
+                                <input type="text" class="form-control" id="title" name="title" value="<%= item.title %>" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="selected_category_id" class="form-label">카테고리</label>
+                                <div id="category_tree"></div>
+                                <input type="hidden" id="selected_category_id" name="category_id" value="<%= item.category_id %>" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="type" class="form-label">구분</label>
+                                <select class="form-select" id="type" name="type">
+                                    <% types.forEach(t => { %>
+                                        <option value="<%= t %>" <%= item.type === t ? 'selected' : '' %>><%= t %></option>
+                                    <% }) %>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="description1" class="form-label">설명1</label>
+                                <textarea class="form-control" id="description1" name="description1" rows="3"><%= item.description1 %></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="description2" class="form-label">설명2</label>
+                                <textarea class="form-control" id="description2" name="description2" rows="3"><%= item.description2 %></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="status" class="form-label">상태</label>
+                                <input type="text" class="form-control" id="status" name="status" value="<%= item.status %>">
+                            </div>
+                            <div class="mb-3">
+                                <label for="assignee" class="form-label">담당자</label>
+                                <select class="form-select" id="assignee" name="assignee">
+                                    <option value="">선택</option>
+                                    <% allUsers.forEach(user => { %>
+                                        <option value="<%= user.id %>" <%= item.assignee == user.id ? 'selected' : '' %>><%= user.name %></option>
+                                    <% }) %>
+                                </select>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label for="start_date" class="form-label">시작일</label>
+                                    <input type="date" class="form-control" id="start_date" name="start_date" value="<%= item.start_date ? new Date(item.start_date).toISOString().slice(0,10) : '' %>">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="end_date" class="form-label">종료일</label>
+                                    <input type="date" class="form-control" id="end_date" name="end_date" value="<%= item.end_date ? new Date(item.end_date).toISOString().slice(0,10) : '' %>">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="planned_date" class="form-label">예정일</label>
+                                    <input type="date" class="form-control" id="planned_date" name="planned_date" value="<%= item.planned_date ? new Date(item.planned_date).toISOString().slice(0,10) : '' %>">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label>기존 첨부파일</label>
+                                <div id="existing-attachments">
+                                    <% if (attachments && attachments.length > 0) { %>
+                                        <% attachments.forEach(function(attachment) { %>
+                                            <div class="d-flex justify-content-between align-items-center mb-1 attachment-item" data-attachment-id="<%= attachment.id %>">
+                                                <a href="<%= attachment.file_path %>" target="_blank"><%= attachment.original_name %></a>
+                                                <button type="button" class="btn btn-sm btn-danger delete-attachment-btn" data-attachment-id="<%= attachment.id %>">삭제</button>
+                                            </div>
+                                        <% }) %>
+                                    <% } else { %>
+                                        <p>첨부된 파일이 없습니다.</p>
+                                    <% } %>
+                                </div>
+                                <input type="hidden" id="attachmentsToDelete" name="attachments_to_delete" value="[]">
+                            </div>
+                            <div class="mb-3">
+                                <label for="attachments" class="form-label">새 첨부파일</label>
+                                <div id="drop-zone" class="border rounded p-5 text-center" style="border-style: dashed !important;">
+                                    <p>여기로 파일을 드래그하거나 클릭하여 업로드하세요.</p>
+                                    <input type="file" class="form-control" id="attachments" name="attachments" multiple style="display: none;">
+                                </div>
+                                <div id="file-list" class="mt-2"></div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">저장</button>
+                            <button type="button" class="btn btn-danger" onclick="deleteKnowledgeItem(<%= item.id %>)">삭제</button>
+                        </form>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/themes/default/style.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+
+<script>
+    $(document).ready(function() {
+        let uploadedFiles = [];
+        let attachmentsToDelete = [];
+
+        // Fallback showNotification function
+        window.showNotification = window.showNotification || function(type, message) {
+            const color = type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#ffc107';
+            const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-exclamation-triangle';
+            const modalHtml = `
+                <div class="modal fade" id="notificationModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header border-0 pb-0">
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body text-center pb-4">
+                                <div class="mb-3">
+                                    <i class="fas ${icon}" style="font-size: 4rem; color: ${color};"></i>
+                                </div>
+                                <h5 class="modal-title">${type === 'success' ? '성공' : type === 'error' ? '오류' : '경고'}</h5>
+                                <p class="text-muted">${message}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            $('body').append(modalHtml);
+            $('#notificationModal').modal('show');
+            setTimeout(() => {
+                $('#notificationModal').modal('hide').remove();
+            }, 2000);
+        };
+
+        // Initialize jstree for category selection
+        const categoryTreeContainer = document.getElementById('category_tree');
+        const selectedCategoryIdInput = document.getElementById('selected_category_id');
+
+        async function initJstree() {
+            try {
+                const response = await fetch('/knowledge/api/categories');
+                const categories = await response.json();
+
+                const jstreeData = categories.map(cat => ({
+                    id: cat.id,
+                    parent: cat.parent_id ? cat.parent_id : '#',
+                    text: cat.name
+                }));
+
+                $(categoryTreeContainer).jstree({
+                    'core': {
+                        'data': jstreeData,
+                        'check_callback': true
+                    },
+                    'plugins': ["wholerow"]
+                });
+
+                $(categoryTreeContainer).on('ready.jstree', function () {
+                    if (selectedCategoryIdInput.value) {
+                        $(categoryTreeContainer).jstree(true).select_node(selectedCategoryIdInput.value);
+                    }
+                });
+
+                $(categoryTreeContainer).on('select_node.jstree', function (e, data) {
+                    selectedCategoryIdInput.value = data.instance.get_node(data.selected[0]).id;
+                });
+            } catch (error) {
+                console.error('Error loading categories for jstree:', error);
+                showNotification('error', '카테고리 로드 중 오류가 발생했습니다.');
+            }
+        }
+        initJstree();
+
+        // File handling
+        const fileInput = $('#attachments');
+        const dropZone = $('#drop-zone');
+        const fileList = $('#file-list');
+        const attachmentsToDeleteInput = $('#attachmentsToDelete');
+
+        function renderFileList() {
+            fileList.empty();
+            uploadedFiles.forEach((file, index) => {
+                fileList.append(`
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span>${file.name}</span>
+                        <button type="button" class="btn btn-sm btn-danger remove-file-btn" data-index="${index}">삭제</button>
+                    </div>
+                `);
+            });
+        }
+
+        function updateFileList(files) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (!uploadedFiles.some(f => f.name === file.name && f.size === file.size)) {
+                    uploadedFiles.push(file);
+                }
+            }
+            renderFileList();
+        }
+
+        fileInput.on('change', function(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                updateFileList(files);
+                fileInput.val(''); // Clear input to allow re-uploading same file
+            }
+        });
+
+        dropZone.on('click', function() {
+            fileInput.trigger('click');
+        });
+
+        dropZone.on('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.addClass('dragover');
+        });
+
+        dropZone.on('dragenter', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.addClass('dragover');
+        });
+
+        dropZone.on('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.removeClass('dragover');
+        });
+
+        dropZone.on('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.removeClass('dragover');
+            const files = e.originalEvent.dataTransfer.files;
+            if (files.length > 0) {
+                updateFileList(files);
+            }
+        });
+
+        $(document).on('click', '.remove-file-btn', function() {
+            const index = $(this).data('index');
+            uploadedFiles.splice(index, 1);
+            renderFileList();
+        });
+
+        $(document).on('click', '.delete-attachment-btn', function() {
+            const attachmentId = $(this).data('attachment-id');
+            console.log('Adding attachment to delete:', attachmentId);
+            attachmentsToDelete.push(attachmentId);
+            attachmentsToDeleteInput.val(JSON.stringify(attachmentsToDelete));
+            console.log('Updated attachmentsToDelete:', attachmentsToDelete);
+            $(this).closest('.attachment-item').remove();
+        });
+
+        // Handle form submission
+        $('#editKnowledgeForm').on('submit', async function(e) {
+            e.preventDefault();
+
+            const type = $('#type').val();
+            const startDate = $('#start_date').val();
+            const plannedDate = $('#planned_date').val();
+            const requiredTypes = ['회의', '보고', '이슈'];
+
+            if (requiredTypes.includes(type)) {
+                if (!startDate) {
+                    showNotification('warning', '시작일은 필수 입력 항목입니다.');
+                    $('#start_date').focus();
+                    return;
+                }
+                if (!plannedDate) {
+                    showNotification('warning', '계획일은 필수 입력 항목입니다.');
+                    $('#planned_date').focus();
+                    return;
+                }
+            }
+
+            const formData = new FormData(this);
+            uploadedFiles.forEach(file => {
+                formData.append('attachments', file);
+            });
+
+            // Explicitly set attachments_to_delete
+            if (attachmentsToDelete.length > 0) {
+                const attachmentsToDeleteJson = JSON.stringify(attachmentsToDelete);
+                console.log('FormData attachments_to_delete:', attachmentsToDeleteJson);
+                formData.set('attachments_to_delete', attachmentsToDeleteJson);
+                attachmentsToDeleteInput.val(attachmentsToDeleteJson); // Ensure input is updated
+            } else {
+                formData.set('attachments_to_delete', '[]');
+                attachmentsToDeleteInput.val('[]');
+            }
+
+            // Debug FormData contents
+            for (let [key, value] of formData.entries()) {
+                console.log(`FormData: ${key} =`, value);
+            }
+
+            try {
+                const response = await fetch(`/knowledge/api/items/<%= item.id %>`, {
+                    method: 'PUT',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showNotification('success', result.message || '지식 자료가 성공적으로 업데이트되었습니다.');
+                    setTimeout(() => {
+                        window.location.href = `/knowledge/detail/<%= item.id %>`;
+                    }, 1500);
+                } else {
+                    showNotification('error', result.message || '업데이트 중 오류가 발생했습니다.');
+                }
+            } catch (error) {
+                console.error('Update error:', error);
+                showNotification('error', '지식 자료 업데이트 중 오류가 발생했습니다.');
+            }
+        });
+
+        // Handle delete knowledge item
+        window.deleteKnowledgeItem = async function(id) {
+            if (!confirm('이 지식 자료를 삭제하시겠습니까? 삭제된 데이터는 복구할 수 없습니다.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/knowledge/api/items/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showNotification('success', result.message || '지식 자료가 성공적으로 삭제되었습니다.');
+                    setTimeout(() => {
+                        window.location.href = '/knowledge';
+                    }, 1500);
+                } else {
+                    showNotification('error', result.message || '삭제 중 오류가 발생했습니다.');
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                showNotification('error', '지식 자료 삭제 중 오류가 발생했습니다.');
+            }
+        };
+    });
+</script>

@@ -1,0 +1,243 @@
+<style>
+    .gantt-container {
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #ccc;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+    }
+    .gantt-header {
+        display: flex;
+        background-color: #f0f0f0;
+        border-bottom: 1px solid #ccc;
+    }
+    .gantt-header-left, .gantt-header-right {
+        padding: 8px;
+        font-weight: bold;
+        border-right: 1px solid #ccc;
+    }
+    .gantt-header-left {
+        width: 250px; /* Task list width */
+        flex-shrink: 0;
+    }
+    .gantt-header-right {
+        flex-grow: 1;
+        display: flex;
+        overflow-x: auto;
+    }
+    .gantt-timeline-day {
+        min-width: 30px; /* Adjust as needed */
+        text-align: center;
+        border-left: 1px solid #eee;
+    }
+    .gantt-body {
+        display: flex;
+        flex-grow: 1;
+        overflow: hidden;
+    }
+    .gantt-tasks {
+        width: 250px; /* Task list width */
+        flex-shrink: 0;
+        border-right: 1px solid #ccc;
+        overflow-y: auto;
+    }
+    .gantt-chart {
+        flex-grow: 1;
+        overflow: auto;
+        position: relative;
+    }
+    .gantt-task-row {
+        display: flex;
+        align-items: center;
+        height: 30px; /* Height of each task row */
+        border-bottom: 1px solid #eee;
+        position: relative;
+    }
+    .gantt-task-name {
+        padding: 0 8px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .gantt-bar-container {
+        position: absolute;
+        height: 20px; /* Height of the bar */
+        background-color: #4CAF50;
+        border-radius: 3px;
+        top: 50%;
+        transform: translateY(-50%);
+        opacity: 0.8;
+    }
+    .gantt-bar-progress {
+        height: 100%;
+        background-color: #2196F3;
+        border-radius: 3px;
+    }
+    .gantt-bar-text {
+        color: white;
+        font-size: 12px;
+        text-align: center;
+        line-height: 20px;
+        position: absolute;
+        width: 100%;
+    }
+    .gantt-timeline-grid {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+    }
+    .gantt-timeline-grid-day {
+        min-width: 30px; /* Must match gantt-timeline-day */
+        border-left: 1px solid #eee;
+        box-sizing: border-box;
+    }
+</style>
+
+<div id="ganttContainer" class="gantt-container">
+    <div class="gantt-header">
+        <div class="gantt-header-left">태스크 이름</div>
+        <div class="gantt-header-right" id="ganttTimelineHeader"></div>
+    </div>
+    <div class="gantt-body">
+        <div class="gantt-tasks" id="ganttTasks"></div>
+        <div class="gantt-chart" id="ganttChart">
+            <div class="gantt-timeline-grid" id="ganttTimelineGrid"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        const projectId = '<%= project.id %>';
+        const ganttTasksDiv = document.getElementById('ganttTasks');
+        const ganttChartDiv = document.getElementById('ganttChart');
+        const ganttTimelineHeader = document.getElementById('ganttTimelineHeader');
+        const ganttTimelineGrid = document.getElementById('ganttTimelineGrid');
+
+        const CELL_WIDTH = 30; // Width of each day cell in pixels
+
+        // Function to fetch WBS data
+        async function fetchWbsData() {
+            try {
+                const response = await fetch(`/projects/${projectId}/wbs`);
+                const data = await response.json();
+                if (data.success) {
+                    return data.wbsTasks;
+                } else {
+                    console.error('Failed to fetch WBS tasks:', data.message);
+                    return [];
+                }
+            } catch (error) {
+                console.error('Error fetching WBS data:', error);
+                return [];
+            }
+        }
+
+        // Function to render Gantt chart
+        async function renderGantt() {
+            const wbsTasks = await fetchWbsData();
+            if (wbsTasks.length === 0) {
+                ganttTasksDiv.innerHTML = '<p style="padding: 10px;">WBS 태스크가 없습니다.</p>';
+                return;
+            }
+
+            // Calculate overall date range
+            let minDate = new Date('2100-01-01');
+            let maxDate = new Date('1900-01-01');
+
+            wbsTasks.forEach(task => {
+                if (task.start_date) {
+                    const startDate = new Date(task.start_date);
+                    if (startDate < minDate) minDate = startDate;
+                }
+                if (task.end_date) {
+                    const endDate = new Date(task.end_date);
+                    if (endDate > maxDate) maxDate = endDate;
+                }
+            });
+
+            // If no dates are present, set a default range
+            if (minDate.getFullYear() === 2100) {
+                minDate = new Date();
+                maxDate = new Date();
+                maxDate.setDate(maxDate.getDate() + 30); // Default to 30 days from today
+            }
+
+            // Generate timeline header and grid
+            ganttTimelineHeader.innerHTML = '';
+            ganttTimelineGrid.innerHTML = '';
+            const oneDay = 24 * 60 * 60 * 1000;
+            let currentDate = new Date(minDate);
+            currentDate.setHours(0, 0, 0, 0); // Normalize to start of day
+
+            let totalDays = 0;
+            while (currentDate <= maxDate) {
+                const dayHeader = document.createElement('div');
+                dayHeader.classList.add('gantt-timeline-day');
+                dayHeader.textContent = `${currentDate.getMonth() + 1}/${currentDate.getDate()}`;
+                ganttTimelineHeader.appendChild(dayHeader);
+
+                const gridDay = document.createElement('div');
+                gridDay.classList.add('gantt-timeline-grid-day');
+                ganttTimelineGrid.appendChild(gridDay);
+
+                currentDate.setDate(currentDate.getDate() + 1);
+                totalDays++;
+            }
+
+            ganttChartDiv.style.width = `${totalDays * CELL_WIDTH}px`;
+            ganttTimelineHeader.style.width = `${totalDays * CELL_WIDTH}px`;
+
+
+            ganttTasksDiv.innerHTML = '';
+            ganttChartDiv.innerHTML = '<div class="gantt-timeline-grid" id="ganttTimelineGrid"></div>'; // Re-add grid
+
+            // Render tasks
+            wbsTasks.forEach(task => {
+                const taskRow = document.createElement('div');
+                taskRow.classList.add('gantt-task-row');
+
+                const taskNameDiv = document.createElement('div');
+                taskNameDiv.classList.add('gantt-task-name');
+                taskNameDiv.textContent = task.task_name;
+                taskRow.appendChild(taskNameDiv);
+
+                ganttTasksDiv.appendChild(taskRow);
+
+                // Render Gantt bar
+                if (task.start_date && task.end_date) {
+                    const startDate = new Date(task.start_date);
+                    const endDate = new Date(task.end_date);
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate.setHours(0, 0, 0, 0);
+
+                    const offsetDays = Math.round(Math.abs((startDate - minDate) / oneDay));
+                    const barDurationDays = Math.round(Math.abs((endDate - startDate) / oneDay)) + 1;
+
+                    const barContainer = document.createElement('div');
+                    barContainer.classList.add('gantt-bar-container');
+                    barContainer.style.left = `${offsetDays * CELL_WIDTH}px`;
+                    barContainer.style.width = `${barDurationDays * CELL_WIDTH}px`;
+
+                    const progressBar = document.createElement('div');
+                    progressBar.classList.add('gantt-bar-progress');
+                    progressBar.style.width = `${task.progress || 0}%`;
+                    barContainer.appendChild(progressBar);
+
+                    const barText = document.createElement('div');
+                    barText.classList.add('gantt-bar-text');
+                    barText.textContent = `${task.progress || 0}%`;
+                    barContainer.appendChild(barText);
+
+                    taskRow.appendChild(barContainer);
+                }
+                ganttChartDiv.appendChild(taskRow.cloneNode(true)); // Add a clone to the chart area for alignment
+            });
+        }
+
+        renderGantt();
+    });
+</script>

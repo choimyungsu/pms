@@ -1,0 +1,83 @@
+<%- include('../partials/header', { page: 'project_gantt' }) %>
+<%- include('../partials/sidebar', { page: 'project_gantt' }) %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0"><%= title %></h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h3 class="card-title">프로젝트 간트 차트: <%= project.name %></h3>
+                </div>
+                <div class="card-body">
+                    <div class="gantt-container">
+                        <svg id="gantt"></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<!-- frappe-gantt CSS -->
+<link rel="stylesheet" href="/css/frappe-gantt.css">
+<!-- frappe-gantt JS -->
+<script src="/js/frappe-gantt.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tasks = <%- JSON.stringify(ganttTasks) %>;
+        console.log("Frappe Gantt tasks data:", tasks); // Debugging line
+
+        // Ensure dates are correctly parsed for frappe-gantt
+        tasks.forEach(task => {
+            if (task.start) {
+                task.start = new Date(task.start);
+            }
+            if (task.end) {
+                task.end = new Date(task.end);
+            }
+        });
+        console.log("Frappe Gantt tasks data after date parsing:", tasks); // Debugging line
+
+        const gantt = new Gantt('#gantt', tasks, {
+            header_height: 50,
+            column_width: 30,
+            step: 24,
+            view_modes: ['Quarter Day', 'Half Day', 'Day', 'Week', 'Month'],
+            bar_height: 20,
+            bar_corner_radius: 3,
+            arrow_curve: 5,
+            padding: 18,
+            date_format: 'YYYY-MM-DD',
+            language: 'ko', // Set language to Korean
+            on_click: function (task) {
+                console.log(task);
+            },
+            on_date_change: function(task, start, end) {
+                console.log(task, start, end);
+                // TODO: Implement AJAX call to update task dates on the backend
+            },
+            on_progress_change: function(task, progress) {
+                console.log(task, progress);
+                // TODO: Implement AJAX call to update task progress on the backend
+            },
+            on_view_change: function(mode) {
+                console.log(mode);
+            }
+        });
+
+        // Set initial view mode (e.g., 'Week')
+        gantt.change_view_mode('Week');
+    });
+</script>

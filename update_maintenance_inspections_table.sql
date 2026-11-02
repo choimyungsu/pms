@@ -1,0 +1,1 @@
+ALTER TABLE `tb_maintenance_inspections` MODIFY `attachment_path` VARCHAR(1024);

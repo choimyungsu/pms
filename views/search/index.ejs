@@ -1,0 +1,58 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">통합 검색</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title">검색</h3>
+                </div>
+                <div class="card-body">
+                    <form action="/search" method="POST">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" name="query" placeholder="검색어를 입력하세요" value="<%= query %>">
+                            <button class="btn btn-primary" type="submit"><i class="fa-solid fa-search"></i> 검색</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <% if (results) { %>
+                <% if (Object.keys(results).length > 0) { %>
+                    <% for (const type in results) { %>
+                        <div class="card card-primary card-outline mt-4">
+                            <div class="card-header">
+                                <h3 class="card-title"><%= type %></h3>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush">
+                                    <% results[type].forEach(item => { %>
+                                        <li class="list-group-item">
+                                            <a href="<%= item.url %>"><%= item.title %></a>
+                                        </li>
+                                    <% }); %>
+                                </ul>
+                            </div>
+                        </div>
+                    <% } %>
+                <% } else { %>
+                    <div class="alert alert-info mt-4">
+                        '<%= query %>'에 대한 검색 결과가 없습니다.
+                    </div>
+                <% } %>
+            <% } %>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>

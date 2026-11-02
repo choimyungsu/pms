@@ -1,0 +1,22 @@
+#drop-zone {
+    border: 2px dashed #ccc;
+    border-radius: 5px;
+    padding: 25px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.3s;
+}
+
+#drop-zone.border-primary {
+    border-color: #007bff;
+}
+
+#file-list .file-item {
+    padding: 5px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    margin-top: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}

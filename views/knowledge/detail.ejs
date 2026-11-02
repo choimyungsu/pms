@@ -1,0 +1,439 @@
+<%- include('../partials/header', { page: 'knowledge' }) %>
+<%- include('../partials/sidebar', { page: 'knowledge' }) %>
+
+<style>
+/* Make detail page content fill height and be scrollable */
+.knowledge-page .app-content {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 135px); /* Adjust if header/footer height is different */
+}
+.knowledge-page .app-content > .container-fluid {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+/* Target the main row in detail.ejs */
+.knowledge-page .app-content > .container-fluid > .row {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+}
+.knowledge-page .app-content .col-md-3,
+.knowledge-page .app-content .col-md-9 {
+    display: flex;
+    flex-direction: column;
+}
+.knowledge-page .app-content .card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+/* The comments card should not grow */
+.knowledge-page .app-content .col-md-9 .card.mt-4 {
+    flex: 0 1 auto;
+}
+.knowledge-page .app-content .card-body {
+    overflow-y: auto;
+}
+
+/* On mobile, revert to natural height */
+@media (max-width: 767px) {
+    .knowledge-page .app-content {
+        height: auto;
+    }
+    .knowledge-page .app-content > .container-fluid > .row {
+        display: block; /* Revert to default bootstrap row behavior */
+    }
+}
+</style>
+<main class="app-main">
+  <div class="app-content-header">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-sm-6">
+          <h3 class="mb-0">지식 상세정보</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="app-content">
+    <div class="container-fluid">
+      <% if (error) { %>
+        <div class="alert alert-danger"><%= error %></div>
+      <% } else if (item) { %>
+        <div class="row">
+          <!-- Categories Sidebar -->
+          <div class="col-md-3">
+            <div class="card">
+              <div class="card-header">
+                <h4>카테고리</h4>
+              </div>
+              <div class="card-body" style="max-height: 75vh; overflow-y: auto;">
+                <div id="category-tree"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Knowledge Item Details -->
+          <div class="col-md-9">
+            <div class="card">
+              <div class="card-header">
+                <h4><%= item.title %></h4>
+              </div>
+              <div class="card-body">
+                <dl class="row">
+                  <dt class="col-sm-3">구분</dt>
+                  <dd class="col-sm-9"><%= item.type %></dd>
+                  <dt class="col-sm-3">카테고리</dt>
+                  <dd class="col-sm-9"><a href="/knowledge?category_id=<%= item.category_id %>"><%= item.category_name || '미지정' %></a></dd>
+                  <dt class="col-sm-3">상태</dt>
+                  <dd class="col-sm-9"><%= item.status %></dd>
+                  <dt class="col-sm-3">생성자</dt>
+                  <dd class="col-sm-9"><%= item.creator_name %></dd>
+                  <dt class="col-sm-3">담당자</dt>
+                  <dd class="col-sm-9"><%= item.assignee %></dd>
+                  <dt class="col-sm-3">시작일</dt>
+                  <dd class="col-sm-9"><%= item.start_date %></dd>
+                  <dt class="col-sm-3">종료일</dt>
+                  <dd class="col-sm-9"><%= item.end_date %></dd>
+                  <dt class="col-sm-3">계획일</dt>
+                  <dd class="col-sm-9"><%= item.planned_date %></dd>
+                  <dt class="col-sm-3">설명1</dt>
+                  <dd class="col-sm-9"><pre class="card p-2" style="white-space: pre-wrap;"><%= item.description1 %></pre></dd>
+                  <dt class="col-sm-3">설명2</dt>
+                  <dd class="col-sm-9"><pre class="card p-2" style="white-space: pre-wrap;"><%= item.description2 %></pre></dd>
+                  <dt class="col-sm-3">첨부파일</dt>
+                  <dd class="col-sm-9">
+                    <% if (attachments && attachments.length > 0) { %>
+                      <ul class="list-group list-group-flush">
+                        <% attachments.forEach(function(attachment) { %>
+                          <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="/knowledge/api/attachments/<%= attachment.id %>/download">
+                              <i class="fas fa-file-download me-2"></i> <%= attachment.original_name || attachment.file_path.split('/').pop() %>
+                            </a>
+                          </li>
+                        <% })
+                        %> 
+                      </ul>
+                    <% } else { %>
+                      <p>첨부된 파일이 없습니다.</p>
+                    <% } %>
+                  </dd>
+                </dl>
+                <div class="mt-3">
+                  <a href="/knowledge" class="btn btn-secondary">목록으로</a>
+                  <% if (currentUser && (currentUser.role === 'admin' || currentUser.id === item.creator_id)) { %>
+                    <a href="/knowledge/edit/<%= item.id %>" class="btn btn-primary">수정</a>
+                    <button type="button" class="btn btn-danger" onclick="deleteKnowledgeItem(<%= item.id %>)">삭제</button>
+                  <% }
+                  %> 
+                </div>
+              </div>
+            </div>
+
+            <!-- Comments Section -->
+            <div class="card mt-4">
+              <div class="card-header">
+                <h5>댓글</h5>
+              </div>
+              <div class="card-body">
+                <div id="comments-list" class="mb-3"></div>
+                <form id="comment-form">
+                  <div class="mb-3">
+                    <textarea class="form-control" id="comment-content" rows="3" placeholder="댓글을 입력하세요." required></textarea>
+                  </div>
+                  <button type="submit" class="btn btn-primary">댓글 추가</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</main>
+
+
+<!-- Delete Comment Modal -->
+<div class="modal fade" id="deleteCommentModal" tabindex="-1" aria-labelledby="deleteCommentModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteCommentModalLabel">댓글 삭제 확인</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        정말로 이 댓글을 삭제하시겠습니까?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteCommentBtn">삭제</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Success Message Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="successModalLabel">알림</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="successModalBody">
+        <!-- Message will be inserted here -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">확인</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Comment Modal -->
+<div class="modal fade" id="editCommentModal" tabindex="-1" aria-labelledby="editCommentModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editCommentModalLabel">댓글 수정</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <textarea class="form-control" id="editCommentContent" rows="5"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+        <button type="button" class="btn btn-primary" id="saveEditedCommentBtn">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>
+
+<script>
+  const categories = <%- JSON.stringify(categories || []) %>;
+  const currentCategoryId = <%- item.category_id %>;
+
+  function buildCategoryTree(categories, parentId = null) {
+    const ul = document.createElement('ul');
+    ul.className = 'list-unstyled ps-3';
+
+    const children = categories.filter(cat => cat.parent_id === parentId);
+
+    children.forEach(cat => {
+      const li = document.createElement('li');
+      li.className = 'mb-1';
+
+      const a = document.createElement('a');
+      a.href = `/knowledge?category_id=${cat.id}`;
+      a.className = `btn btn-toggle d-inline-flex align-items-center rounded border-0 ${cat.id === currentCategoryId ? 'fw-bold bg-warning' : ''}`;
+      
+      const icon = document.createElement('i');
+      const hasChildren = categories.some(child => child.parent_id === cat.id);
+      icon.className = `fas ${hasChildren ? 'fa-folder-open' : 'fa-folder'} me-2`;
+      
+      a.appendChild(icon);
+      a.appendChild(document.createTextNode(cat.name));
+
+      li.appendChild(a);
+
+      const childTree = buildCategoryTree(categories, cat.id);
+      if (childTree.children.length > 0) {
+        li.appendChild(childTree);
+      }
+      ul.appendChild(li);
+    });
+
+    return ul;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const categoryTreeContainer = document.getElementById('category-tree');
+    if (categoryTreeContainer) {
+      const categoryTree = buildCategoryTree(categories);
+      if (categoryTree.children.length > 0) {
+          categoryTreeContainer.appendChild(categoryTree);
+      } else {
+          categoryTreeContainer.innerHTML = '<p>카테고리가 없습니다.</p>';
+      }
+    }
+  });
+</script>
+
+<script>
+  const knowledgeId = <%= item.id %>;
+  const currentUserId = <%= currentUser.id %>;
+  const isAdmin = <%= isAdmin %>;
+
+  let commentIdToDelete = null; // To store the ID of the comment to be deleted
+
+  async function fetchComments() {
+    try {
+      const response = await fetch(`/knowledge/api/items/${knowledgeId}/comments`);
+      const comments = await response.json();
+      const commentsList = document.getElementById('comments-list');
+      commentsList.innerHTML = '';
+      if (comments.length === 0) {
+        commentsList.innerHTML = '<p>아직 댓글이 없습니다.</p>';
+        return;
+      }
+      comments.forEach(comment => {
+        const commentElement = document.createElement('div');
+        commentElement.classList.add('card', 'mb-2');
+        commentElement.innerHTML = `
+          <div class="card-body">
+            <p class="card-text">${comment.content}</p>
+            <small class="text-muted">${comment.author} - ${new Date(comment.created_at).toLocaleString()}</small>
+            ${(currentUserId === comment.user_id || isAdmin) ? `
+              <button type="button" class="btn btn-info btn-sm float-end ms-2" data-bs-toggle="modal" data-bs-target="#editCommentModal" onclick="showEditCommentModal(${comment.id}, '${comment.content.replace(/'/g, '\'').replace(/\n/g, '\n')}')">수정</button>
+              <button type="button" class="btn btn-danger btn-sm float-end" data-bs-toggle="modal" data-bs-target="#deleteCommentModal" onclick="showDeleteCommentModal(${comment.id})">삭제</button>
+            ` : ''}
+          </div>
+        `;
+        commentsList.appendChild(commentElement);
+      });
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+      alert('댓글을 불러오는 중 오류가 발생했습니다.');
+    }
+  }
+
+  async function addComment(event) {
+    event.preventDefault();
+    const content = document.getElementById('comment-content').value;
+
+    try {
+      const response = await fetch(`/knowledge/api/items/${knowledgeId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ content })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        document.getElementById('comment-content').value = '';
+        fetchComments();
+      } else {
+        alert(data.message || '댓글 추가 중 오류가 발생했습니다.');
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      alert('댓글 추가 중 오류가 발생했습니다.');
+    }
+  }
+
+  function showDeleteCommentModal(commentId) {
+    commentIdToDelete = commentId;
+  }
+
+  let commentIdToEdit = null; // To store the ID of the comment to be edited
+
+  function showEditCommentModal(commentId, currentContent) {
+    commentIdToEdit = commentId;
+    document.getElementById('editCommentContent').value = currentContent;
+  }
+
+  async function saveEditedComment() {
+    if (commentIdToEdit === null) return;
+    const newContent = document.getElementById('editCommentContent').value;
+
+    try {
+      const response = await fetch(`/knowledge/api/comments/${commentIdToEdit}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ content: newContent })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        showSuccessModal(data.message);
+        fetchComments();
+      } else {
+        showSuccessModal(data.message || '댓글 수정 중 오류가 발생했습니다.');
+      }
+    } catch (error) {
+      console.error('Error updating comment:', error);
+      showSuccessModal('댓글 수정 중 오류가 발생했습니다.');
+    } finally {
+      commentIdToEdit = null;
+      const editModalElement = document.getElementById('editCommentModal');
+      const editModal = bootstrap.Modal.getInstance(editModalElement) || new bootstrap.Modal(editModalElement);
+      editModal.hide();
+    }
+  }
+
+  async function confirmDeleteComment() {
+    if (commentIdToDelete === null) return; // Should not happen
+
+    try {
+      const response = await fetch(`/knowledge/api/comments/${commentIdToDelete}`, {
+        method: 'DELETE'
+      });
+      const data = await response.json();
+      if (response.ok) {
+        showSuccessModal(data.message);
+        fetchComments();
+      } else {
+        showSuccessModal(data.message || '댓글 삭제 중 오류가 발생했습니다.');
+      }
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      showSuccessModal('댓글 삭제 중 오류가 발생했습니다.');
+    } finally {
+      commentIdToDelete = null; // Reset
+      const deleteModalElement = document.getElementById('deleteCommentModal');
+      const deleteModal = bootstrap.Modal.getInstance(deleteModalElement) || new bootstrap.Modal(deleteModalElement);
+      deleteModal.hide();
+    }
+  }
+
+  function showSuccessModal(message) {
+    const successModalBody = document.getElementById('successModalBody');
+    successModalBody.textContent = message;
+    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+    successModal.show();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (knowledgeId) {
+      fetchComments();
+      document.getElementById('comment-form').addEventListener('submit', addComment);
+    }
+    const confirmDeleteBtn = document.getElementById('confirmDeleteCommentBtn');
+    if (confirmDeleteBtn) {
+      confirmDeleteBtn.addEventListener('click', confirmDeleteComment);
+    }
+    const saveEditedBtn = document.getElementById('saveEditedCommentBtn');
+    if (saveEditedBtn) {
+      saveEditedBtn.addEventListener('click', saveEditedComment);
+    }
+  });
+
+  function deleteKnowledgeItem(id) {
+    if (confirm('정말로 이 지식 정보를 삭제하시겠습니까?')) {
+      fetch(`/knowledge/api/items/${id}`, {
+        method: 'DELETE'
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.message) {
+          showSuccessModal(data.message);
+          window.location.href = '/knowledge';
+        } else {
+          showSuccessModal('삭제 중 오류가 발생했습니다.');
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showSuccessModal('삭제 처리 중 오류가 발생했습니다.');
+      });
+    }
+  }
+</script>

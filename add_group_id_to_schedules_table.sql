@@ -1,0 +1,1 @@
+ALTER TABLE tb_schedules ADD COLUMN group_id INT NULL;

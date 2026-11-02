@@ -1,0 +1,95 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<!-- Main content -->
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">회의록 상세 보기</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fa-solid fa-file-lines"></i> <%= minutes.title %></h3>
+                    <div class="card-tools">
+                        <span class="badge bg-secondary"><%= new Date(minutes.createdAt).toLocaleString() %></span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>회의명:</strong> <%= minutes.title %></p>
+                            <p><strong>일시:</strong> <%= new Date(minutes.meeting_date).toLocaleString() %></p>
+                            <p><strong>장소:</strong> <%= minutes.location %></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>주관:</strong> <%= minutes.host %></p>
+                            <p><strong>작성자:</strong> <%= minutes.author_name %></p>
+                            <p><strong>참석자:</strong> <%= minutes.attendees %></p>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <h5>안건</h5>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>안건</th>
+                                <th>담당자</th>
+                                <th>예상시간(분)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% if(minutes.agenda && minutes.agenda.length > 0) { %>
+                                <% minutes.agenda.forEach((item, index) => { %>
+                                    <tr>
+                                        <td><%= index + 1 %></td>
+                                        <td><%= item.topic %></td>
+                                        <td><%= item.presenter %></td>
+                                        <td><%= item.time %></td>
+                                    </tr>
+                                <% }); %>
+                            <% } else { %>
+                                <tr>
+                                    <td colspan="4" class="text-center">안건이 없습니다.</td>
+                                </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+
+                    <hr>
+
+                    <h5>회의내용 요약</h5>
+                    <div class="border p-3 rounded bg-light mb-3" style="white-space: pre-wrap;">
+                        <p><%= minutes.summary %></p>
+                    </div>
+
+                    <h5>비고</h5>
+                    <div class="border p-3 rounded bg-light" style="white-space: pre-wrap;">
+                        <p><%= minutes.remarks %></p>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-end">
+                    <a href="/minutes/list" class="btn btn-secondary me-2"><i class="fa-solid fa-arrow-left"></i> 목록으로</a>
+                    <a href="/minutes/download-docx/<%= minutes.id %>" class="btn btn-success me-2"><i class="fa-solid fa-file-word"></i> DOCX로 다운로드</a>
+                    <a href="/minutes/edit/<%= minutes.id %>" class="btn btn-warning me-2"><i class="fa-solid fa-edit"></i> 수정</a>
+                    <% if (currentUser && (currentUser.role === 'admin' || currentUser.id === minutes.user_id)) { %>
+                    <form action="/minutes/delete/<%= minutes.id %>" method="POST" style="display:inline;" onsubmit="return confirm('정말로 이 회의록을 삭제하시겠습니까?');">
+                        <button type="submit" class="btn btn-danger"><i class="fa-solid fa-trash"></i> 삭제</button>
+                    </form>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>

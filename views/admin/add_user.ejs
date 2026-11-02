@@ -1,0 +1,127 @@
+<%- include('../partials/header', { page: 'admin_add_user' }) %>
+<%- include('../partials/sidebar', { page: 'admin_add_user' }) %>
+
+<!-- Main content -->
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">사용자 관리</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fa-solid fa-user-plus"></i> 사용자 추가</h3>
+                </div>
+                <div class="card-body">
+                    <% if (typeof message !== 'undefined' && message) { %>
+                        <div class="alert alert-success" role="alert">
+                            <%= message %>
+                        </div>
+                    <% } %>
+                    <% if (typeof error !== 'undefined' && error) { %>
+                        <div class="alert alert-danger" role="alert">
+                            <%= error %>
+                        </div>
+                    <% } %>
+                    <form action="/admin/users/add" method="POST">
+                        <div class="mb-3 row">
+                            <label for="email" class="col-sm-3 col-form-label">이메일</label>
+                            <div class="col-sm-9">
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label for="name" class="col-sm-3 col-form-label">이름</label>
+                            <div class="col-sm-9">
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label for="password" class="col-sm-3 col-form-label">비밀번호</label>
+                            <div class="col-sm-9">
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label for="department_id" class="col-sm-3 col-form-label">부서</label>
+                            <div class="col-sm-9">
+                                <select class="form-select" id="department_id" name="department_id">
+                                    <option value="">부서 없음</option>
+                                    <% departments.forEach(dept => { %>
+                                        <option value="<%= dept.id %>"><%= dept.text %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label for="position" class="col-sm-3 col-form-label">직책</label>
+                            <div class="col-sm-9">
+                                <input type="text" class="form-control" id="position" name="position">
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label for="title" class="col-sm-3 col-form-label">직위</label>
+                            <div class="col-sm-9">
+                                <input type="text" class="form-control" id="title" name="title">
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label for="skill" class="col-sm-3 col-form-label">스킬</label>
+                            <div class="col-sm-9">
+                                <textarea class="form-control" id="skill" name="skill" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label for="join_date" class="col-sm-3 col-form-label">입사일</label>
+                            <div class="col-sm-9">
+                                <input type="date" class="form-control" id="join_date" name="join_date">
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label for="education" class="col-sm-3 col-form-label">학력</label>
+                            <div class="col-sm-9">
+                                <input type="text" class="form-control" id="education" name="education">
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label for="certifications" class="col-sm-3 col-form-label">자격사항</label>
+                            <div class="col-sm-9">
+                                <textarea class="form-control" id="certifications" name="certifications" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label for="construction_grade" class="col-sm-3 col-form-label">정보통신공사등급</label>
+                            <div class="col-sm-9">
+                                <input type="text" class="form-control" id="construction_grade" name="construction_grade">
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label for="role" class="col-sm-3 col-form-label">권한</label>
+                            <div class="col-sm-9">
+                                <select class="form-select" id="role" name="role">
+                                    <% roles.forEach(role => { %>
+                                        <option value="<%= role %>" <%= (role === 'user') ? 'selected' : '' %>>
+                                            <% if (role === 'admin') { %>시스템 관리자<% } else if (role === 'operations_manager') { %>운영 관리자<% } else { %>일반 사용자<% } %>
+                                        </option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="/admin/users" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> 목록으로</a>
+                            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-user-plus"></i> 사용자 추가</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>

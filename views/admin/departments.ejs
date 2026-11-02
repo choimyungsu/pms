@@ -1,0 +1,235 @@
+<%- include('../partials/header', { page: 'admin_departments' }) %>
+<%- include('../partials/sidebar', { page: 'admin_departments' }) %>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/themes/default/style.min.css" />
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">부서 및 사용자 관리</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-5">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fa-solid fa-sitemap"></i> 부서 트리</h3>
+                             <div class="card-tools">
+                                <button id="add-root-dept" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus"></i> 최상위 부서 추가</button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="dept-tree"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fa-solid fa-users"></i> <span id="selected-dept-name">부서를 선택하세요</span></h3>
+                        </div>
+                        <div class="card-body">
+                            <h4>부서 소속 사용자</h4>
+                            <ul id="dept-user-list" class="list-group"></ul>
+                        </div>
+                    </div>
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h3 class="card-title"><i class="fa-solid fa-user-plus"></i> 전체 사용자 목록</h4>
+                        </div>
+                        <div class="card-body">
+                             <ul id="all-user-list" class="list-group"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
+
+<script>
+$(function () {
+    // --- JSTREE SETUP ---
+    $('#dept-tree').jstree({
+        'core': {
+            'data': {
+                'url': '/departments',
+                'data': function (node) {
+                    return { 'id': node.id };
+                }
+            },
+            'check_callback': true,
+            'themes': {
+                'responsive': true
+            }
+        },
+        'plugins': ['dnd', 'state', 'types', 'contextmenu', 'wholerow'],
+        'contextmenu': {
+            'items': function(node) {
+                return {
+                    "Create": {
+                        "separator_before": false,
+                        "separator_after": false,
+                        "label": "하위 부서 추가",
+                        "action": function (obj) {
+                            node = $('#dept-tree').jstree(true).create_node(node);
+                            $('#dept-tree').jstree(true).edit(node);
+                        }
+                    },
+                    "Rename": {
+                        "separator_before": false,
+                        "separator_after": false,
+                        "label": "이름 변경",
+                        "action": function (obj) {
+                            $('#dept-tree').jstree(true).edit(node);
+                        }
+                    },
+                    "Delete": {
+                        "separator_before": false,
+                        "separator_after": false,
+                        "label": "삭제",
+                        "action": function (obj) {
+                            if(confirm('정말로 이 부서를 삭제하시겠습니까? 하위 부서와 사용자 정보가 모두 영향을 받을 수 있습니다.')) {
+                                $('#dept-tree').jstree(true).delete_node(node);
+                            }
+                        }
+                    }
+                };
+            }
+        }
+    })
+    .on('create_node.jstree', function (e, data) {
+        $.post('/departments/create', { 'text': data.node.text, 'parent_id': data.parent })
+            .done(function (d) {
+                data.instance.set_id(data.node, d.id);
+            })
+            .fail(function () {
+                data.instance.refresh();
+            });
+    })
+    .on('rename_node.jstree', function (e, data) {
+        $.post('/departments/update', { 'id': data.node.id, 'text': data.text })
+            .fail(function () {
+                data.instance.refresh();
+            });
+    })
+    .on('delete_node.jstree', function (e, data) {
+        $.post('/departments/delete', { 'id': data.node.id })
+            .fail(function () {
+                data.instance.refresh();
+            });
+    })
+    .on('move_node.jstree', function (e, data) {
+        $.post('/departments/move', { 'id': data.node.id, 'parent_id': data.parent, 'position': data.position })
+            .fail(function () {
+                data.instance.refresh();
+            });
+    })
+    .on('changed.jstree', function (e, data) {
+        if(data.selected.length) {
+            const selectedNode = data.instance.get_node(data.selected[0]);
+            $('#selected-dept-name').text(`'${selectedNode.text}' 사용자`);
+            loadDepartmentUsers(selectedNode.id);
+        } else {
+             $('#selected-dept-name').text('부서를 선택하세요');
+             $('#dept-user-list').empty();
+        }
+    });
+
+    $('#add-root-dept').on('click', function() {
+        let ref = $('#dept-tree').jstree(true);
+        let sel = ref.create_node(null, {"type":"default"});
+        if(sel) {
+            ref.edit(sel);
+        }
+    });
+
+
+    // --- USER LIST MANAGEMENT ---
+    let allUsers = [];
+
+    function loadAllUsers() {
+        $.get('/admin/users/json', function(users) {
+            allUsers = users;
+            renderAllUsers();
+        }).fail(function() {
+            alert('전체 사용자 목록을 불러오는 데 실패했습니다.');
+        });
+    }
+
+    function loadDepartmentUsers(departmentId) {
+        $.get(`/departments/users/${departmentId}`, function(users) {
+            renderDeptUsers(users);
+        });
+    }
+
+    function renderDeptUsers(users) {
+        const $list = $('#dept-user-list').empty();
+        if (users.length === 0) {
+            $list.append('<li class="list-group-item">소속된 사용자가 없습니다.</li>');
+            return;
+        }
+        users.forEach(user => {
+            const $li = $(`<li class="list-group-item d-flex justify-content-between align-items-center">
+                ${user.name} (${user.email})
+                <button class="btn btn-danger btn-sm remove-user-btn" data-user-id="${user.id}">제거</button>
+            </li>`);
+            $list.append($li);
+        });
+    }
+
+    function renderAllUsers() {
+        const $list = $('#all-user-list').empty();
+        allUsers.forEach(user => {
+             const $li = $(`<li class="list-group-item d-flex justify-content-between align-items-center">
+                ${user.name} (${user.email})
+                <button class="btn btn-success btn-sm add-user-btn" data-user-id="${user.id}">추가</button>
+            </li>`);
+            $list.append($li);
+        });
+    }
+
+    // Event delegation for adding/removing users
+    $(document).on('click', '.add-user-btn', function() {
+        const userId = $(this).data('user-id');
+        const selectedDept = $('#dept-tree').jstree(true).get_selected()[0];
+        if (!selectedDept) {
+            alert('먼저 부서를 선택해주세요.');
+            return;
+        }
+        $.post('/departments/users/add', { userId: userId, departmentId: selectedDept })
+            .done(function() {
+                loadDepartmentUsers(selectedDept);
+            })
+            .fail(function() {
+                alert('사용자 추가에 실패했습니다.');
+            });
+    });
+
+    $(document).on('click', '.remove-user-btn', function() {
+        const userId = $(this).data('user-id');
+        const selectedDept = $('#dept-tree').jstree(true).get_selected()[0];
+        $.post('/departments/users/remove', { userId: userId })
+            .done(function() {
+                loadDepartmentUsers(selectedDept);
+            })
+            .fail(function() {
+                alert('사용자 제거에 실패했습니다.');
+            });
+    });
+
+    // Initial load
+    loadAllUsers();
+});
+</script>

@@ -1,0 +1,75 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<div class="main-content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>명함 상세 정보</h4>
+                    </div>
+                    <div class="card-body">
+                        <% if (error && error.length > 0) { %>
+                            <div class="alert alert-danger"><%= error %></div>
+                        <% } %>
+                        <% if (success && success.length > 0) { %>
+                            <div class="alert alert-success"><%= success %></div>
+                        <% } %>
+                        <% if (card) { %>
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <% if (card.image_path) { %>
+                                        <img src="<%= card.image_path %>" class="img-fluid rounded" alt="Business Card Image">
+                                    <% } else { %>
+                                        <p>이미지 없음</p>
+                                    <% } %>
+                                </div>
+                                <div class="col-md-8">
+                                    <p><strong>이름:</strong> <%= card.name %></p>
+                                    <p><strong>회사명:</strong> <%= card.company %></p>
+                                    <p><strong>부서:</strong> <%= card.department %></p>
+                                    <p><strong>직책:</strong> <%= card.position %></p>
+                                    <p><strong>이메일:</strong> <%= card.email %></p>
+                                    <p><strong>핸드폰:</strong> <%= card.mobile %></p>
+                                    <p><strong>전화:</strong> <%= card.phone %></p>
+                                    <p><strong>팩스:</strong> <%= card.fax %></p>
+                                    <p><strong>홈페이지:</strong> <%= card.website %></p>
+                                    <p><strong>주소:</strong> <%= card.address %></p>
+                                    <p><strong>메모:</strong> <%= card.memo %></p>
+                                    <p><strong>이메일 수신 동의:</strong> <%= card.email_opt_in ? '예' : '아니오' %></p>
+                                    <p><strong>고객 유형:</strong> <%= card.customer_type %></p>
+                                    <p><strong>고객 서브 유형:</strong> <%= card.customer_subtype %></p>
+                                    <p><strong>제조사:</strong> <%= card.manufacturer %></p>
+                                    <p><strong>계약 상태:</strong> <%= card.contract_status %></p>
+                                    <p><strong>등록일:</strong> <%= card.created_at.toLocaleDateString('ko-KR') %></p>
+
+                                    <% if (card.related_cards && card.related_cards.length > 0) { %>
+                                        <h5>관련 명함:</h5>
+                                        <ul>
+                                            <% card.related_cards.forEach(function(relatedCard) { %>
+                                                <li><a href="/cards/<%= relatedCard.id %>"><%= relatedCard.name %> (<%= relatedCard.company %>)</a></li>
+                                            <% }); %>
+                                        </ul>
+                                    <% } %>
+                                </div>
+                            </div>
+                            <a href="/cards/list" class="btn btn-secondary">목록으로 돌아가기</a>
+                            <% if (currentUser.role === 'admin' || currentUser.id === card.userId) { %>
+                                <a href="/cards/edit/<%= card.id %>" class="btn btn-warning">수정</a>
+                                <form action="/cards/delete/<%= card.id %>?_method=DELETE" method="POST" style="display:inline;" onsubmit="return confirm('정말로 이 명함을 삭제하시겠습니까?');">
+                                    <button type="submit" class="btn btn-danger">삭제</button>
+                                </form>
+                            <% } %>
+                        <% } else { %>
+                            <p>명함을 찾을 수 없습니다.</p>
+                            <a href="/cards/list" class="btn btn-secondary">목록으로 돌아가기</a>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- include('../partials/footer') %>

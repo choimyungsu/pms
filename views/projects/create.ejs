@@ -1,0 +1,125 @@
+<%- include('../partials/header', { page: 'project_create' }) %>
+<%- include('../partials/sidebar', { page: 'project_create' }) %>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.17/themes/default/style.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/min/dropzone.min.css" type="text/css" />
+<!-- SweetAlert2 CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">새 프로젝트 등록</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-body">
+                    <form id="createProjectForm" action="/projects/create" method="POST">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">프로젝트명 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">설명</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="start_date" class="form-label">시작일</label>
+                                <input type="date" class="form-control" id="start_date" name="start_date">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="end_date" class="form-label">종료일</label>
+                                <input type="date" class="form-control" id="end_date" name="end_date">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="status" class="form-label">상태 <span class="text-danger">*</span></label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="">상태 선택</option>
+                                <option value="진행중">진행중</option>
+                                <option value="완료">완료</option>
+                                <option value="보류">보류</option>
+                                <option value="취소">취소</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="progress" class="form-label">진척율 (%)</label>
+                            <input type="number" class="form-control" id="progress" name="progress" min="0" max="100" value="0">
+                        </div>
+
+                        
+
+                        <div class="mb-3">
+                            <label for="pm_id" class="form-label">프로젝트 PM <span class="text-danger">*</span></label>
+                            <select class="form-select" id="pm_id" name="pm_id" required>
+                                <option value="">PM 선택</option>
+                                <% users.forEach(user => { %>
+                                    <option value="<%= user.id %>"><%= user.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="sales_rep_id" class="form-label">담당영업 <span class="text-danger">*</span></label>
+                            <select class="form-select" id="sales_rep_id" name="sales_rep_id">
+                                <option value="">담당영업 선택</option>
+                                <% users.forEach(user => { %>
+                                    <option value="<%= user.id %>"><%= user.name %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">등록</button>
+                        <a href="/projects" class="btn btn-secondary">취소</a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+ 
+
+<%- include('../partials/footer') %>
+
+<!-- SweetAlert2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    document.getElementById('createProjectForm').addEventListener('submit', function(event) {
+        const requiredFields = ['name', 'status', 'pm_id', 'sales_rep_id'];
+        let isValid = true;
+
+        requiredFields.forEach(function(fieldId) {
+            const inputField = document.getElementById(fieldId);
+            if (inputField.value.trim() === '') {
+                isValid = false;
+                inputField.classList.add('is-invalid'); // Add Bootstrap's invalid class
+            } else {
+                inputField.classList.remove('is-invalid');
+            }
+        });
+
+        if (!isValid) {
+            event.preventDefault(); // Prevent form submission
+            // Replace alert() with SweetAlert2
+            Swal.fire({
+                icon: 'error',
+                title: '입력 오류',
+                text: '필수 입력 항목을 모두 채워주세요.',
+                timer: 1000, // 1초 후에 자동 닫힘
+                timerProgressBar: true, // 진행 바 표시
+                showConfirmButton: true, // 확인 버튼 표시
+                confirmButtonText: '확인' // 확인 버튼 텍스트
+            });
+        }
+    });
+</script>

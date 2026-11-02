@@ -1,0 +1,107 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">자산 관리</h3>
+                </div>
+                <div class="col-sm-6 d-flex justify-content-end align-items-center">
+                    <% if (currentUser.role === 'admin') { %>
+                        <a href="/assets/new" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus"></i> 자산 추가</a>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <% if (message && message.length > 0) { %>
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <%= message %>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <% } %>
+            <% if (error && error.length > 0) { %>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <%= error %>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <% } %>
+
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fa-solid fa-archive"></i> 자산 목록</h3>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="assets-table" class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    <th>사진</th>
+                                    <th>자산명</th>
+                                    <th>자산관리번호</th>
+                                    <th>상태</th>
+                                    <th>담당자</th>
+                                    <th>제조사</th>
+                                    <th>모델명</th>
+                                    <th>구매일</th>
+                                    <th>보증종료일</th>
+                                    <th>관리</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% assets.forEach(asset => { %>
+                                    <tr>
+                                        <td>
+                                            <% if (asset.photo_path) { %>
+                                                <img src="<%= asset.photo_path %>" alt="<%= asset.name %>" style="width: 50px; height: 50px; object-fit: cover;">
+                                            <% } %>
+                                        </td>
+                                        <td><%= asset.name %></td>
+                                        <td><%= asset.asset_management_number %></td>
+                                        <td><%= asset.status %></td>
+                                        <td><%= asset.handler_name || '미지정' %></td>
+                                        <td><%= asset.manufacturer %></td>
+                                        <td><%= asset.model_name %></td>
+                                        <td><%= asset.purchase_date ? new Date(asset.purchase_date).toLocaleDateString() : '' %></td>
+                                        <td><%= asset.warranty_end_date ? new Date(asset.warranty_end_date).toLocaleDateString() : '' %></td>
+                                        <td>
+                                            <% if (currentUser.role === 'admin') { %>
+                                                <a href="/assets/edit/<%= asset.id %>" class="btn btn-sm btn-info">수정</a>
+                                                <form action="/assets/delete/<%= asset.id %>" method="POST" style="display: inline;" onsubmit="return confirm('정말로 이 자산을 삭제하시겠습니까?');">
+                                                    <button type="submit" class="btn btn-sm btn-danger">삭제</button>
+                                                </form>
+                                            <% } else { %>
+                                                <span class="text-muted">N/A</span>
+                                            <% } %>
+                                        </td>
+                                    </tr>
+                                <% }) %>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        $('#assets-table').DataTable({
+            "language": {
+                "url": "//cdn.datatables.net/plug-ins/1.13.4/i18n/ko.json"
+            },
+            "order": [[ 7, "desc" ]] // Sort by purchase date descending
+        });
+    });
+</script>

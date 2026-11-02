@@ -1,0 +1,258 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<style>
+    #vehicle-drop-zone {
+        transition: background-color 0.2s ease;
+    }
+    #vehicle-drop-zone.dragover {
+        background-color: #e9ecef;
+    }
+</style>
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">새 자산 추가</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="app-content">
+        <div class="container-fluid">
+            <% if (error && error.length > 0) { %>
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <%= error %>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <% } %>
+
+            <div class="card card-primary card-outline">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fa-solid fa-plus-circle"></i> 자산 정보 입력</h3>
+                </div>
+                <div class="card-body">
+                    <form action="/assets" method="POST" enctype="multipart/form-data">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="name" class="form-label">자산명 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="asset_management_number" class="form-label">자산관리번호</label>
+                                <input type="text" class="form-control" id="asset_management_number" name="asset_management_number">
+                            </div>
+                        </div>
+                        <div class="row">
+                             <div class="col-md-6 mb-3">
+                                <label for="serial_number" class="form-label">시리얼번호</label>
+                                <input type="text" class="form-control" id="serial_number" name="serial_number">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="status" class="form-label">상태 <span class="text-danger">*</span></label>
+                                <select class="form-control" id="status" name="status" required>
+                                    <option value="사용중">사용중</option>
+                                    <option value="대기" selected>대기</option>
+                                    <option value="폐기">폐기</option>
+                                    <option value="분실">분실</option>
+                                </select>
+                            </div>
+                        </div>
+                         <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="handler_id" class="form-label">담당자</label>
+                                <select class="form-control" id="handler_id" name="handler_id">
+                                    <option value="">미지정</option>
+                                    <% users.forEach(user => { %>
+                                        <option value="<%= user.id %>"><%= user.name %></option>
+                                    <% }) %>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="photo" class="form-label">사진</label>
+                                <input type="file" class="form-control" id="photo" name="photo">
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="manufacturer" class="form-label">제조사</label>
+                                <input type="text" class="form-control" id="manufacturer" name="manufacturer">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="model_name" class="form-label">모델명</label>
+                                <input type="text" class="form-control" id="model_name" name="model_name">
+                            </div>
+                           
+                        </div>
+                        <div class="row">
+                             <div class="col-md-6 mb-3">
+                                <label for="purchase_date" class="form-label">구매일</label>
+                                <input type="date" class="form-control" id="purchase_date" name="purchase_date">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="purchase_price" class="form-label">구매금액</label>
+                                <input type="number" class="form-control" id="purchase_price" name="purchase_price" step="0.01">
+                            </div>
+                        </div>
+                        <div class="row">
+                             <div class="col-md-6 mb-3">
+                                <label for="asset_value" class="form-label">장비가액</label>
+                                <input type="number" class="form-control" id="asset_value" name="asset_value" step="0.01">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="warranty_end_date" class="form-label">보증종료일</label>
+                                <input type="date" class="form-control" id="warranty_end_date" name="warranty_end_date">
+                            </div>
+                        </div>
+                         <div class="mb-3">
+                            <label for="notes" class="form-label">비고</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                        </div>
+
+                        <hr>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="is_vehicle" name="is_vehicle" value="true">
+                            <label class="form-check-label" for="is_vehicle">차량 여부</label>
+                        </div>
+
+                        <div id="vehicle_fields" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="engine_oil_change_date" class="form-label">엔진오일 점검일</label>
+                                    <input type="date" class="form-control" id="engine_oil_change_date" name="engine_oil_change_date">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="tire_replacement_date" class="form-label">타이어 교체일</label>
+                                    <input type="date" class="form-control" id="tire_replacement_date" name="tire_replacement_date">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="vehicle_attachment" class="form-label">차량 관련 첨부파일</label>
+                                                                <div id="vehicle-drop-zone" class="border rounded p-5 text-center" style="border-style: dashed !important;">
+                                                                    <p>여기로 파일을 드래그하거나 클릭하여 업로드하세요.</p>
+                                                                    <input type="file" class="form-control" id="vehicle_attachment" name="vehicle_attachment" style="display: none;" multiple>
+                                                                </div>
+                                                                <div id="vehicle-file-list" class="mt-2"></div>
+                                                            </div>
+                                                        </div>
+                                
+                                
+                                                        <div class="d-flex justify-content-end">
+                                                            <a href="/assets" class="btn btn-secondary me-2">취소</a>
+                                                            <button type="submit" class="btn btn-primary">저장</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </main>
+                                
+                                <script>
+                                    document.addEventListener('DOMContentLoaded', function () {
+                                        const isVehicleCheckbox = document.getElementById('is_vehicle');
+                                        const vehicleFields = document.getElementById('vehicle_fields');
+                                
+                                        isVehicleCheckbox.addEventListener('change', function () {
+                                            if (this.checked) {
+                                                vehicleFields.style.display = 'block';
+                                            } else {
+                                                vehicleFields.style.display = 'none';
+                                            }
+                                        });
+                                        
+                                        const vehicleFileInput = document.getElementById('vehicle_attachment');
+                                        const vehicleDropZone = document.getElementById('vehicle-drop-zone');
+                                        const vehicleFileList = document.getElementById('vehicle-file-list');
+                                        let vehicleUploadedFiles = []; // Change to array
+                                
+                                        function renderVehicleFileList() {
+                                            vehicleFileList.innerHTML = '';
+                                            vehicleUploadedFiles.forEach((file, index) => {
+                                                vehicleFileList.innerHTML += `
+                                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                                        <span>${file.name}</span>
+                                                        <button type="button" class="btn btn-sm btn-danger remove-vehicle-file-btn" data-index="${index}">삭제</button>
+                                                    </div>
+                                                `;
+                                            });
+                                        }
+                                
+                                        function updateVehicleFiles(newFiles) {
+                                            for (let i = 0; i < newFiles.length; i++) {
+                                                const file = newFiles[i];
+                                                // Prevent duplicate files based on name and size
+                                                if (!vehicleUploadedFiles.some(f => f.name === file.name && f.size === file.size)) {
+                                                    vehicleUploadedFiles.push(file);
+                                                }
+                                            }
+                                            // Update the actual file input with the combined list
+                                            const dataTransfer = new DataTransfer();
+                                            vehicleUploadedFiles.forEach(file => dataTransfer.items.add(file));
+                                            vehicleFileInput.files = dataTransfer.files;
+                                
+                                            renderVehicleFileList();
+                                        }
+                                
+                                        vehicleFileInput.addEventListener('change', function(e) {
+                                            if (e.target.files.length > 0) {
+                                                updateVehicleFiles(e.target.files);
+                                                e.target.value = ''; // Clear input to allow re-uploading same file
+                                            }
+                                        });
+                                
+                                        vehicleDropZone.addEventListener('click', function() {
+                                            vehicleFileInput.click();
+                                        });
+                                
+                                        vehicleDropZone.addEventListener('dragover', function(e) {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            vehicleDropZone.classList.add('dragover');
+                                        });
+                                
+                                        vehicleDropZone.addEventListener('dragenter', function(e) {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            vehicleDropZone.classList.add('dragover');
+                                        });
+                                
+                                        vehicleDropZone.addEventListener('dragleave', function(e) {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            vehicleDropZone.classList.remove('dragover');
+                                        });
+                                
+                                        vehicleDropZone.addEventListener('drop', function(e) {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            vehicleDropZone.classList.remove('dragover');
+                                            if (e.dataTransfer.files.length > 0) {
+                                                updateVehicleFiles(e.dataTransfer.files);
+                                            }
+                                        });
+                                
+                                        vehicleFileList.addEventListener('click', function(e) {
+                                            if (e.target.classList.contains('remove-vehicle-file-btn')) {
+                                                const index = e.target.dataset.index;
+                                                vehicleUploadedFiles.splice(index, 1);
+                                                
+                                                // Update the actual file input after removal
+                                                const dataTransfer = new DataTransfer();
+                                                vehicleUploadedFiles.forEach(file => dataTransfer.items.add(file));
+                                                vehicleFileInput.files = dataTransfer.files;
+                                
+                                                renderVehicleFileList();
+                                            }
+                                        });
+                                
+                                        // Initial render in case of pre-existing files (though not expected for 'new' form)
+                                        renderVehicleFileList();
+                                    });
+                                </script>
+                                
+                                
+                                <%- include('../partials/footer') %>

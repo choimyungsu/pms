@@ -1,0 +1,250 @@
+<%- include('../partials/header') %>
+<%- include('../partials/sidebar') %>
+
+<style>
+    /* 테이블 폰트 및 패딩 축소 스타일 */
+    .table-sm-font th, .table-sm-font td {
+        font-size: 0.8rem;
+        padding: 0.3rem;
+    }
+    .nav-tabs .nav-link {
+        font-size: 0.9rem;
+    }
+    /* 가장 작은 버튼(btn-xs) 스타일 정의 */
+    .btn-xs {
+        padding: 0.1rem 0.25rem;
+        font-size: 0.75rem;
+        line-height: 1.5;
+        border-radius: 0.2rem;
+    }
+    /* 활성화된 탭 스타일 */
+    .nav-tabs .nav-link.active {
+        background-color: #d1e7dd; /* 파스텔톤 녹색 */
+        border-color: #b2d8c3;
+        color: #0f5132;
+    }
+    /* 하이라이트 스타일 */
+    mark {
+        background-color: #fff888; /* 노란색 배경 */
+        padding: 0;
+        border-radius: 2px;
+    }
+</style>
+
+<div class="content-wrapper">
+    <section class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <!-- <div class="col-sm-6">
+                    <h1>ISMS 인증기준</h1>
+                </div> -->
+            </div>
+        </div>
+    </section>
+
+    <section class="content">
+        <div class="container-fluid">
+            <% if (user && user.role === 'admin') { %>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card card-primary mb-3">
+                        <div class="card-header">
+                            <h3 class="card-title">ISMS 기준 엑셀 업로드</h3>
+                            <div class="card-tools">
+                                <button type="button" class="btn btn-tool" data-bs-toggle="collapse" data-bs-target="#collapse-isms-upload">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="collapse-isms-upload" class="collapse show">
+                            <form id="uploadForm" action="/isms/upload-excel" method="POST" enctype="multipart/form-data">
+                                <div class="card-body">
+                                    <div class="form-group">
+                                        <label for="ismsExcel">엑셀 파일 선택</label>
+                                        <div class="input-group">
+                                            <div class="custom-file">
+                                                <input type="file" class="custom-file-input" id="ismsExcel" name="ismsExcel" accept=".xlsx, .xls">
+                                                <label class="custom-file-label" for="ismsExcel">파일을 선택하세요</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="deleteExisting" name="deleteExisting" value="true">
+                                        <label class="form-check-label" for="deleteExisting">업로드 시 기존 체크리스트 항목 모두 삭제</label>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <button type="submit" class="btn btn-primary btn-sm">업로드</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-info">
+                        <div class="card-header">
+                            <h3 class="card-title">ISMS 체크리스트 기준 엑셀 업로드</h3>
+                            <div class="card-tools">
+                                <button type="button" class="btn btn-tool" data-bs-toggle="collapse" data-bs-target="#collapse-checklist-upload">
+                                    <i class="fas fa-minus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="collapse-checklist-upload" class="collapse show">
+                            <form id="uploadChecklistForm" action="/isms/upload-checklist-excel" method="POST" enctype="multipart/form-data">
+                                <div class="card-body">
+                                    <div class="form-group">
+                                        <label for="ismsChecklistExcel">엑셀 파일 선택</label>
+                                        <div class="input-group">
+                                            <div class="custom-file">
+                                                <input type="file" class="custom-file-input" id="ismsChecklistExcel" name="ismsChecklistExcel" accept=".xlsx, .xls">
+                                                <label class="custom-file-label" for="ismsChecklistExcel">파일을 선택하세요</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="deleteExistingChecklist" name="deleteExisting" value="true">
+                                        <label class="form-check-label" for="deleteExistingChecklist">업로드 시 해당 항목의 기존 체크리스트 모두 삭제</label>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <button type="submit" class="btn btn-info btn-sm">체크리스트 업로드</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <% } %>
+
+            <div class="card mt-4">
+                <div class="card-header p-0 border-bottom-0">
+                    <div class="d-flex justify-content-between align-items-center p-2">
+                        <ul class="nav nav-tabs" id="isms-tab" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" id="tab1-link" data-bs-toggle="tab" data-bs-target="#tab1" role="tab">관리체계 수립 및 운영 (1.x)</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="tab2-link" data-bs-toggle="tab" data-bs-target="#tab2" role="tab">보호대책 요구사항 (2.x)</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" id="tab3-link" data-bs-toggle="tab" data-bs-target="#tab3" role="tab">개인정보 처리단계별 요구사항 (3.x)</a>
+                            </li>
+                        </ul>
+                        <div class="ms-3">
+                            <input type="text" id="ismsSearch" class="form-control form-control-sm" placeholder="검색...">
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="isms-tab-content">
+                        <!-- Tab 1 -->
+                        <div class="tab-pane fade show active" id="tab1" role="tabpanel">
+                            <table class="table table-bordered table-striped table-sm-font">
+                                <%- include('./_table_head') %>
+                                <tbody>
+                                    <% data.forEach(item => { %>
+                                        <% if (item.gubun_no.startsWith('1.')) { %>
+                                            <%- include('./_table_row', { item: item }) %>
+                                        <% } %>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- Tab 2 -->
+                        <div class="tab-pane fade" id="tab2" role="tabpanel">
+                            <table class="table table-bordered table-striped table-sm-font">
+                                <%- include('./_table_head') %>
+                                <tbody>
+                                    <% data.forEach(item => { %>
+                                        <% if (item.gubun_no.startsWith('2.')) { %>
+                                            <%- include('./_table_row', { item: item }) %>
+                                        <% } %>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- Tab 3 -->
+                        <div class="tab-pane fade" id="tab3" role="tabpanel">
+                            <table class="table table-bordered table-striped table-sm-font">
+                                <%- include('./_table_head') %>
+                                <tbody>
+                                    <% data.forEach(item => { %>
+                                        <% if (item.gubun_no.startsWith('3.')) { %>
+                                            <%- include('./_table_row', { item: item }) %>
+                                        <% } %>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('ismsSearch');
+    if (searchInput) {
+        const allRows = document.querySelectorAll('#isms-tab-content tbody tr');
+        const itemGroups = {};
+
+        // 각 항목(item)별로 행(row)들과 원본 HTML을 그룹화합니다.
+        allRows.forEach(row => {
+            const itemNo = row.dataset.itemNo;
+            if (!itemNo) return;
+            if (!itemGroups[itemNo]) {
+                itemGroups[itemNo] = { rows: [], originalHTMLs: {} };
+            }
+            itemGroups[itemNo].rows.push(row);
+        });
+
+        // 원본 HTML 저장 (초기 한 번만)
+        for (const itemNo in itemGroups) {
+            const group = itemGroups[itemNo];
+            group.rows.forEach(row => {
+                row.querySelectorAll('td').forEach((td, index) => {
+                    const key = `${row.rowIndex}-${index}`;
+                    group.originalHTMLs[key] = td.innerHTML;
+                });
+            });
+        }
+
+        searchInput.addEventListener('keyup', function() {
+            const filter = searchInput.value.trim();
+            const regex = filter ? new RegExp(filter, 'gi') : null;
+
+            // 각 그룹별로 필터링 및 하이라이트 적용
+            for (const itemNo in itemGroups) {
+                const group = itemGroups[itemNo];
+                let groupText = '';
+                group.rows.forEach(row => {
+                    groupText += row.textContent.toLowerCase();
+                });
+
+                const isMatch = !filter || groupText.includes(filter.toLowerCase());
+
+                group.rows.forEach(row => {
+                    row.style.display = isMatch ? '' : 'none';
+                    if (isMatch) {
+                        // 하이라이트 적용
+                        row.querySelectorAll('td').forEach((td, index) => {
+                            const key = `${row.rowIndex}-${index}`;
+                            const originalHtml = group.originalHTMLs[key];
+                            if (filter) {
+                                td.innerHTML = originalHtml.replace(regex, (match) => `<mark>${match}</mark>`);
+                            } else {
+                                td.innerHTML = originalHtml; // 검색어 없으면 원본으로
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    }
+});
+</script>
+
+<%- include('../partials/footer') %>

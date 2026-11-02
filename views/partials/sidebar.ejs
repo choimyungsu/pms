@@ -1,0 +1,347 @@
+
+<aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
+    <div class="sidebar-brand">
+        <a href="/" class="brand-link">
+            <i class="fa-solid fa-gem brand-image opacity-75"></i>
+            <span class="brand-text fw-light"> 제이원아이티</span>
+        </a>
+    </div>
+    <div class="sidebar-wrapper">
+        <nav class="mt-2">
+            <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="menu" data-accordion="false">
+                <li class="nav-item">
+                    <a href="/" class="nav-link <%= (typeof page !== 'undefined' && page === 'dashboard') ? 'active' : '' %>">
+                        <i class="nav-icon fa-solid fa-house"></i>
+                        <p>대시보드</p>
+                    </a>
+                </li>
+                
+                <% if (locals.user && locals.user.role === 'admin') { %>
+                <li class="nav-item <%= (typeof page !== 'undefined' && (page === 'admin_users' || page === 'admin_add_user')) ? 'menu-open' : '' %>">
+                    <a href="#" class="nav-link <%= (typeof page !== 'undefined' && (page === 'admin_users' || page === 'admin_add_user')) ? 'active' : '' %>">
+                        <i class="nav-icon fa-solid fa-users-gear"></i>
+                        <p>
+                            사용자 관리
+                            <i class="right fa-solid fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="/admin/users" class="nav-link <%= (typeof page !== 'undefined' && page === 'admin_users') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>사용자 목록</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/admin/users/add" class="nav-link <%= (typeof page !== 'undefined' && page === 'admin_add_user') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>사용자 추가</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/admin/departments" class="nav-link <%= (typeof page !== 'undefined' && page === 'admin_departments') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>부서 관리</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                <% } %>
+
+                <% if (locals.user && (locals.user.role === 'admin' || locals.user.role === 'operations_manager')) { %>
+                <li class="nav-item <%= (typeof page !== 'undefined' && (page === 'admin_schedule' || page === 'admin_resource_analysis')) ? 'menu-open' : '' %>">
+                    <a href="#" class="nav-link <%= (typeof page !== 'undefined' && (page === 'admin_schedule' || page === 'admin_resource_analysis')) ? 'active' : '' %>">
+                        <i class="nav-icon fa-solid fa-server"></i>
+                        <p>
+                            운영관리
+                            <i class="right fa-solid fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="/admin/schedule" class="nav-link <%= (typeof page !== 'undefined' && page === 'admin_schedule') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>관리자일정</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/admin/resource-analysis" class="nav-link <%= (typeof page !== 'undefined' && page === 'admin_resource_analysis') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>리소스 분석</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/admin/tech-status" class="nav-link <%= (typeof page !== 'undefined' && page === 'tech_status') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>기술본부 현황</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                <% } %>
+
+                <li class="nav-item">
+                    <a href="/search" class="nav-link <%= (typeof page !== 'undefined' && page === 'search') ? 'active' : '' %>">
+                        <i class="nav-icon fa-solid fa-search"></i>
+                        <p>통합 검색</p>
+                    </a>
+                </li>
+
+                <li class="nav-item <%= (typeof page !== 'undefined' && (page === 'schedule' || page === 'weekly_reports' || page === 'issues')) ? 'menu-open' : '' %>">
+                    <a href="#" class="nav-link <%= (typeof page !== 'undefined' && (page === 'schedule' || page === 'weekly_reports' || page === 'issues')) ? 'active' : '' %>">
+                        <i class="nav-icon fa-solid fa-briefcase"></i>
+                        <p>
+                            업무 관리
+                            <i class="right fa-solid fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="/schedule" class="nav-link <%= (typeof page !== 'undefined' && page === 'schedule') ? 'active' : '' %>">
+                                <i class="nav-icon fa-solid fa-calendar-days"></i>
+                                <p>일정 관리</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/weekly-reports" class="nav-link <%= (typeof page !== 'undefined' && page === 'weekly_reports') ? 'active' : '' %>">
+                                <i class="nav-icon fa-solid fa-chart-line"></i>
+                                <p>주간보고</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/issues" class="nav-link <%= (typeof page !== 'undefined' && page === 'issues') ? 'active' : '' %>">
+                                <i class="nav-icon fa-solid fa-bug"></i>
+                                <p>이슈 관리</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <li class="nav-item <%= (typeof page !== 'undefined' && (page === 'project_list' || page === 'project_create' || page === 'project_details')) ? 'menu-open' : '' %>">
+                    <a href="#" class="nav-link <%= (typeof page !== 'undefined' && (page === 'project_list' || page === 'project_create' || page === 'project_details')) ? 'active' : '' %>">
+                        <i class="nav-icon fa-solid fa-tasks"></i>
+                        <p>
+                            프로젝트 관리
+                            <i class="right fa-solid fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="/projects" class="nav-link <%= (typeof page !== 'undefined' && page === 'project_list') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>프로젝트 목록</p>
+                            </a>
+                        </li>
+                        <% if (locals.user && (locals.user.role === 'admin' || locals.user.role === 'operations_manager')) { %>
+                        <li class="nav-item">
+                            <a href="/projects/create" class="nav-link <%= (typeof page !== 'undefined' && page === 'project_create') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>프로젝트 등록</p>
+                            </a>
+                        </li>
+                        <% } %>
+                    </ul>
+                </li>
+
+                        <li class="nav-item">
+                            <a href="/knowledge" class="nav-link <%= (typeof page !== 'undefined' && page === 'knowledge') ? 'active' : '' %>">
+                                <i class="nav-icon fas fa-book"></i>
+                                <p>지식관리</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/checklist" class="nav-link <%= (typeof page !== 'undefined' && page === 'checklist') ? 'active' : '' %>">
+                                <i class="nav-icon fas fa-check-square"></i>
+                                <p>체크리스트</p>
+                            </a>
+                        </li>
+
+                <li class="nav-item <%= (typeof page !== 'undefined' && page === 'maintenance') ? 'menu-open' : '' %>">
+                    <a href="#" class="nav-link <%= (typeof page !== 'undefined' && page === 'maintenance') ? 'active' : '' %>">
+                        <i class="nav-icon fa-solid fa-wrench"></i>
+                        <p>
+                            유지보수 관리
+                            <i class="right fa-solid fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <% if (locals.user && (locals.user.role === 'admin' || locals.user.role === 'operations_manager')) { %>
+                        <li class="nav-item">
+                            <a href="/maintenance" class="nav-link <%= (typeof page !== 'undefined' && page === 'maintenance_detail') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>유지보수(상세)</p>
+                            </a>
+                        </li>
+                        <% } %>
+                        <li class="nav-item">
+                            <a href="/maintenance/summary" class="nav-link <%= (typeof page !== 'undefined' && page === 'maintenance_summary') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>유지보수(요약)</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <li class="nav-item <%= (typeof page !== 'undefined' && (page === 'minutes_create' || page === 'minutes_list')) ? 'menu-open' : '' %>">
+                    <a href="#" class="nav-link <%= (typeof page !== 'undefined' && (page === 'minutes_create' || page === 'minutes_list')) ? 'active' : '' %>">
+                        <i class="nav-icon fa-solid fa-file-lines"></i>
+                        <p>
+                            회의록 관리
+                            <i class="right fa-solid fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="/minutes/create" class="nav-link <%= (typeof page !== 'undefined' && page === 'minutes_create') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>회의록 작성</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/minutes/list" class="nav-link <%= (typeof page !== 'undefined' && page === 'minutes_list') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>회의록 목록</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="/memo" class="nav-link <%= (typeof page !== 'undefined' && page === 'memo') ? 'active' : '' %>">
+                        <i class="nav-icon fa-solid fa-note-sticky"></i>
+                        <p>메모 관리</p>
+                    </a>
+                </li>
+
+                <li class="nav-item <%= (typeof page !== 'undefined' && (page === 'card_register' || page === 'card_list')) ? 'menu-open' : '' %>">
+                    <a href="#" class="nav-link <%= (typeof page !== 'undefined' && (page === 'card_register' || page === 'card_list')) ? 'active' : '' %>">
+                        <i class="nav-icon fa-regular fa-address-card"></i>
+                        <p>
+                            명함 관리
+                            <i class="right fa-solid fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="/cards/register" class="nav-link <%= (typeof page !== 'undefined' && page === 'card_register') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>명함 등록</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/cards/list" class="nav-link <%= (typeof page !== 'undefined' && page === 'card_list') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>명함 목록</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <li class="nav-item <%= (typeof page !== 'undefined' && (page === 'newsletter_create' || page === 'newsletter_list')) ? 'menu-open' : '' %>">
+                    <a href="#" class="nav-link <%= (typeof page !== 'undefined' && (page === 'newsletter_create' || page === 'newsletter_list')) ? 'active' : '' %>">
+                        <i class="nav-icon fa-solid fa-newspaper"></i>
+                        <p>
+                            뉴스레터 관리
+                            <i class="right fa-solid fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="/newsletter/create" class="nav-link <%= (typeof page !== 'undefined' && page === 'newsletter_create') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>뉴스레터 발송</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/newsletter/list" class="nav-link <%= (typeof page !== 'undefined' && page === 'newsletter_list') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>보낸 뉴스레터</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="/isms" class="nav-link <%= (typeof page !== 'undefined' && page === 'isms') ? 'active' : '' %>">
+                        <i class="nav-icon fas fa-shield-alt"></i>
+                        <p>ISMS기준</p>
+                    </a>
+                </li>
+
+                <li class="nav-item <%= (typeof page !== 'undefined' && (page.startsWith('research-log') || page.startsWith('research-projects'))) ? 'menu-open' : '' %>">
+                    <a href="#" class="nav-link <%= (typeof page !== 'undefined' && (page.startsWith('research-log') || page.startsWith('research-projects'))) ? 'active' : '' %>">
+                        <i class="nav-icon fa-solid fa-flask-vial"></i>
+                        <p>
+                            연구일지
+                            <i class="right fa-solid fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="/research-projects" class="nav-link <%= (typeof page !== 'undefined' && page === 'research-projects') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>연구과제 목록</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/research-projects/create" class="nav-link <%= (typeof page !== 'undefined' && page === 'research-projects-create') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>연구과제 등록</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/research-log/create" class="nav-link <%= (typeof page !== 'undefined' && page === 'research-log-create') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>연구일지 작성</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/research-log" class="nav-link <%= (typeof page !== 'undefined' && page === 'research-log') ? 'active' : '' %>">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>연구일지 목록</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <li class="nav-item <%= (typeof page !== 'undefined' && (page === 'exit' || page === 'parking' || page === 'glossary' || page.startsWith('assets'))) ? 'menu-open' : '' %>">
+                    <a href="#" class="nav-link <%= (typeof page !== 'undefined' && (page === 'exit' || page === 'parking' || page === 'glossary' || page.startsWith('assets'))) ? 'active' : '' %>">
+                        <i class="nav-icon fa-solid fa-ellipsis-h"></i>
+                        <p>
+                            기타
+                            <i class="right fa-solid fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="/exit" class="nav-link <%= (typeof page_title !== 'undefined' && page_title === '퇴실관리') ? 'active' : '' %>">
+                                <i class="nav-icon fa-solid fa-door-closed"></i>
+                                <p>퇴실관리</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/parking" class="nav-link <%= (typeof currentPath !== 'undefined' && currentPath === '/parking') ? 'active' : '' %>">
+                                <i class="nav-icon fa-solid fa-parking"></i>
+                                <p>주차지원</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/glossary" class="nav-link <%= (typeof page !== 'undefined' && page === 'glossary') ? 'active' : '' %>">
+                                <i class="nav-icon fa-solid fa-book-open"></i>
+                                <p>용어사전</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="/assets" class="nav-link <%= (typeof page !== 'undefined' && page.startsWith('assets')) ? 'active' : '' %>">
+                                <i class="nav-icon fa-solid fa-archive"></i>
+                                <p>자산 관리</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</aside>
+
+

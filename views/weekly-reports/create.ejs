@@ -1,0 +1,99 @@
+<%- include('../partials/header', { page: 'weekly-reports' }) %>
+<%- include('../partials/sidebar', { page: 'weekly-reports' }) %>
+
+<main class="app-main">
+  <div class="app-content-header">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-sm-6">
+          <h3 class="mb-0">주간보고서 작성</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="app-content">
+    <div class="container-fluid">
+      <div class="card">
+        <div class="card-header">
+          <h4>주간보고서 작성</h4>
+        </div>
+        <div class="card-body">
+                        <% if (error && error.length > 0) { %>
+                            <div class="alert alert-danger"><%= error %></div>
+                        <% } %>
+                        <% if (success && success.length > 0) { %>
+                            <div class="alert alert-success"><%= success %></div>
+                        <% } %>
+                        <form action="/weekly-reports" method="POST">
+                            <div class="form-group">
+                                <label for="reportWeek">보고 주차</label>
+                                <select class="form-control" id="reportWeek" name="reportWeek">
+                                    <% reportWeekOptions.forEach(function(option) { %>
+                                        <option value="<%= option %>" <%= option === reportWeek ? 'selected' : '' %>><%= option %></option>
+                                    <% }); %>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="previousWeekPerformance">전주 실적 (<%= prevWeekStart %> ~ <%= prevWeekEnd %>)</label>
+                                <textarea class="form-control" id="previousWeekPerformance" name="previousWeekPerformance" rows="10" required><%= formattedPreviousWeekPerformance %></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="currentWeekPlan">금주 계획 (<%= currWeekStart %> ~ <%= currWeekEnd %>)</label>
+                                <textarea class="form-control" id="currentWeekPlan" name="currentWeekPlan" rows="10" required><%= formattedCurrentWeekPlan %></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="nextWeekPlan">다음주 계획 (<%= nextWeekStart %> ~ <%= nextWeekEnd %>)</label>
+                                <textarea class="form-control" id="nextWeekPlan" name="nextWeekPlan" rows="10"><%= formattedNextWeekPlan %></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">저장</button>
+                        </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<%- include('../partials/footer') %>
+
+<style>
+.weekly-reports-page @media (max-width: 768px) {
+  #split-row {
+    flex-direction: column;  /* 세로 배치로 변경 */
+  }
+  #tree-col {
+    flex: none;
+    width: 100%;
+    max-width: none;
+    margin-bottom: 1rem;
+  }
+  #splitter-bar {
+    display: none;  /* 모바일에서는 splitter 숨김 */
+  }
+  #right-col {
+    flex: none;
+    width: 100%;
+  }
+  .card-tools {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .card-tools .btn {
+    margin-bottom: 0.25rem;
+  }
+  #category-search-input {
+    width: 100% !important;
+    margin-top: 0.5rem;
+  }
+  .table-responsive {
+    font-size: 0.875rem;
+  }
+  .table-responsive th,
+  .table-responsive td {
+    padding: 0.5rem 0.25rem;
+  }
+  .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+}
+</style>
