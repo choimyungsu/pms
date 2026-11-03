@@ -90,6 +90,30 @@ UPDATE tb_maintenance_summary_items i
 - 제조사·버전은 빈 값 저장 시 `NULL` 처리
 - 하위 호환: 기존 `POST /maintenance/patch/save-versions` (버전 전용) 경로도 그대로 동작
 
+### 4-2. 라인 선택 → 품목 추가 (행추가)
+
+기존 유지보수(요약)에 등록된 **고객사 라인을 선택하고, 그 라인에 품목 행을 추가**하는 기능입니다.
+
+| 항목 | 내용 |
+|---|---|
+| 라인 선택 | 목록의 행(tr)을 클릭하면 선택됩니다. 선택된 행은 파란 배경(`.row-selected`)으로 강조되고 툴바에 고객사명이 표시됩니다. |
+| 선택 해제 | 같은 행을 다시 클릭하거나 다른 행을 클릭하면 이동/해제됩니다. (편집 input·체크박스·버튼 클릭은 선택으로 처리하지 않음) |
+| 진입 | **품목 추가** 버튼 (라인 미선택 시 비활성) → 모달 오픈 |
+| 모달 - 고객사 | `tb_maintenance_summary` 목록을 select 로 표시. 선택한 라인이 자동 지정되며, 다른 고객사로 변경도 가능 |
+| 모달 - 행추가 | **행 추가** 버튼으로 입력 행을 계속 늘릴 수 있음 (Enter 로도 다음 행 이동 / 마지막 행에서는 새 행 생성) |
+| 입력 항목 | 품목명(필수) · 제조사 · 버전 · 상세내용 — 기존 값은 `datalist` 로 자동완성 |
+| 요청 | `POST /maintenance/patch/add-item` · `{ summary_id, items: [{item_name, manufacturer, item_version, item_detail}] }` |
+| 서버 검증 | `summary_id` 존재 확인(404) · 품목명 필수(누락 행만 제외하고 나머지 추가, 전부 누락 시 400) · 255자 절단 |
+| 컬럼 대응 | DB에 `manufacturer` / `item_version` 컬럼이 없어도 존재하는 컬럼만 골라 INSERT |
+| 결과 | `{ success, added, firstId, ids, invalidRows, message }` · 성공 시 목록을 새로고침해 추가된 행이 바로 보임 |
+| XSS | 모달 입력 행은 `createElement` / `textContent` 로만 생성 (innerHTML 미사용) |
+
+동작 예시
+1. 목록에서 `A고객사` 라인 클릭 → 툴바에 `A고객사` 표시, **품목 추가** 활성화
+2. 모달에서 **행 추가** 두 번 → 입력 행 3개
+3. `FortiGate 100F / Fortinet / v7.0.12 / 방화벽` 등 입력 후 **추가**
+4. `3건의 품목을 추가했습니다.` 알림 → 목록 갱신, 해당 고객사에 3행 추가됨
+
 ## 5. 스키마 자동 점검
 
 `utils/patchSchema.js` — `INFORMATION_SCHEMA` 로 존재 여부 확인 후 없을 때만 `ALTER` (idempotent)
@@ -119,6 +143,7 @@ UPDATE tb_maintenance_summary_items i
 | POST | `/maintenance/patch/toggle/:id` | 개별 패치필요 토글 (JSON) |
 | POST | `/maintenance/patch/save-fields` | 품목/제조사/버전 복수행 일괄 저장 (JSON body `{rows:[{id,item_name?,manufacturer?,item_version?}]}`) |
 | POST | `/maintenance/patch/save-versions` | 하위 호환 — 버전 전용 저장 (내부적으로 save-fields 와 동일 핸들러) |
+| POST | `/maintenance/patch/add-item` | 선택한 고객사(라인)에 품목 추가 (JSON body `{summary_id, items:[{item_name,manufacturer,item_version,item_detail}]}`) |
 | POST | `/maintenance/patch/reset` | 전체 초기화 |
 | GET | `/maintenance/patch/download-excel` | 엑셀 다운로드 (현재 필터 반영) |
 | GET | `/maintenance/patch/options` | 조건 옵션 목록 (JSON) |

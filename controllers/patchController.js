@@ -145,20 +145,34 @@ const SELECT_ROW = `
 `;
 
 async function loadOptions() {
-    const [[itemRows], [versionRows], [customerRows]] = await Promise.all([
+    const [[itemRows], [versionRows], [customerRows], [manufacturerRows]] = await Promise.all([
         db.query(`SELECT DISTINCT item_name AS v FROM tb_maintenance_summary_items
                    WHERE item_name IS NOT NULL AND item_name <> '' ORDER BY item_name`),
         db.query(`SELECT DISTINCT item_version AS v FROM tb_maintenance_summary_items
                    WHERE item_version IS NOT NULL AND item_version <> '' ORDER BY item_version`),
         db.query(`SELECT DISTINCT customer_company AS v FROM tb_maintenance_summary
-                   WHERE customer_company IS NOT NULL AND customer_company <> '' ORDER BY customer_company`)
+                   WHERE customer_company IS NOT NULL AND customer_company <> '' ORDER BY customer_company`),
+        db.query(`SELECT DISTINCT manufacturer AS v FROM tb_maintenance_summary_items
+                   WHERE manufacturer IS NOT NULL AND manufacturer <> '' ORDER BY manufacturer`)
     ]);
 
     return {
         itemOptions: itemRows.map((r) => r.v),
         versionOptions: versionRows.map((r) => r.v),
-        customerOptions: customerRows.map((r) => r.v)
+        customerOptions: customerRows.map((r) => r.v),
+        manufacturerOptions: manufacturerRows.map((r) => r.v)
     };
+}
+
+// 품목을 추가할 대상(고객사 라인) 목록 — 목록 화면의 "품목 추가" 모달에서 사용
+async function loadSummaryOptions() {
+    const [rows] = await db.query(
+        `SELECT s.id, s.customer_company, s.project_name,
+                (SELECT COUNT(*) FROM tb_maintenance_summary_items i WHERE i.summary_id = s.id) AS item_count
+           FROM tb_maintenance_summary s
+          ORDER BY s.customer_company ASC, s.id ASC`
+    );
+    return rows;
 }
 
 /* ------------------------------------------------------------------ */
@@ -191,6 +205,7 @@ exports.getPatchList = async (req, res) => {
         );
 
         const options = await loadOptions();
+        const summaryOptions = await loadSummaryOptions();
 
         // 표시 컬럼 (순서 포함) — 화면과 엑셀이 같은 정의를 사용
         const columnKeys = patchColumns.resolveColumns(filters.cols);
@@ -231,6 +246,8 @@ exports.getPatchList = async (req, res) => {
             itemOptions: options.itemOptions,
             versionOptions: options.versionOptions,
             customerOptions: options.customerOptions,
+            manufacturerOptions: options.manufacturerOptions,
+            summaryOptions,
             currentPage,
             totalPages,
             totalRecords,
@@ -567,6 +584,131 @@ exports.saveItemFields = async (req, res) => {
 
 // 하위 호환: 버전만 저장하던 기존 엔드포인트
 exports.saveItemVersions = exports.saveItemFields;
+
+/* ------------------------------------------------------------------ */
+/* 품목 추가 (선택한 고객사 라인에 행추가)                              */
+/* ------------------------------------------------------------------ */
+
+const ADDABLE_FIELDS = [
+    { key: 'item_name', column: 'item_name' },
+    { key: 'manufacturer', column: 'manufacturer' },
+    { key: 'item_version', column: 'item_version' },
+    { key: 'item_detail', column: 'item_detail' }
+];
+
+// 요청 본문에서 추가할 품목 행들을 정규화 (단일 입력 / 복수 행 모두 지원)
+function normalizeNewItems(body) {
+    const source = body || {};
+    let raw = source.items;
+
+    if (typeof raw === 'string') {
+        const trimmed = raw.trim();
+        if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+            try { raw = JSON.parse(trimmed); } catch (e) { raw = null; }
+        } else {
+            raw = null;
+        }
+    }
+
+    let list = [];
+    if (Array.isArray(raw)) list = raw;
+    else if (raw && typeof raw === 'object') list = [raw];
+    else if (source.item_name !== undefined || source.item_version !== undefined) list = [source];
+
+    const invalidRows = [];
+    const items = [];
+
+    list.slice(0, MAX_IN_LIST).forEach((row, idx) => {
+        if (!row || typeof row !== 'object') return;
+        const values = {};
+        ADDABLE_FIELDS.forEach((def) => {
+            const v = row[def.key];
+            values[def.key] = (v === null || v === undefined) ? '' : String(v).trim().slice(0, 255);
+        });
+        if (values.item_name === '') {
+            invalidRows.push(idx + 1);
+            return;
+        }
+        items.push(values);
+    });
+
+    return { items, invalid: invalidRows };
+}
+
+exports.addItem = async (req, res) => {
+    try {
+        const body = req.body || {};
+        const summaryId = parseInt(
+            req.query.summary_id || req.body.summary_id || req.body.summaryId,
+            10
+        );
+
+        if (!Number.isInteger(summaryId) || summaryId <= 0) {
+            return res.status(400).json({ success: false, message: '품목을 추가할 고객사를 선택해 주세요.' });
+        }
+
+        const { items, invalid } = normalizeNewItems(req.body);
+
+        if (items.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: '품목명은 필수 입력 항목입니다. 품목명을 입력해 주세요.',
+                invalidRows: invalid
+            });
+        }
+
+        // 대상 고객사(라인) 존재 확인
+        const [summaryRows] = await db.query(
+            'SELECT id, customer_company FROM tb_maintenance_summary WHERE id = ?',
+            [summaryId]
+        );
+        if (summaryRows.length === 0) {
+            return res.status(404).json({ success: false, message: '선택한 고객사를 찾을 수 없습니다. 화면을 새로고침 후 다시 시도해 주세요.' });
+        }
+
+        // 컬럼 존재 여부에 따라 안전하게 INSERT (제조사/버전 미적용 DB 대응)
+        const [columnRows] = await db.query(
+            `SELECT LOWER(COLUMN_NAME) AS c
+               FROM INFORMATION_SCHEMA.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'tb_maintenance_summary_items'`
+        );
+        const available = new Set(columnRows.map((r) => r.c));
+        const targets = ADDABLE_FIELDS.filter(
+            (def) => def.key === 'item_name' || available.has(def.column.toLowerCase())
+        );
+
+        const columns = ['summary_id', ...targets.map((t) => t.column)];
+        const values = items.map((item) => [
+            summaryId,
+            ...targets.map((t) => (t.key === 'item_name' ? item.item_name : (item[t.key] || null)))
+        ]);
+
+        const [result] = await db.query(
+            `INSERT INTO tb_maintenance_summary_items (${columns.map((c) => `\`${c}\``).join(', ')}) VALUES ?`,
+            [values]
+        );
+
+        const added = Number(result.affectedRows) || items.length;
+        const firstId = Number(result.insertId) || null;
+
+        return res.json({
+            success: true,
+            added,
+            invalidRows: invalid,
+            summaryId,
+            customerCompany: summaryRows[0].customer_company || '',
+            firstId,
+            ids: firstId ? Array.from({ length: added }, (_, i) => firstId + i) : [],
+            message: invalid.length
+                ? `${added}건을 추가했습니다. (품목명이 비어 있는 ${invalid.length}건은 제외)`
+                : `${added}건의 품목을 추가했습니다.`
+        });
+    } catch (error) {
+        console.error('[patch] addItem error:', error);
+        return res.status(500).json({ success: false, message: '품목 추가 중 오류가 발생했습니다.' });
+    }
+};
 
 /* ------------------------------------------------------------------ */
 /* 엑셀 다운로드                                                        */

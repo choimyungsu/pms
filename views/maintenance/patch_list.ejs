@@ -70,6 +70,15 @@
     .patch-table th.col-dragover { background-color: #e7f1ff !important; box-shadow: inset 2px 0 0 #0d6efd; }
     .column-picker-menu { min-width: 320px; max-height: 440px; overflow-y: auto; }
     .col-hint { font-size: .78rem; }
+    /* 라인(행) 선택 → 품목 추가 */
+    .patch-table tbody tr[data-row-id] { cursor: pointer; }
+    .patch-table tbody tr.row-selected > td { background-color: #e7f1ff !important; box-shadow: inset 2px 0 0 #0d6efd; }
+    .patch-table tr.patch-needed.row-selected > td { background-color: #fff0c2 !important; }
+    .selection-info { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+    .add-item-row { transition: border-color .15s ease-in-out, background-color .15s ease-in-out; }
+    .add-item-row .form-label { font-size: .78rem; margin-bottom: .15rem; }
+    .add-item-row.is-invalid-name { border-color: #dc3545 !important; background-color: #fff5f5 !important; }
+    .add-item-row .row-index { font-size: .75rem; }
     @media (max-width: 991.98px) {
         .condition-group { border-right: 0; border-bottom: 1px solid rgba(0,0,0,.1); padding-bottom: .75rem; }
     }
@@ -275,6 +284,10 @@
                         <button type="button" class="btn btn-outline-secondary btn-sm" id="revertFieldsBtn" disabled title="편집 중인 값을 되돌립니다">
                             <i class="fa-solid fa-rotate-left me-1"></i>되돌리기
                         </button>
+                        <span class="selection-info text-muted small" id="selectionInfo" title="선택된 고객사(라인)">선택된 라인 없음</span>
+                        <button type="button" class="btn btn-outline-success btn-sm" id="addItemBtn" disabled title="목록에서 고객사 라인을 먼저 클릭하세요">
+                            <i class="fa-solid fa-plus me-1"></i>품목 추가
+                        </button>
                         <div class="btn-group btn-group-sm">
                             <a href="<%= buildUrl('1') %>" class="btn btn-<%= filters.patch === '1' ? 'danger' : 'outline-danger' %>">패치필요만</a>
                             <a href="<%= buildUrl('0') %>" class="btn btn-<%= filters.patch === '0' ? 'success' : 'outline-success' %>">패치불필요만</a>
@@ -320,7 +333,11 @@
                                 </tr>
                                 <% } %>
                                 <% rows.forEach(function (r, idx) { %>
-                                <tr class="<%= Number(r.patch_required) === 1 ? 'patch-needed' : '' %>" data-row-id="<%= r.id %>">
+                                <tr class="row-selectable <%= Number(r.patch_required) === 1 ? 'patch-needed' : '' %>"
+                                    data-row-id="<%= r.id %>"
+                                    data-summary-id="<%= r.summary_id %>"
+                                    data-customer="<%= r.customer_company || '' %>"
+                                    title="클릭하면 이 고객사(라인)를 선택합니다">
                                     <td class="text-center"><%= (currentPage - 1) * 30 + idx + 1 %></td>
                                     <% columns.forEach(function (col) { %>
                                     <% if (col.editable) { %>
@@ -383,6 +400,66 @@
 
         </div>
     </div>
+
+    <!-- 품목 추가 모달 (선택한 고객사 라인에 품목 행 추가) -->
+    <div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addItemModalLabel">
+                        <i class="fa-solid fa-plus me-1"></i>품목 추가
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="addItemSummary" class="form-label fw-semibold">고객사 (라인) <span class="text-danger">*</span></label>
+                        <select class="form-select" id="addItemSummary">
+                            <option value="">고객사를 선택하세요</option>
+                            <% summaryOptions.forEach(function (s) { %>
+                            <option value="<%= s.id %>" data-customer="<%= s.customer_company || '' %>" data-project="<%= s.project_name || '' %>">
+                                <%= s.customer_company || '(고객사 없음)' %><% if (s.project_name) { %> · <%= s.project_name %><% } %> (품목 <%= Number(s.item_count) || 0 %>건)
+                            </option>
+                            <% }) %>
+                        </select>
+                        <div class="form-text">목록에서 라인을 클릭하면 해당 고객사가 자동으로 선택됩니다.</div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="fw-semibold">추가할 품목</div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="addItemRowBtn">
+                            <i class="fa-solid fa-plus me-1"></i>행 추가
+                        </button>
+                    </div>
+
+                    <div id="addItemRows"></div>
+
+                    <div class="text-muted small mt-2">
+                        <i class="fa-solid fa-circle-info me-1"></i>
+                        품목명은 필수입니다. 추가된 품목은 목록에서 바로 수정할 수 있습니다.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <span class="text-muted small me-auto" id="addItemHint">0건 입력</span>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" id="addItemSubmitBtn">
+                        <i class="fa-solid fa-plus me-1"></i>추가
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 품목 추가 폼에서 사용할 datalist (기존 값 재사용) -->
+    <datalist id="dlItemNames">
+        <% itemOptions.forEach(function (v) { %><option value="<%= v %>"></option><% }) %>
+    </datalist>
+    <datalist id="dlManufacturers">
+        <% manufacturerOptions.forEach(function (v) { %><option value="<%= v %>"></option><% }) %>
+    </datalist>
+    <datalist id="dlVersions">
+        <% versionOptions.forEach(function (v) { %><option value="<%= v %>"></option><% }) %>
+    </datalist>
 </main>
 
 <%- include('../partials/footer') %>
@@ -879,5 +956,332 @@
 
     // 최초 로드 시 링크에 현재 컬럼 순서를 반영
     syncColsParam(currentKeys());
+})();
+</script>
+
+
+<script>
+/* ------------------------------------------------------------------
+ * 라인 선택 + 품목 추가 (행추가)
+ *
+ *  1) 목록의 행(고객사 라인)을 클릭하면 선택되고, "품목 추가" 버튼이 활성화됩니다.
+ *  2) 모달에서 "행 추가" 로 여러 품목을 한 번에 입력할 수 있습니다.
+ *     POST /maintenance/patch/add-item  →  { summary_id, items: [ {item_name, manufacturer, item_version, item_detail} ] }
+ *  3) 추가 성공 시 목록을 다시 불러와 새 행이 바로 보이도록 합니다.
+ *
+ *  ※ 입력은 항상 .value 로만 읽고, 화면 표시는 createElement/textContent 로 처리합니다.
+ * ------------------------------------------------------------------ */
+(function () {
+    const table = document.getElementById('patchTable');
+    const addBtn = document.getElementById('addItemBtn');
+    const selectionInfo = document.getElementById('selectionInfo');
+    const modalEl = document.getElementById('addItemModal');
+
+    if (!table || !addBtn || !modalEl) return;
+
+    const summarySelect = modalEl.querySelector('#addItemSummary');
+    const rowsBox = modalEl.querySelector('#addItemRows');
+    const addRowBtn = modalEl.querySelector('#addItemRowBtn');
+    const submitBtn = modalEl.querySelector('#addItemSubmitBtn');
+    const hint = modalEl.querySelector('#addItemHint');
+
+    let activeRow = null;
+    let modal = null;
+    if (window.bootstrap && window.bootstrap.Modal) {
+        modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+    }
+
+    function notify(type, message) {
+        if (window.showNotification) window.showNotification(type, message);
+        else alert(message);
+    }
+
+    /* ------------------------- 라인 선택 ------------------------- */
+
+    function clearSelection() {
+        table.querySelectorAll('tbody tr.row-selected').forEach(function (tr) {
+            tr.classList.remove('row-selected');
+        });
+        activeRow = null;
+        addBtn.disabled = true;
+        addBtn.setAttribute('title', '목록에서 고객사 라인을 먼저 클릭하세요');
+        if (selectionInfo) {
+            selectionInfo.textContent = '선택된 라인 없음';
+            selectionInfo.setAttribute('title', '선택된 고객사(라인)');
+        }
+    }
+
+    function selectRow(tr) {
+        table.querySelectorAll('tbody tr[data-row-id]').forEach(function (other) {
+            other.classList.toggle('row-selected', other === tr);
+        });
+
+        activeRow = tr;
+        addBtn.disabled = false;
+        addBtn.setAttribute('title', '선택한 라인에 품목을 추가합니다');
+
+        const customer = tr.getAttribute('data-customer') || '(고객사 없음)';
+        if (selectionInfo) {
+            selectionInfo.textContent = customer;
+            selectionInfo.setAttribute('title', customer);
+        }
+    }
+
+    table.addEventListener('click', function (e) {
+        const tr = e.target.closest('tbody tr[data-row-id]');
+        if (!tr) return;
+        // 편집 입력/체크박스/버튼 클릭은 라인 선택으로 처리하지 않음
+        if (e.target.closest('input, textarea, select, a, button, label')) return;
+        if (tr === activeRow) clearSelection();
+        else selectRow(tr);
+    });
+
+    clearSelection();
+
+    /* ---------------------- 모달 입력 행 ------------------------- */
+
+    const FIELDS = [
+        { field: 'item_name', label: '품목명', required: true, col: 'col-md-3', list: 'dlItemNames', placeholder: '예) FortiGate 100F' },
+        { field: 'manufacturer', label: '제조사', required: false, col: 'col-md-3', list: 'dlManufacturers', placeholder: '예) Fortinet' },
+        { field: 'item_version', label: '버전', required: false, col: 'col-md-3', list: 'dlVersions', placeholder: '예) v7.0.12' },
+        { field: 'item_detail', label: '상세내용', required: false, col: 'col-md-3', list: null, placeholder: '예) 방화벽' }
+    ];
+
+    function rowsList() {
+        return Array.prototype.slice.call(rowsBox.querySelectorAll('[data-add-row]'));
+    }
+
+    function renumberRows() {
+        const rows = rowsBox.querySelectorAll('[data-add-row]');
+        Array.prototype.forEach.call(rows, function (row, i) {
+            const idx = row.querySelector('.row-index');
+            if (idx) idx.textContent = '품목 ' + (i + 1);
+        });
+        if (submitBtn) submitBtn.disabled = rows.length === 0;
+        if (hint) hint.textContent = rows.length + '건 입력';
+    }
+
+    function createRow(focus) {
+        const wrap = document.createElement('div');
+        wrap.className = 'add-item-row border rounded p-2 mb-2';
+        wrap.setAttribute('data-add-row', '');
+
+        // 머리글: 순번 + 삭제
+        const head = document.createElement('div');
+        head.className = 'd-flex justify-content-between align-items-center mb-1';
+
+        const idx = document.createElement('span');
+        idx.className = 'row-index text-muted fw-semibold';
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'btn btn-link btn-sm text-danger p-0';
+        remove.setAttribute('data-remove-row', '');
+        remove.textContent = '삭제';
+        remove.addEventListener('click', function () {
+            wrap.remove();
+            if (rowsList().length === 0) createRow(false);
+            renumberRows();
+        });
+
+        head.appendChild(idx);
+        head.appendChild(remove);
+        wrap.appendChild(head);
+
+        // 입력 4칸
+        const grid = document.createElement('div');
+        grid.className = 'row g-2';
+
+        FIELDS.forEach(function (def) {
+            const cell = document.createElement('div');
+            cell.className = def.col;
+
+            const label = document.createElement('label');
+            label.className = 'form-label';
+            label.textContent = def.label;
+            if (def.required) {
+                const star = document.createElement('span');
+                star.className = 'text-danger';
+                star.textContent = ' *';
+                label.appendChild(star);
+            }
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-control form-control-sm';
+            input.setAttribute('data-field', def.field);
+            input.setAttribute('maxlength', '255');
+            input.setAttribute('autocomplete', 'off');
+            if (def.placeholder) input.setAttribute('placeholder', def.placeholder);
+            if (def.list) input.setAttribute('list', def.list);
+            input.addEventListener('input', function () {
+                input.classList.remove('is-invalid');
+                wrap.classList.remove('is-invalid-name');
+                updateSubmitState();
+            });
+
+            cell.appendChild(label);
+            cell.appendChild(input);
+            grid.appendChild(cell);
+        });
+
+        wrap.appendChild(grid);
+
+        // Enter: 다음 행 이동 / 마지막 행이면 새 행 추가
+        wrap.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            const rows = rowsList();
+            const pos = rows.indexOf(wrap);
+            if (pos >= 0 && pos < rows.length - 1) {
+                const next = rows[pos + 1].querySelector('[data-field="item_name"]');
+                if (next) next.focus();
+            } else {
+                const created = createRow(true);
+                const next = created.querySelector('[data-field="item_name"]');
+                if (next) next.focus();
+            }
+        });
+
+        rowsBox.appendChild(wrap);
+        renumberRows();
+
+        if (focus) {
+            const first = wrap.querySelector('[data-field="item_name"]');
+            if (first) first.focus();
+        }
+        updateSubmitState();
+        return wrap;
+    }
+
+    function valueOf(row, field) {
+        const input = row.querySelector('[data-field="' + field + '"]');
+        return input ? input.value.trim() : '';
+    }
+
+    function readRows() {
+        const items = [];
+        const invalid = [];
+
+        rowsList().forEach(function (row, i) {
+            const item = {
+                item_name: valueOf(row, 'item_name'),
+                manufacturer: valueOf(row, 'manufacturer'),
+                item_version: valueOf(row, 'item_version'),
+                item_detail: valueOf(row, 'item_detail')
+            };
+            const blank = !item.item_name && !item.manufacturer && !item.item_version && !item.item_detail;
+            if (blank) return; // 완전히 빈 행은 전송하지 않음
+
+            if (!item.item_name) {
+                invalid.push({ index: i, row: row });
+                return;
+            }
+            items.push(item);
+        });
+
+        return { items: items, invalid: invalid };
+    }
+
+    function updateSubmitState() {
+        if (!submitBtn) return;
+        const parsed = readRows();
+        // 입력값이 하나라도 있으면 버튼은 활성화하고, 검증은 클릭 시점에 안내합니다.
+        submitBtn.disabled = parsed.items.length === 0 && parsed.invalid.length === 0;
+    }
+
+    if (addRowBtn) {
+        addRowBtn.addEventListener('click', function () { createRow(true); });
+    }
+
+    /* ------------------- 모달 열기 / 닫기 ------------------------ */
+
+    function activeSummaryId() {
+        return activeRow ? (activeRow.getAttribute('data-summary-id') || '') : '';
+    }
+
+    function openModal() {
+        rowsBox.innerHTML = '';
+        createRow(false);
+
+        if (summarySelect) {
+            summarySelect.value = activeSummaryId();
+            summarySelect.classList.remove('is-invalid');
+        }
+        renumberRows();
+        updateSubmitState();
+
+        if (modal) modal.show();
+        else modalEl.classList.add('show');
+    }
+
+    addBtn.addEventListener('click', function () {
+        if (!activeRow) {
+            notify('warning', '목록에서 품목을 추가할 고객사 라인을 먼저 클릭해 주세요.');
+            return;
+        }
+        openModal();
+    });
+
+    /* ------------------------- 저장 ----------------------------- */
+
+    if (submitBtn) {
+        submitBtn.addEventListener('click', async function () {
+            const summaryId = summarySelect ? summarySelect.value : '';
+            if (!summaryId) {
+                if (summarySelect) summarySelect.classList.add('is-invalid');
+                notify('error', '품목을 추가할 고객사를 선택해 주세요.');
+                return;
+            }
+
+            const parsed = readRows();
+            if (parsed.invalid.length > 0) {
+                parsed.invalid.forEach(function (entry) {
+                    entry.row.classList.add('is-invalid-name');
+                    const input = entry.row.querySelector('[data-field="item_name"]');
+                    if (input) input.classList.add('is-invalid');
+                });
+                const first = parsed.invalid[0].row.querySelector('[data-field="item_name"]');
+                if (first) first.focus();
+                notify('error', '품목명은 필수 입력 항목입니다. 입력 후 다시 시도해 주세요.');
+                return;
+            }
+            if (parsed.items.length === 0) {
+                notify('warning', '추가할 품목을 1건 이상 입력해 주세요.');
+                return;
+            }
+
+            const originalLabel = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>추가 중...';
+
+            try {
+                const res = await fetch('/maintenance/patch/add-item', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ summary_id: summaryId, items: parsed.items })
+                });
+
+                const text = await res.text();
+                let data = {};
+                try { data = JSON.parse(text); } catch (e) { data = { success: false, message: '응답을 해석할 수 없습니다.' }; }
+
+                if (!res.ok || !data.success) {
+                    throw new Error(data.message || '품목 추가에 실패했습니다.');
+                }
+
+                if (modal) modal.hide();
+                notify('success', data.message || '품목을 추가했습니다.');
+
+                // 목록 갱신 → 추가된 품목 행이 바로 보임
+                setTimeout(function () { window.location.reload(); }, 200);
+            } catch (err) {
+                notify('error', err.message || '품목 추가 중 오류가 발생했습니다.');
+                submitBtn.disabled = false;
+            } finally {
+                submitBtn.innerHTML = originalLabel;
+            }
+        });
+    }
 })();
 </script>

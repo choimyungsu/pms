@@ -16,6 +16,9 @@ router.post('/patch/toggle/:id', isAuthenticated, patchController.togglePatchReq
 // 품목 / 제조사 / 버전 복수행 일괄 저장 (AJAX)
 router.post('/patch/save-fields', isAuthenticated, patchController.saveItemFields);
 
+// 선택한 고객사(라인)에 품목 행 추가 (AJAX)
+router.post('/patch/add-item', isAuthenticated, patchController.addItem);
+
 // 하위 호환: 버전만 저장하던 기존 경로
 router.post('/patch/save-versions', isAuthenticated, patchController.saveItemVersions);
 
