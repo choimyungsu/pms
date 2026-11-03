@@ -15,13 +15,29 @@
 
 ## 2. 화면 구성
 
-- **목록 테이블: 고객사 / 품목 / 제조사 / 버전 / 패치필요** (요청사항)
-  - **품목 / 제조사 / 버전 3개 셀 모두 인라인 편집 input** — 여러 행을 동시에 수정하고 "변경사항 저장" 으로 일괄 반영
-  - 품목 셀 하단에 상세내용(`item_detail`, 읽기 전용) 표시
+- **목록 테이블 기본 순서: 제조사 → 품목 → 버전 → 고객사 → 패치필요**
+  - **제조사 / 품목 / 버전 3개 셀 모두 인라인 편집 input** — 여러 행을 동시에 수정하고 "변경사항 저장" 으로 일괄 반영
+  - **헤더를 드래그하면 컬럼 순서를 변경**할 수 있습니다 (헤더와 모든 행의 셀이 함께 이동)
+  - **"컬럼 선택" 드롭다운**에서 표시할 항목을 체크하면 해당 컬럼이 나타납니다 (정엔지니어, 부엔지니어, 점검방식, 점검장소 등)
+  - 품목 상세내용(`item_detail`)은 "컬럼 선택"에서 켜면 별도 컬럼으로 표시
   - 버전 셀 하단에 판정자·판정일 표시
 - 상단 요약: 전체 품목 / 전체 패치필요 / 조회 결과 / 조회 결과 중 패치필요
 - 조건 설정: **고객사 / 품목 / 버전 복수 선택**(multiple select, Ctrl·Shift+클릭) + 실시간 미리보기
 - 액션: 조건 항목 체크 / 조건 기준 재설정 / 조건 항목 체크 해제 / 패치필요·불필요 필터 / **엑셀 다운로드** / 전체 초기화
+
+### 2-1. 컬럼 표시 · 순서 변경
+
+| 항목 | 내용 |
+|---|---|
+| 컬럼 정의 | `utils/patchColumns.js` 한 곳에서 관리 (화면 · 엑셀 공용) |
+| 기본 표시 | `manufacturer` → `item_name` → `item_version` → `customer_company` → `patch_required` |
+| 선택 항목 | 정엔지니어(`main_engineer`), 부엔지니어, 점검방식, 점검장소, 영업담당, 구분, 사업명, 상세내용, 유지보수 기간, 고객담당자/연락처/이메일, 판정일시/판정자/판정조건, 비고 |
+| 필수 컬럼 | `patch_required` — 체크 해제 불가(disabled) |
+| 순서 변경 | 헤더 `th` HTML5 드래그&드롭. 헤더·본문 셀을 함께 이동하므로 편집 중 값도 유지 |
+| 전달 방식 | `?cols=제조사key,품목key,...` (콤마 구분) — 필터·페이지네이션/엑셀 링크에 자동 반영 |
+| 기억 | 변경된 순서는 `localStorage`(`patch:cols`)에 저장되어 재방문 시 복원 (컬럼 집합이 같을 때만) |
+| 기본값 복원 | "컬럼 선택" → **기본값** 버튼 (localStorage 삭제 + `cols` 파라미터 제거) |
+| 엑셀 | 화면과 **동일한 컬럼·순서**로 내려받기 (`download-excel?cols=...`) |
 
 ## 3. 패치필요 판정 로직
 
@@ -97,7 +113,7 @@ UPDATE tb_maintenance_summary_items i
 
 | Method | Path | 설명 |
 |---|---|---|
-| GET | `/maintenance/patch` | 목록 (search, items[], versions[], customers[], patch, page) |
+| GET | `/maintenance/patch` | 목록 (search, items[], versions[], customers[], patch, page, **cols**) |
 | GET | `/maintenance/patch/preview-count` | 조건 매칭 건수 미리보기 (JSON) |
 | POST | `/maintenance/patch/apply-condition` | 조건 적용 (mode=check/replace/uncheck) |
 | POST | `/maintenance/patch/toggle/:id` | 개별 패치필요 토글 (JSON) |
@@ -107,9 +123,13 @@ UPDATE tb_maintenance_summary_items i
 | GET | `/maintenance/patch/download-excel` | 엑셀 다운로드 (현재 필터 반영) |
 | GET | `/maintenance/patch/options` | 조건 옵션 목록 (JSON) |
 
-## 7. 엑셀 컬럼
+## 7. 엑셀 다운로드
 
-**고객사, 품목, 제조사, 버전, 패치필요(O), 판정일시, 판정자, 판정 조건**, 사업명, 상세내용, 담당자(정), 담당자(부), 유지보수 시작일, 유지보수 종료일
+화면에 표시된 컬럼과 **동일한 순서/구성**으로 출력됩니다 (`?cols=...` 를 그대로 전달).
+
+- 기본: `제조사 · 품목 · 버전 · 고객사 · 패치필요` (화면 순서 그대로)
+- "컬럼 선택"으로 추가한 항목(정엔지니어, 점검방식, 판정일시 등)도 엑셀에 함께 포함
+- 값 변환: `patch_required` → `O`/공백, 날짜는 `YYYY-MM-DD`, 일시는 `YYYY-MM-DD HH:mm`
 
 ## 8. 라우트 등록 순서 주의
 

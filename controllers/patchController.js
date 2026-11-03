@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const xlsx = require('xlsx');
+const patchColumns = require('../utils/patchColumns');
 
 /**
  * 패치관리 (Patch Management)
@@ -37,13 +38,16 @@ function placeholders(arr) {
 function normalizeFilters(query) {
     // body/query 가 undefined 인 경우(예: body 없이 호출되는 POST) 안전하게 처리
     const source = query || {};
+    const cols = Array.isArray(source.cols) ? source.cols.join(',') : source.cols;
     return {
         search: (source.search || '').toString().trim(),
         items: toArray(source.items),
         versions: toArray(source.versions),
         customers: toArray(source.customers),
         patch: ['1', '0'].includes(source.patch) ? source.patch : '',
-        activeOnly: source.active_only === '1'
+        activeOnly: source.active_only === '1',
+        // 표시 컬럼(순서 포함). 비어 있으면 기본 컬럼 구성이 사용됩니다.
+        cols: (cols || '').toString().trim()
     };
 }
 
@@ -125,6 +129,7 @@ function queryFromFilters(filters, extra = {}) {
     filters.customers.forEach((v) => sp.append('customers', v));
     if (filters.patch) sp.set('patch', filters.patch);
     if (filters.activeOnly) sp.set('active_only', '1');
+    if (filters.cols) sp.set('cols', filters.cols);
     Object.entries(extra).forEach(([k, v]) => {
         if (v !== undefined && v !== null && v !== '') sp.set(k, v);
     });
@@ -132,25 +137,9 @@ function queryFromFilters(filters, extra = {}) {
     return s ? `?${s}` : '';
 }
 
+// 컬럼 정의는 utils/patchColumns.js 한 곳에서 관리 (화면 / 엑셀 공용)
 const SELECT_ROW = `
-    SELECT
-        i.id,
-        i.summary_id,
-        i.item_name,
-        i.manufacturer,
-        i.item_version,
-        i.item_detail,
-        COALESCE(i.patch_required, 0) AS patch_required,
-        i.patch_required_at,
-        i.patch_required_by,
-        i.patch_condition,
-        s.customer_company,
-        s.project_name,
-        s.division,
-        s.main_engineer,
-        s.sub_engineer,
-        s.maintenance_start_date,
-        s.maintenance_end_date
+    ${patchColumns.selectClause()}
       FROM tb_maintenance_summary_items i
       JOIN tb_maintenance_summary s ON s.id = i.summary_id
 `;
@@ -203,6 +192,17 @@ exports.getPatchList = async (req, res) => {
 
         const options = await loadOptions();
 
+        // 표시 컬럼 (순서 포함) — 화면과 엑셀이 같은 정의를 사용
+        const columnKeys = patchColumns.resolveColumns(filters.cols);
+        const columns = columnKeys.map((k) => patchColumns.describe(k)).filter(Boolean);
+        const allColumns = patchColumns.COLUMNS.map((c) => patchColumns.describe(c.key));
+        const columnGroups = patchColumns.GROUPS;
+        const columnCatalog = columnGroups.map((g) => ({
+            key: g.key,
+            label: g.label,
+            columns: allColumns.filter((c) => c.group === g.key)
+        }));
+
         const [[filteredSummary]] = await db.query(
             `SELECT COUNT(*) AS total,
                     SUM(CASE WHEN COALESCE(i.patch_required,0) = 1 THEN 1 ELSE 0 END) AS required_count
@@ -225,6 +225,9 @@ exports.getPatchList = async (req, res) => {
             page: 'maintenance_patch',
             rows,
             filters,
+            columns,
+            columnCatalog,
+            columnKeys,
             itemOptions: options.itemOptions,
             versionOptions: options.versionOptions,
             customerOptions: options.customerOptions,
@@ -581,13 +584,6 @@ exports.downloadPatchExcel = async (req, res) => {
             params
         );
 
-        const header = [
-            '고객사', '품목', '제조사', '버전',
-            '패치필요', '판정일시', '판정자', '판정 조건',
-            '사업명', '상세내용', '담당자(정)', '담당자(부)',
-            '유지보수 시작일', '유지보수 종료일'
-        ];
-
         const pad = (n) => String(n).padStart(2, '0');
         const toYmd = (v) => {
             if (!v) return '';
@@ -602,30 +598,25 @@ exports.downloadPatchExcel = async (req, res) => {
             return `${toYmd(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
         };
 
-        const data = rows.map((r) => [
-            r.customer_company || '',
-            r.item_name || '',
-            r.manufacturer || '',
-            r.item_version || '',
-            Number(r.patch_required) === 1 ? 'O' : '',
-            toYmdHm(r.patch_required_at),
-            r.patch_required_by || '',
-            r.patch_condition || '',
-            r.project_name || '',
-            r.item_detail || '',
-            r.main_engineer || '',
-            r.sub_engineer || '',
-            toYmd(r.maintenance_start_date),
-            toYmd(r.maintenance_end_date)
-        ]);
+        // 화면과 동일한 컬럼 정의(순서 포함)를 사용
+        const columnKeys = patchColumns.resolveColumns(filters.cols);
+        const columns = columnKeys.map((k) => patchColumns.describe(k)).filter(Boolean);
+
+        const header = columns.map((col) => col.label);
+
+        const cellValue = (row, col) => {
+            const raw = row[col.key];
+            if (col.type === 'patch') return Number(raw) === 1 ? 'O' : '';
+            if (col.type === 'date') return toYmd(raw);
+            if (col.type === 'datetime') return toYmdHm(raw);
+            if (raw === null || raw === undefined) return '';
+            return String(raw);
+        };
+
+        const data = rows.map((r) => columns.map((col) => cellValue(r, col)));
 
         const ws = xlsx.utils.aoa_to_sheet([header, ...data]);
-        ws['!cols'] = [
-            { wch: 22 }, { wch: 20 }, { wch: 16 }, { wch: 16 },
-            { wch: 10 }, { wch: 18 }, { wch: 14 }, { wch: 40 },
-            { wch: 24 }, { wch: 24 }, { wch: 14 }, { wch: 14 },
-            { wch: 14 }, { wch: 14 }
-        ];
+        ws['!cols'] = columns.map((col) => ({ wch: Math.max(10, Math.round((col.width || 120) / 8)) }));
 
         const wb = xlsx.utils.book_new();
         xlsx.utils.book_append_sheet(wb, ws, '패치관리');

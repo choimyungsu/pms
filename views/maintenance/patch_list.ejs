@@ -8,11 +8,37 @@
     filters.customers.forEach(function (v) { baseParams.append('customers', v); });
     filters.items.forEach(function (v) { baseParams.append('items', v); });
     filters.versions.forEach(function (v) { baseParams.append('versions', v); });
+    if (filters.cols) baseParams.set('cols', filters.cols);
     const buildUrl = function (patchVal) {
         const p = new URLSearchParams(baseParams.toString());
         if (patchVal) p.set('patch', patchVal);
         const s = p.toString();
         return '/maintenance/patch' + (s ? '?' + s : '');
+    };
+
+    // 컬럼 렌더링 헬퍼
+    const pad2 = function (n) { return String(n).padStart(2, '0'); };
+    const fmtDate = function (v) {
+        if (!v) return '';
+        const d = new Date(v);
+        if (isNaN(d.getTime())) return String(v);
+        return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    };
+    const fmtDateTime = function (v) {
+        if (!v) return '';
+        const d = new Date(v);
+        if (isNaN(d.getTime())) return String(v);
+        return fmtDate(d) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    };
+    const colSpan = columns.length + 1;
+
+    // 읽기 전용 컬럼 값 표시
+    const textValue = function (r, col) {
+        const raw = r[col.key];
+        if (col.type === 'date') return fmtDate(raw) || '-';
+        if (col.type === 'datetime') return fmtDateTime(raw) || '-';
+        if (raw === null || raw === undefined || raw === '') return '-';
+        return String(raw);
     };
 %>
 
@@ -36,6 +62,14 @@
     tr.row-dirty > td { background-color: #fffdf3; }
     .dirty-badge { display: none; }
     .dirty-badge.show { display: inline-block; }
+    /* 컬럼 이동(드래그) */
+    .patch-table th.col-head { cursor: grab; user-select: none; white-space: nowrap; }
+    .patch-table th.col-head:active { cursor: grabbing; }
+    .patch-table th.col-head .col-drag-handle { color: #adb5bd; margin-right: .25rem; font-size: .8em; }
+    .patch-table th.col-dragging { opacity: .35; }
+    .patch-table th.col-dragover { background-color: #e7f1ff !important; box-shadow: inset 2px 0 0 #0d6efd; }
+    .column-picker-menu { min-width: 320px; max-height: 440px; overflow-y: auto; }
+    .col-hint { font-size: .78rem; }
     @media (max-width: 991.98px) {
         .condition-group { border-right: 0; border-bottom: 1px solid rgba(0,0,0,.1); padding-bottom: .75rem; }
     }
@@ -188,10 +222,52 @@
                         <% filters.items.forEach(function (v) { %><input type="hidden" name="items" value="<%= v %>"><% }) %>
                         <% filters.versions.forEach(function (v) { %><input type="hidden" name="versions" value="<%= v %>"><% }) %>
                         <% if (filters.patch) { %><input type="hidden" name="patch" value="<%= filters.patch %>"><% } %>
+                        <input type="hidden" name="cols" id="searchColsInput" value="<%= columns.map(function (c) { return c.key; }).join(',') %>">
                         <button type="submit" class="btn btn-default btn-sm"><i class="fas fa-search"></i></button>
                     </form>
 
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <!-- 컬럼 표시/순서 선택 -->
+                        <div class="dropdown">
+                            <button type="button" class="btn btn-outline-dark btn-sm dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" id="columnPickerBtn">
+                                <i class="fa-solid fa-table-columns me-1"></i>컬럼 선택
+                                <span class="badge text-bg-secondary ms-1" id="columnCountBadge"><%= columns.length %></span>
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-end column-picker-menu p-0" id="columnPickerMenu">
+                                <div class="px-3 py-2 border-bottom bg-light">
+                                    <div class="fw-semibold small">표시할 항목 선택</div>
+                                    <div class="text-muted col-hint">체크 후 적용하면 컬럼이 표시됩니다. 헤더를 드래그하면 순서를 바꿀 수 있습니다.</div>
+                                </div>
+                                <div class="p-2" id="columnPickerList">
+                                    <% columnCatalog.forEach(function (group) { %>
+                                    <div class="mb-2">
+                                        <div class="text-uppercase text-muted fw-semibold px-1" style="font-size:.72rem; letter-spacing:.03em;"><%= group.label %></div>
+                                        <% group.columns.forEach(function (col) { %>
+                                        <div class="form-check">
+                                            <input class="form-check-input col-toggle" type="checkbox"
+                                                   id="colchk-<%= col.key %>"
+                                                   value="<%= col.key %>"
+                                                   data-key="<%= col.key %>"
+                                                   data-order="<%= columnKeys.indexOf(col.key) %>"
+                                                   <%= columnKeys.indexOf(col.key) >= 0 ? 'checked' : '' %>
+                                                   <%= col.key === 'patch_required' ? 'disabled' : '' %>>
+                                            <label class="form-check-label col-hint" for="colchk-<%= col.key %>">
+                                                <%= col.label %>
+                                                <% if (col.key === 'patch_required') { %><span class="badge text-bg-light border ms-1">필수</span><% } %>
+                                                <% if (col.editable) { %><span class="badge text-bg-info text-dark ms-1">편집</span><% } %>
+                                            </label>
+                                        </div>
+                                        <% }) %>
+                                    </div>
+                                    <% }) %>
+                                </div>
+                                <div class="px-2 py-2 border-top bg-light d-flex gap-2">
+                                    <button type="button" class="btn btn-primary btn-sm flex-grow-1" id="applyColumnsBtn">적용</button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="resetColumnsBtn" title="기본 컬럼 구성으로 되돌립니다">기본값</button>
+                                </div>
+                            </div>
+                        </div>
+
                         <span class="badge text-bg-warning dirty-badge" id="dirtyBadge">변경 0건</span>
                         <button type="button" class="btn btn-primary btn-sm" id="saveFieldsBtn" disabled>
                             <i class="fa-solid fa-floppy-disk me-1"></i>변경사항 저장
@@ -218,73 +294,65 @@
 
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-bordered table-hover patch-table mb-0">
+                        <table class="table table-bordered table-hover patch-table mb-0" id="patchTable">
                             <thead class="table-light">
-                                <tr>
-                                    <th style="width:64px;">NO</th>
-                                    <th style="width:150px;">고객사</th>
-                                    <th style="width:180px;">품목</th>
-                                    <th style="width:170px;">제조사</th>
-                                    <th style="width:200px;">버전</th>
-                                    <th style="width:110px;" class="text-center">패치필요</th>
+                                <tr id="patchHeadRow">
+                                    <th style="width:64px;" class="text-center">NO</th>
+                                    <% columns.forEach(function (col, ci) { %>
+                                    <th class="col-head <%= col.type === 'patch' ? 'text-center' : '' %> <%= col.align === 'center' ? 'text-center' : '' %>"
+                                        draggable="true"
+                                        data-col-key="<%= col.key %>"
+                                        data-col-index="<%= ci %>"
+                                        title="드래그하여 컬럼 순서를 변경할 수 있습니다"
+                                        style="width:<%= col.width %>px;">
+                                        <i class="fa-solid fa-grip-vertical col-drag-handle"></i><%= col.label %>
+                                        <% if (col.editable) { %><i class="fa-solid fa-pen-to-square ms-1 text-muted" style="font-size:.72em;"></i><% } %>
+                                    </th>
+                                    <% }) %>
                                 </tr>
                             </thead>
                             <tbody>
                                 <% if (rows.length === 0) { %>
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">
+                                    <td colspan="<%= colSpan %>" class="text-center text-muted py-4">
                                         조회된 대상이 없습니다. 유지보수(요약)에 품목과 버전을 먼저 등록해 주세요.
                                     </td>
                                 </tr>
                                 <% } %>
                                 <% rows.forEach(function (r, idx) { %>
                                 <tr class="<%= Number(r.patch_required) === 1 ? 'patch-needed' : '' %>" data-row-id="<%= r.id %>">
-                                    <td><%= (currentPage - 1) * 30 + idx + 1 %></td>
-                                    <td><%= r.customer_company || '-' %></td>
-                                    <td>
+                                    <td class="text-center"><%= (currentPage - 1) * 30 + idx + 1 %></td>
+                                    <% columns.forEach(function (col) { %>
+                                    <% if (col.editable) { %>
+                                    <td data-col-key="<%= col.key %>" class="<%= col.align === 'center' ? 'text-center' : '' %>">
                                         <input type="text"
-                                               class="form-control form-control-sm field-input field-item_name"
+                                               class="form-control form-control-sm field-input field-<%= col.key %>"
                                                data-id="<%= r.id %>"
-                                               data-field="item_name"
-                                               data-original="<%= r.item_name || '' %>"
-                                               value="<%= r.item_name || '' %>"
-                                               placeholder="품목명 입력"
+                                               data-field="<%= col.key %>"
+                                               data-original="<%= r[col.key] || '' %>"
+                                               value="<%= r[col.key] || '' %>"
+                                               placeholder="<%= col.label %> 입력"
                                                autocomplete="off">
-                                        <% if (r.item_detail) { %>
-                                        <div class="text-muted small mt-1"><%= r.item_detail %></div>
-                                        <% } %>
-                                    </td>
-                                    <td>
-                                        <input type="text"
-                                               class="form-control form-control-sm field-input field-manufacturer"
-                                               data-id="<%= r.id %>"
-                                               data-field="manufacturer"
-                                               data-original="<%= r.manufacturer || '' %>"
-                                               value="<%= r.manufacturer || '' %>"
-                                               placeholder="제조사 입력"
-                                               autocomplete="off">
-                                    </td>
-                                    <td>
-                                        <input type="text"
-                                               class="form-control form-control-sm field-input field-item_version"
-                                               data-id="<%= r.id %>"
-                                               data-field="item_version"
-                                               data-original="<%= r.item_version || '' %>"
-                                               value="<%= r.item_version || '' %>"
-                                               placeholder="버전 입력"
-                                               autocomplete="off">
-                                        <% if (Number(r.patch_required) === 1 && r.patch_condition) { %>
-                                        <div class="text-muted small mt-1" title="<%= r.patch_condition %>">
+                                        <% if (col.key === 'item_version' && Number(r.patch_required) === 1 && r.patch_condition) { %>
+                                        <div class="text-muted small mt-1" id="cond-note-<%= r.id %>" title="<%= r.patch_condition %>">
                                             <%= r.patch_required_by || '' %>
                                             <%= r.patch_required_at ? '(' + String(r.patch_required_at).slice(0, 10) + ')' : '' %>
                                         </div>
                                         <% } %>
                                     </td>
-                                    <td class="patch-cell">
+                                    <% } else if (col.type === 'patch') { %>
+                                    <td data-col-key="<%= col.key %>" class="patch-cell">
                                         <input type="checkbox" class="form-check-input patch-check"
                                                data-id="<%= r.id %>"
                                                <%= Number(r.patch_required) === 1 ? 'checked' : '' %>>
                                     </td>
+                                    <% } else { %>
+                                    <td data-col-key="<%= col.key %>" class="<%= col.align === 'center' ? 'text-center' : '' %> <%= col.type === 'date' || col.type === 'datetime' ? 'text-nowrap' : '' %>"
+                                        title="<%= textValue(r, col) %>">
+                                        <%= textValue(r, col) %>
+                                    </td>
+                                    <% } %>
+                                    <% }) %>
                                 </tr>
                                 <% }) %>
                             </tbody>
@@ -604,5 +672,212 @@
     });
 
     refreshDirtyState();
+})();
+</script>
+
+<script>
+/* ------------------------------------------------------------------
+ * 컬럼 순서(드래그) / 표시 항목 선택
+ *
+ *  - 헤더(th)를 드래그하면 헤더와 각 행의 셀을 함께 이동시켜 정렬을 유지합니다.
+ *  - 변경된 순서는 `cols` 파라미터로 모든 내부 링크(필터/페이지/엑셀)에 반영됩니다.
+ *  - 표시 항목 변경은 서버 렌더링이 필요하므로 "적용" 시 페이지를 이동합니다.
+ * ------------------------------------------------------------------ */
+(function () {
+    const STORAGE_KEY = 'patch:cols';
+    const table = document.getElementById('patchTable');
+    const headRow = document.getElementById('patchHeadRow');
+    const pickerList = document.getElementById('columnPickerList');
+    const applyBtn = document.getElementById('applyColumnsBtn');
+    const resetBtn = document.getElementById('resetColumnsBtn');
+    const countBadge = document.getElementById('columnCountBadge');
+    const searchColsInput = document.getElementById('searchColsInput');
+
+    if (!table || !headRow) return;
+
+    const headCells = function () {
+        return Array.from(headRow.querySelectorAll('th.col-head'));
+    };
+
+    function currentKeys() {
+        return headCells().map(function (th) { return th.dataset.colKey; });
+    }
+
+    /* --- `cols` 파라미터를 링크/히든필드에 반영 --- */
+    function syncColsParam(keys) {
+        const joined = keys.join(',');
+
+        if (searchColsInput) searchColsInput.value = joined;
+
+        document.querySelectorAll('a[href*="/maintenance/patch"]').forEach(function (a) {
+            const raw = a.getAttribute('href');
+            if (!raw) return;
+            const url = new URL(raw, window.location.origin);
+            if (url.pathname === '/maintenance/patch' || url.pathname === '/maintenance/patch/download-excel') {
+                url.searchParams.set('cols', joined);
+                a.setAttribute('href', url.pathname + '?' + url.searchParams.toString());
+            }
+        });
+
+        try { localStorage.setItem(STORAGE_KEY, joined); } catch (e) { /* ignore */ }
+        if (countBadge) countBadge.textContent = keys.length;
+    }
+
+    /* --- 헤더 + 본문 셀을 새 순서로 재배치 (DOM 노드 이동 → 이벤트/입력값 보존) ---
+     *  셀도 data-col-key 로 매핑하므로 여러 번 드래그해도 순서가 어긋나지 않습니다.
+     */
+    function applyOrder(keys) {
+        const ths = headCells();
+        const byKey = {};
+        ths.forEach(function (th) { byKey[th.dataset.colKey] = th; });
+
+        // 새 순서에 없는(존재하지 않는) key 는 무시
+        const orderedKeys = keys.filter(function (k) { return Boolean(byKey[k]); });
+        if (orderedKeys.length !== ths.length) return; // 불완전한 순서는 적용하지 않음
+
+        // 헤더 재배치
+        orderedKeys.forEach(function (k) { headRow.appendChild(byKey[k]); });
+
+        // 각 행의 셀 재배치 (0번 셀은 NO, 나머지는 data-col-key 로 매핑)
+        Array.from(table.querySelectorAll('tbody tr[data-row-id]')).forEach(function (tr) {
+            const cells = Array.from(tr.children);
+            if (!cells.length) return;
+
+            const noCell = cells[0];
+            const cellByKey = {};
+            cells.slice(1).forEach(function (td) {
+                const k = td.dataset.colKey;
+                if (k) cellByKey[k] = td;
+            });
+
+            const frag = document.createDocumentFragment();
+            frag.appendChild(noCell);
+            orderedKeys.forEach(function (k) {
+                if (cellByKey[k]) frag.appendChild(cellByKey[k]);
+            });
+
+            while (tr.firstChild) tr.removeChild(tr.firstChild);
+            tr.appendChild(frag);
+        });
+
+        syncColsParam(orderedKeys);
+    }
+
+    /* --- 드래그 & 드롭 --- */
+    let dragKey = null;
+
+    headRow.addEventListener('dragstart', function (e) {
+        const th = e.target.closest('th.col-head');
+        if (!th) return;
+        dragKey = th.dataset.colKey;
+        th.classList.add('col-dragging');
+        if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            try { e.dataTransfer.setData('text/plain', dragKey); } catch (err) { /* ignore */ }
+        }
+    });
+
+    headRow.addEventListener('dragover', function (e) {
+        const th = e.target.closest('th.col-head');
+        if (!th || !dragKey || th.dataset.colKey === dragKey) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+
+        headCells().forEach(function (h) { h.classList.remove('col-dragover'); });
+        th.classList.add('col-dragover');
+    });
+
+    headRow.addEventListener('dragleave', function (e) {
+        const th = e.target.closest('th.col-head');
+        if (th) th.classList.remove('col-dragover');
+    });
+
+    headRow.addEventListener('drop', function (e) {
+        const target = e.target.closest('th.col-head');
+        if (!target || !dragKey || target.dataset.colKey === dragKey) return;
+        e.preventDefault();
+
+        const keys = currentKeys();
+        const from = keys.indexOf(dragKey);
+        const to = keys.indexOf(target.dataset.colKey);
+        if (from < 0 || to < 0) return;
+
+        // 대상 셀의 좌/우 절반을 기준으로 앞/뒤 삽입
+        const rect = target.getBoundingClientRect();
+        const insertAfter = e.clientX > rect.left + rect.width / 2;
+
+        keys.splice(from, 1);
+        let insertAt = keys.indexOf(target.dataset.colKey);
+        if (insertAfter) insertAt += 1;
+        keys.splice(insertAt, 0, dragKey);
+
+        applyOrder(keys);
+        dragKey = null;
+    });
+
+    headRow.addEventListener('dragend', function () {
+        dragKey = null;
+        headCells().forEach(function (h) {
+            h.classList.remove('col-dragging');
+            h.classList.remove('col-dragover');
+        });
+    });
+
+    /* --- 컬럼 선택 적용 --- */
+    if (applyBtn && pickerList) {
+        applyBtn.addEventListener('click', function () {
+            const checked = Array.from(pickerList.querySelectorAll('.col-toggle:checked'))
+                .map(function (cb) { return cb.value; });
+
+            if (checked.length === 0) {
+                alert('최소 1개 이상의 항목을 선택해 주세요.');
+                return;
+            }
+
+            // 현재 화면 순서를 우선 유지하고, 새로 추가된 항목은 뒤에 붙인다.
+            const visible = currentKeys();
+            const ordered = visible.filter(function (k) { return checked.indexOf(k) !== -1; });
+            checked.forEach(function (k) {
+                if (ordered.indexOf(k) === -1) ordered.push(k);
+            });
+
+            const url = new URL(window.location.href);
+            url.searchParams.set('cols', ordered.join(','));
+            url.searchParams.delete('page');
+            window.location.href = url.pathname + '?' + url.searchParams.toString();
+        });
+    }
+
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function () {
+            try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+            const url = new URL(window.location.href);
+            url.searchParams.delete('cols');
+            url.searchParams.delete('page');
+            const qs = url.searchParams.toString();
+            window.location.href = url.pathname + (qs ? '?' + qs : '');
+        });
+    }
+
+    /* --- 저장된 순서 복원 (동일한 컬럼 집합일 때만) --- */
+    (function restoreStoredOrder() {
+        let stored = null;
+        try { stored = localStorage.getItem(STORAGE_KEY); } catch (e) { return; }
+        if (!stored) return;
+
+        const storedKeys = stored.split(',').filter(Boolean);
+        const now = currentKeys();
+        if (storedKeys.length !== now.length) return;
+
+        // 같은 컬럼 집합인지 확인 (순서만 다를 수 있음)
+        const sortedStored = storedKeys.slice().sort().join(',');
+        const sortedNow = now.slice().sort().join(',');
+        if (sortedStored !== sortedNow) return;
+
+        applyOrder(storedKeys);
+    })();
+
+    // 최초 로드 시 링크에 현재 컬럼 순서를 반영
+    syncColsParam(currentKeys());
 })();
 </script>
