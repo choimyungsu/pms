@@ -40,6 +40,15 @@
         if (raw === null || raw === undefined || raw === '') return '-';
         return String(raw);
     };
+
+    // 실제 데이터가 없는 셀인지 판별 (빈 값은 작고 옅은 회색으로 구분 표시)
+    const isEmptyValue = function (r, col) {
+        const raw = r[col.key];
+        if (col.type === 'date') return !fmtDate(raw);
+        if (col.type === 'datetime') return !fmtDateTime(raw);
+        if (raw === null || raw === undefined) return true;
+        return String(raw).trim() === '';
+    };
 %>
 
 <style>
@@ -47,6 +56,44 @@
     .patch-table { font-size: 0.85rem; }
     .patch-table th, .patch-table td { vertical-align: middle; }
     .patch-table td.patch-cell { text-align: center; }
+
+    /* ── 실제 데이터가 없는 셀: 작고 옅은 회색으로 명확히 구분 ── */
+    .patch-table td.cell-empty {
+        color: #c6ccd2;
+        font-size: .7rem;
+        font-style: italic;
+        letter-spacing: .01em;
+        user-select: none;
+        white-space: nowrap;
+    }
+    .patch-table tr:hover td.cell-empty { color: #aeb6bd; }
+
+    /* 편집 가능한 칸이 비어 있을 때도 작고 옅은 회색으로 */
+    .patch-table .field-input::placeholder {
+        color: #cbd1d7;
+        font-size: .7rem;
+        font-style: italic;
+        opacity: 1;
+    }
+    .patch-table .field-input::-webkit-input-placeholder {
+        color: #cbd1d7;
+        font-size: .7rem;
+        font-style: italic;
+    }
+    .patch-table .field-input.is-empty {
+        background-color: #fcfcfd;
+        border-color: #e8ebee;
+        color: #c6ccd2;
+        font-size: .74rem;
+        font-style: italic;
+    }
+    .patch-table .field-input.is-empty:focus {
+        background-color: #fff;
+        border-color: #86b7fe;
+        color: #212529;
+        font-size: .82rem;
+        font-style: normal;
+    }
     .patch-needed { background-color: #fff3cd !important; }
     .patch-check { width: 18px; height: 18px; cursor: pointer; }
     .condition-group { border-right: 1px solid rgba(0,0,0,.1); }
@@ -349,14 +396,15 @@
                                     <td class="text-center"><%= (currentPage - 1) * 30 + idx + 1 %></td>
                                     <% columns.forEach(function (col) { %>
                                     <% if (col.editable) { %>
+                                    <% var _inpEmpty = (r[col.key] === null || r[col.key] === undefined || String(r[col.key]).trim() === ''); %>
                                     <td data-col-key="<%= col.key %>" class="<%= col.align === 'center' ? 'text-center' : '' %>">
                                         <input type="text"
-                                               class="form-control form-control-sm field-input field-<%= col.key %>"
+                                               class="form-control form-control-sm field-input field-<%= col.key %> <%= _inpEmpty ? 'is-empty' : '' %>"
                                                data-id="<%= r.id %>"
                                                data-field="<%= col.key %>"
                                                data-original="<%= r[col.key] || '' %>"
                                                value="<%= r[col.key] || '' %>"
-                                               placeholder="<%= col.label %> 입력"
+                                               placeholder="<%= col.label %> 없음"
                                                autocomplete="off">
                                         <% if (col.key === 'item_version' && Number(r.patch_required) === 1 && r.patch_condition) { %>
                                         <div class="text-muted small mt-1" id="cond-note-<%= r.id %>" title="<%= r.patch_condition %>">
@@ -372,9 +420,10 @@
                                                <%= Number(r.patch_required) === 1 ? 'checked' : '' %>>
                                     </td>
                                     <% } else { %>
-                                    <td data-col-key="<%= col.key %>" class="<%= col.align === 'center' ? 'text-center' : '' %> <%= col.type === 'date' || col.type === 'datetime' ? 'text-nowrap' : '' %>"
-                                        title="<%= textValue(r, col) %>">
-                                        <%= textValue(r, col) %>
+                                    <% var _empty = isEmptyValue(r, col); %>
+                                    <td data-col-key="<%= col.key %>" class="<%= col.align === 'center' ? 'text-center' : '' %> <%= col.type === 'date' || col.type === 'datetime' ? 'text-nowrap' : '' %> <%= _empty ? 'cell-empty' : '' %>"
+                                        title="<%= _empty ? '데이터 없음' : textValue(r, col) %>">
+                                        <%= _empty ? '없음' : textValue(r, col) %>
                                     </td>
                                     <% } %>
                                     <% }) %>
@@ -874,6 +923,8 @@
             const dirty = isDirty(input);
             input.classList.toggle('is-dirty', dirty);
             input.classList.toggle('is-invalid-name', isInvalid(input));
+            // 값이 비어 있으면 작고 옅은 회색 스타일 유지/해제
+            input.classList.toggle('is-empty', input.value.trim() === '');
             if (dirty) dirtyIds.add(idOf(input));
         });
 
