@@ -204,7 +204,142 @@ exports.getTechStatusPage = async (req, res) => {
         });
         // --- 일정 현황 로직 종료 ---
 
+        // --- 엔지니어 스킬(유지보수 담당 이력) 집계 시작 ---
+        // tb_maintenance 의 정/부 엔지니어는 자유 입력 이름 문자열이므로
+        // 공백·대소문자를 제거해 기술본부 인원(tb_user.name)과 매칭한다.
+        let engineerSkills = [];
+        let unmatchedEngineers = [];
+        let skillTotals = { engineers: 0, records: 0, skills: 0, manufacturers: 0 };
+        try {
+            const [maintenanceRows] = await db.query(`
+                SELECT id, customer_company, project_name, manufacturer, item, model,
+                       main_engineer, sub_engineer, maintenance_end_date, closed_at
+                FROM tb_maintenance
+            `);
 
+            const nameKey = (value) => String(value == null ? '' : value).replace(/\s+/g, '').toLowerCase();
+
+            const memberByKey = new Map();
+            resourceMembers.forEach(member => memberByKey.set(nameKey(member.name), member));
+
+            const skillByMember = new Map();
+            resourceMembers.forEach(member => {
+                skillByMember.set(member.id, {
+                    id: member.id,
+                    name: member.name,
+                    departmentName: member.department_name || '기술본부',
+                    totalCount: 0,
+                    mainCount: 0,
+                    subCount: 0,
+                    skills: new Map()
+                });
+            });
+
+            const unmatched = new Map();
+
+            const addSkill = (rawName, role, row) => {
+                const key = nameKey(rawName);
+                if (!key) return;
+
+                const member = memberByKey.get(key);
+                if (!member) {
+                    // 기술본부 소속이 아닌(또는 미등록) 엔지니어 이름
+                    if (!unmatched.has(key)) {
+                        unmatched.set(key, { name: String(rawName).trim(), count: 0 });
+                    }
+                    unmatched.get(key).count += 1;
+                    return;
+                }
+
+                const bucket = skillByMember.get(member.id);
+                bucket.totalCount += 1;
+                if (role === 'main') bucket.mainCount += 1;
+                else bucket.subCount += 1;
+
+                const manufacturer = String(row.manufacturer || '').trim();
+                const item = String(row.item || '').trim();
+                const model = String(row.model || '').trim();
+                const skillKey = [manufacturer, item, model].join('||');
+
+                if (!bucket.skills.has(skillKey)) {
+                    bucket.skills.set(skillKey, {
+                        manufacturer: manufacturer || '-',
+                        item: item || '-',
+                        model: model || '-',
+                        count: 0,
+                        asMain: 0,
+                        asSub: 0,
+                        customers: new Set(),
+                        endDates: []
+                    });
+                }
+
+                const skill = bucket.skills.get(skillKey);
+                skill.count += 1;
+                if (role === 'main') skill.asMain += 1;
+                else skill.asSub += 1;
+                if (row.customer_company) skill.customers.add(String(row.customer_company).trim());
+                if (row.maintenance_end_date) skill.endDates.push(String(row.maintenance_end_date));
+            };
+
+            maintenanceRows.forEach(row => {
+                addSkill(row.main_engineer, 'main', row);
+                addSkill(row.sub_engineer, 'sub', row);
+            });
+
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            engineerSkills = Array.from(skillByMember.values()).map(bucket => {
+                const skills = Array.from(bucket.skills.values()).map(skill => {
+                    const endDates = skill.endDates.slice().sort();
+                    const lastEndDate = endDates.length ? endDates[endDates.length - 1] : null;
+                    return {
+                        manufacturer: skill.manufacturer,
+                        item: skill.item,
+                        model: skill.model,
+                        count: skill.count,
+                        asMain: skill.asMain,
+                        asSub: skill.asSub,
+                        customers: Array.from(skill.customers),
+                        lastEndDate,
+                        isActive: !lastEndDate || lastEndDate >= todayStr
+                    };
+                }).sort((a, b) => {
+                    if (a.manufacturer !== b.manufacturer) return a.manufacturer.localeCompare(b.manufacturer, 'ko');
+                    if (a.item !== b.item) return a.item.localeCompare(b.item, 'ko');
+                    return a.model.localeCompare(b.model, 'ko');
+                });
+
+                return {
+                    id: bucket.id,
+                    name: bucket.name,
+                    departmentName: bucket.departmentName,
+                    totalCount: bucket.totalCount,
+                    mainCount: bucket.mainCount,
+                    subCount: bucket.subCount,
+                    skillCount: skills.length,
+                    manufacturers: Array.from(new Set(skills.map(s => s.manufacturer))),
+                    items: Array.from(new Set(skills.map(s => s.item))),
+                    skills
+                };
+            }).sort((a, b) => (b.totalCount - a.totalCount) || a.name.localeCompare(b.name, 'ko'));
+
+            unmatchedEngineers = Array.from(unmatched.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ko'));
+
+            skillTotals = {
+                engineers: engineerSkills.filter(eng => eng.skillCount > 0).length,
+                records: engineerSkills.reduce((sum, eng) => sum + eng.totalCount, 0),
+                skills: engineerSkills.reduce((sum, eng) => sum + eng.skillCount, 0),
+                manufacturers: new Set(
+                    engineerSkills.reduce((acc, eng) => acc.concat(eng.manufacturers), [])
+                ).size
+            };
+        } catch (err) {
+            console.warn('[tech-status] 엔지니어 스킬 집계 실패:', err.code || err.message);
+            engineerSkills = [];
+            unmatchedEngineers = [];
+        }
+        // --- 엔지니어 스킬 집계 종료 ---
 
         res.render('admin/tech_status', {
             page: 'tech_status',
@@ -221,7 +356,10 @@ exports.getTechStatusPage = async (req, res) => {
             endOfWeek: endOfWeek,
             resourceMembers,
             resourceProjects: Object.values(projectMap),
-            teamSummary: Object.values(teamSummary)
+            teamSummary: Object.values(teamSummary),
+            engineerSkills,
+            unmatchedEngineers,
+            skillTotals
         });
 
     } catch (err) {

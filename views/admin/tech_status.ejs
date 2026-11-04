@@ -100,6 +100,78 @@
     .tech-dashboard .day-cell.planned { background: #dff3ef; color: #146c60; }
     .tech-dashboard .day-cell.leave { background: #fff0d6; color: #8a5b00; }
     .tech-dashboard .day-cell.empty { color: #b2bac5; }
+
+    /* ---- 엔지니어 스킬 분석 ---- */
+    .tech-dashboard .es-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .6rem; margin-bottom: 1rem; }
+    .tech-dashboard .es-stat { border: 1px solid var(--line); border-radius: 8px; padding: .6rem .75rem; background: #fbfcfd; }
+    .tech-dashboard .es-stat-label { display: block; color: var(--muted); font-size: .74rem; margin-bottom: .15rem; }
+    .tech-dashboard .es-stat-value { color: var(--ink); font-size: 1.32rem; font-weight: 700; line-height: 1.1; }
+    .tech-dashboard .es-stat-value small { font-size: .72rem; font-weight: 500; color: var(--muted); margin-left: .12rem; }
+
+    .tech-dashboard .es-accordion .accordion-item { border-color: var(--line); }
+    .tech-dashboard .es-accordion .accordion-button { padding: .6rem .85rem; font-size: .86rem; box-shadow: none; }
+    .tech-dashboard .es-accordion .accordion-button:not(.collapsed) { background: #eef4fb; color: var(--ink); }
+    .tech-dashboard .es-head-main { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; min-width: 0; flex: 1 1 auto; }
+    .tech-dashboard .es-name { font-weight: 700; color: var(--ink); }
+    .tech-dashboard .es-dept { color: var(--muted); font-size: .76rem; }
+    .tech-dashboard .es-head-sub { margin-left: auto; display: flex; gap: .7rem; font-size: .76rem; color: var(--muted); white-space: nowrap; }
+    .tech-dashboard .es-head-sub b { color: var(--ink); }
+
+    .tech-dashboard .es-badge { font-size: .68rem; font-weight: 700; border-radius: 1rem; padding: .1rem .46rem; }
+    .tech-dashboard .es-badge-skill { background: #e3f2ec; color: #1c6b55; }
+    .tech-dashboard .es-badge-none { background: #f1f3f6; color: #7a8494; }
+
+    .tech-dashboard .es-table th { background: #f7f9fb; color: var(--muted); font-size: .74rem; font-weight: 600; white-space: nowrap; }
+    .tech-dashboard .es-table td { font-size: .8rem; vertical-align: middle; }
+    .tech-dashboard .es-table code { font-size: .76rem; color: #245b7c; background: #eef4fb; padding: .06rem .34rem; border-radius: .25rem; }
+    .tech-dashboard .es-chip { display: inline-block; font-size: .72rem; font-weight: 600; border-radius: .3rem; padding: .1rem .42rem; }
+    .tech-dashboard .es-chip-mfr { background: #eaf1fb; color: #2c5687; }
+    .tech-dashboard .es-role { display: inline-block; font-size: .68rem; font-weight: 700; border-radius: .3rem; padding: .08rem .36rem; margin-right: .18rem; }
+    .tech-dashboard .es-role-main { background: #dcecff; color: #1b5fa8; }
+    .tech-dashboard .es-role-sub { background: #f0ecff; color: #5b45a8; }
+    .tech-dashboard .es-empty { padding: 1.2rem; text-align: center; color: #a9b1bc; font-style: italic; font-size: .82rem; }
+
+    .tech-dashboard .es-unmatched { margin-top: 1rem; border: 1px solid #f2dfc0; background: #fffaf0; border-radius: 8px; padding: .7rem .85rem; }
+    .tech-dashboard .es-unmatched strong { display: block; font-size: .8rem; color: #8a5b00; margin-bottom: .4rem; }
+    .tech-dashboard .es-unmatched-list { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .35rem; }
+    .tech-dashboard .es-chip-unmatched { background: #fdf0d8; color: #8a5b00; }
+    .tech-dashboard .es-chip-unmatched b { font-weight: 700; }
+
+    /* 다크 모드 */
+    .dark-mode .tech-dashboard .es-stat { background: #333; border-color: #474747; }
+    .dark-mode .tech-dashboard .es-stat-value { color: #e8ecf2; }
+    .dark-mode .tech-dashboard .es-accordion .accordion-item { border-color: #474747; background: #333; }
+    .dark-mode .tech-dashboard .es-accordion .accordion-button { background: #333; color: #dce2ea; }
+    .dark-mode .tech-dashboard .es-accordion .accordion-button:not(.collapsed) { background: #2f4159; color: #fff; }
+    .dark-mode .tech-dashboard .es-name { color: #e8ecf2; }
+    .dark-mode .tech-dashboard .es-head-sub b { color: #e8ecf2; }
+    .dark-mode .tech-dashboard .es-table th { background: #3a3a3a; color: #b3bdcb; }
+    .dark-mode .tech-dashboard .es-table td { color: #dce2ea; }
+
+    /* Bootstrap 의 --bs-table-bg 가 #fff 로 남아 다크모드에서 셀 배경이
+       흰색으로 덮여 글자가 묻히는 문제 보정 */
+    .dark-mode .tech-dashboard .es-table {
+        --bs-table-bg: #333;
+        --bs-table-color: #dce2ea;
+        --bs-table-hover-bg: #3b4b5e;
+        --bs-table-hover-color: #fff;
+        --bs-table-border-color: #474747;
+        background-color: #333;
+    }
+    .dark-mode .tech-dashboard .es-table > :not(caption) > * > * {
+        background-color: #333;
+        color: #dce2ea;
+        border-color: #474747;
+    }
+    .dark-mode .tech-dashboard .es-table tbody tr:hover > * {
+        background-color: #3b4b5e;
+        color: #fff;
+    }
+    .dark-mode .tech-dashboard .es-table code { background: #2f4159; color: #a9c9ee; }
+    .dark-mode .tech-dashboard .es-chip-mfr { background: #2f4159; color: #a9c9ee; }
+    .dark-mode .tech-dashboard .es-badge-skill { background: #24493f; color: #8fd8bd; }
+    .dark-mode .tech-dashboard .es-badge-none { background: #3a3a3a; color: #9aa5b4; }
+    .dark-mode .tech-dashboard .es-unmatched { background: #3a3222; border-color: #5c4a24; }
 </style>
 
 <main class="app-main">
@@ -157,6 +229,141 @@
                 </div>
 
                 <div class="card mb-4"><div class="card-header"><h3 class="card-title mb-0"><i class="fa-solid fa-diagram-project"></i> 프로젝트 투입 및 실적</h3></div><div class="card-body table-responsive p-0"><table class="table table-hover mb-0"><thead><tr><th>프로젝트</th><th>상태</th><th>진척률</th><th>투입 인원</th><th>기간</th></tr></thead><tbody><% resourceProjects.forEach(project => { %><tr><td><a href="/projects/<%= project.id %>"><%= project.name %></a></td><td><span class="badge <%= project.status === '완료' ? 'bg-success' : 'bg-primary' %>"><%= project.status %></span></td><td style="min-width:150px"><div class="progress"><div class="progress-bar" style="width:<%= project.progress %>%"></div></div><small><%= project.progress %>%</small></td><td><%= project.members.map(member => member.name).join(', ') %></td><td><%= project.start_date ? new Date(project.start_date).toLocaleDateString('ko-KR') : '-' %> ~ <%= project.end_date ? new Date(project.end_date).toLocaleDateString('ko-KR') : '-' %></td></tr><% }); %><% if (!resourceProjects.length) { %><tr><td colspan="5" class="text-center text-muted">투입 프로젝트가 없습니다.</td></tr><% } %></tbody></table></div></div>
+                <!-- ===================== 엔지니어 스킬 분석 ===================== -->
+                <div class="card mb-4" id="engineer-skills">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h3 class="card-title mb-0"><i class="fa-solid fa-screwdriver-wrench"></i> 엔지니어 스킬 보유 현황</h3>
+                        <span class="text-muted small">유지보수 정/부엔지니어 등록 이력 기준 · 제조사 · 품목 · 모델</span>
+                    </div>
+                    <div class="card-body">
+
+                        <div class="es-stats">
+                            <div class="es-stat">
+                                <span class="es-stat-label">스킬 보유 인원</span>
+                                <span class="es-stat-value"><%= skillTotals.engineers %><small>명</small></span>
+                            </div>
+                            <div class="es-stat">
+                                <span class="es-stat-label">담당 이력</span>
+                                <span class="es-stat-value"><%= skillTotals.records %><small>건</small></span>
+                            </div>
+                            <div class="es-stat">
+                                <span class="es-stat-label">보유 스킬(모델)</span>
+                                <span class="es-stat-value"><%= skillTotals.skills %><small>종</small></span>
+                            </div>
+                            <div class="es-stat">
+                                <span class="es-stat-label">취급 제조사</span>
+                                <span class="es-stat-value"><%= skillTotals.manufacturers %><small>개</small></span>
+                            </div>
+                        </div>
+
+                        <% if (engineerSkills && engineerSkills.length > 0) { %>
+                            <div class="accordion es-accordion" id="engineerSkillsAccordion">
+                                <% engineerSkills.forEach(function (engineer, idx) { %>
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header" id="esHeading<%= idx %>">
+                                            <button class="accordion-button <%= idx === 0 ? '' : 'collapsed' %>" type="button"
+                                                    data-bs-toggle="collapse" data-bs-target="#esCollapse<%= idx %>"
+                                                    aria-expanded="<%= idx === 0 ? 'true' : 'false' %>"
+                                                    aria-controls="esCollapse<%= idx %>">
+                                                <span class="es-head-main">
+                                                    <span class="es-name"><%= engineer.name %></span>
+                                                    <span class="es-dept"><%= engineer.departmentName %></span>
+                                                    <% if (engineer.skillCount > 0) { %>
+                                                        <span class="es-badge es-badge-skill"><%= engineer.skillCount %>종 보유</span>
+                                                    <% } else { %>
+                                                        <span class="es-badge es-badge-none">등록 이력 없음</span>
+                                                    <% } %>
+                                                    <span class="es-head-sub">
+                                                        <span>정 <b><%= engineer.mainCount %></b></span>
+                                                        <span>부 <b><%= engineer.subCount %></b></span>
+                                                        <span>합계 <b><%= engineer.totalCount %></b></span>
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        </h2>
+                                        <div id="esCollapse<%= idx %>" class="accordion-collapse collapse <%= idx === 0 ? 'show' : '' %>"
+                                             aria-labelledby="esHeading<%= idx %>" data-bs-parent="#engineerSkillsAccordion">
+                                            <div class="accordion-body p-0">
+                                                <% if (engineer.skills.length > 0) { %>
+                                                    <div class="table-responsive">
+                                                        <table class="table table-sm table-hover es-table mb-0">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>제조사</th>
+                                                                    <th>품목</th>
+                                                                    <th>모델</th>
+                                                                    <th class="text-center">건수</th>
+                                                                    <th>역할</th>
+                                                                    <th>담당 고객사</th>
+                                                                    <th>유지보수 종료</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                <% engineer.skills.forEach(function (skill) { %>
+                                                                    <tr>
+                                                                        <td><span class="es-chip es-chip-mfr"><%= skill.manufacturer %></span></td>
+                                                                        <td><%= skill.item %></td>
+                                                                        <td><code><%= skill.model %></code></td>
+                                                                        <td class="text-center"><%= skill.count %></td>
+                                                                        <td>
+                                                                            <% if (skill.asMain > 0) { %>
+                                                                                <span class="es-role es-role-main">정 <%= skill.asMain %></span>
+                                                                            <% } %>
+                                                                            <% if (skill.asSub > 0) { %>
+                                                                                <span class="es-role es-role-sub">부 <%= skill.asSub %></span>
+                                                                            <% } %>
+                                                                        </td>
+                                                                        <td class="text-muted">
+                                                                            <%= skill.customers.length ? skill.customers.join(', ') : '-' %>
+                                                                        </td>
+                                                                        <td>
+                                                                            <% if (skill.lastEndDate) { %>
+                                                                                <span class="<%= skill.isActive ? 'text-success' : 'text-muted' %>">
+                                                                                    <%= skill.lastEndDate %>
+                                                                                </span>
+                                                                            <% } else { %>
+                                                                                <span class="text-muted">-</span>
+                                                                            <% } %>
+                                                                        </td>
+                                                                    </tr>
+                                                                <% }); %>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                <% } else { %>
+                                                    <div class="es-empty">
+                                                        <i class="fa-regular fa-circle-question me-1"></i>
+                                                        유지보수 정/부엔지니어로 등록된 이력이 없습니다.
+                                                    </div>
+                                                <% } %>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <% }); %>
+                            </div>
+                        <% } else { %>
+                            <div class="es-empty">
+                                <i class="fa-solid fa-user-slash me-1"></i>
+                                기술본부 재직 인원이 없습니다.
+                            </div>
+                        <% } %>
+
+                        <% if (unmatchedEngineers && unmatchedEngineers.length > 0) { %>
+                            <div class="es-unmatched">
+                                <strong><i class="fa-solid fa-triangle-exclamation me-1"></i>기술본부 인원과 매칭되지 않은 엔지니어 이름</strong>
+                                <div class="es-unmatched-list">
+                                    <% unmatchedEngineers.forEach(function (person) { %>
+                                        <span class="es-chip es-chip-unmatched"><%= person.name %> <b>·<%= person.count %></b></span>
+                                    <% }); %>
+                                </div>
+                                <div class="small text-muted">
+                                    유지보수의 정/부엔지니어는 이름이 직접 입력되므로, 사용자 관리의 이름과
+                                    정확히 일치해야 위 표에 집계됩니다. (공백·대소문자는 자동 무시)
+                                </div>
+                            </div>
+                        <% } %>
+                    </div>
+                </div>
             </section>
 
             <div class="row">
