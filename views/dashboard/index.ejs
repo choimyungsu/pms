@@ -485,54 +485,41 @@
             <!-- ===================== 2단 본문 ===================== -->
             <div class="row g-3">
                 <div class="col-lg-7">
-                    <div class="db-panel mb-3" id="panel-today-schedule">
+                    <div class="db-panel mb-3" id="panel-knowledge">
                         <div class="db-panel-head">
                             <h2 class="db-panel-title">
-                                <i class="fas fa-calendar-day"></i>오늘 일정
-                                <span class="db-panel-count"><%= num(todaySchedules.length) %></span>
+                                <i class="fas fa-book-open"></i>최근 지식
+                                <span class="db-panel-count"><%= num(knowledgeStat.totalCount) %> 전체</span>
                             </h2>
-                            <a href="/schedule" class="db-panel-link">일정 관리 <i class="fas fa-chevron-right ms-1"></i></a>
+                            <a href="/knowledge" class="db-panel-link">지식관리 <i class="fas fa-chevron-right ms-1"></i></a>
                         </div>
                         <div class="db-panel-body">
-                            <% if (todaySchedules && todaySchedules.length > 0) { %>
-                                <div class="db-timeline">
-                                    <% todaySchedules.forEach(function(schedule) { %>
-                                        <div class="db-tl-item <%= schedule.isMine ? 'is-mine' : '' %>">
-                                            <div class="db-tl-time">
-                                                <%= schedule.timeText %>
-                                            </div>
-                                            <div class="db-tl-body">
-                                                <div class="db-tl-title"><%= schedule.title %></div>
-                                                <div class="db-tl-meta">
-                                                    <% if (schedule.scheduleType) { %>
-                                                        <span class="db-badge"><%= schedule.scheduleType %></span>
+                            <% if (recentKnowledge && recentKnowledge.length > 0) { %>
+                                <div class="db-list">
+                                    <% recentKnowledge.forEach(function(item) { %>
+                                        <a href="/knowledge/detail/<%= item.id %>" class="db-list-item">
+                                            <span class="db-list-main">
+                                                <span class="db-list-title">
+                                                    <% if (item.type) { %>
+                                                        <span class="db-badge <%= typeClassOf(item.type) %> me-1"><%= item.type %></span>
+                                                    <% } %><%= item.title %>
+                                                </span>
+                                                <span class="db-list-meta">
+                                                    <i class="fas fa-user"></i><%= item.creatorName || '-' %>
+                                                    <span>·</span><%= item.createdText %>
+                                                    <% if (item.attCount > 0) { %>
+                                                        <span>· <i class="fas fa-paperclip"></i> <%= item.attCount %></span>
                                                     <% } %>
-                                                    <span><i class="fas fa-user me-1"></i><%= schedule.userName || '담당자 없음' %></span>
-                                                    <% if (schedule.departmentName) { %>
-                                                        <span>· <%= schedule.departmentName %></span>
-                                                    <% } %>
-                                                    <% if (schedule.isMine) { %>
-                                                        <span class="db-tl-mine">내 일정</span>
-                                                    <% } %>
-                                                </div>
-                                            </div>
-                                            <button type="button" class="db-tl-btn"
-                                                    data-bs-toggle="modal"
-                                                    data-bs-target="#scheduleDetailModal"
-                                                    data-title="<%= schedule.title %>"
-                                                    data-time="<%= schedule.timeText %><%= schedule.endTimeText ? ' ~ ' + schedule.endTimeText : '' %>"
-                                                    data-owner="<%= (schedule.departmentName || '부서 없음') + ' · ' + (schedule.userName || '') %>"
-                                                    data-description="<%= schedule.description || '설명이 없습니다.' %>">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
-                                        </div>
+                                                </span>
+                                            </span>
+                                            <% if (item.status) { %>
+                                                <span class="db-badge <%= statusClassOf(item.status) %>"><%= item.status %></span>
+                                            <% } %>
+                                        </a>
                                     <% }); %>
                                 </div>
                             <% } else { %>
-                                <div class="db-empty">
-                                    <i class="fas fa-mug-hot"></i>
-                                    오늘 등록된 일정이 없습니다.
-                                </div>
+                                <div class="db-empty"><i class="fas fa-book"></i>등록된 지식이 없습니다.</div>
                             <% } %>
                         </div>
                     </div>
@@ -697,50 +684,9 @@
                 </div>
             </div>
 
-            <!-- ===================== 하단: 지식 / 회의록 / 차트 ===================== -->
+            <!-- ===================== 하단: 회의록 / 차트 / 오늘 일정 ===================== -->
             <div class="row g-3 mt-1">
-                <div class="col-lg-6">
-                    <div class="db-panel" id="panel-knowledge">
-                        <div class="db-panel-head">
-                            <h2 class="db-panel-title">
-                                <i class="fas fa-book-open"></i>최근 지식
-                                <span class="db-panel-count"><%= num(knowledgeStat.totalCount) %> 전체</span>
-                            </h2>
-                            <a href="/knowledge" class="db-panel-link">지식관리 <i class="fas fa-chevron-right ms-1"></i></a>
-                        </div>
-                        <div class="db-panel-body">
-                            <% if (recentKnowledge && recentKnowledge.length > 0) { %>
-                                <div class="db-list">
-                                    <% recentKnowledge.forEach(function(item) { %>
-                                        <a href="/knowledge/detail/<%= item.id %>" class="db-list-item">
-                                            <span class="db-list-main">
-                                                <span class="db-list-title">
-                                                    <% if (item.type) { %>
-                                                        <span class="db-badge <%= typeClassOf(item.type) %> me-1"><%= item.type %></span>
-                                                    <% } %><%= item.title %>
-                                                </span>
-                                                <span class="db-list-meta">
-                                                    <i class="fas fa-user"></i><%= item.creatorName || '-' %>
-                                                    <span>·</span><%= item.createdText %>
-                                                    <% if (item.attCount > 0) { %>
-                                                        <span>· <i class="fas fa-paperclip"></i> <%= item.attCount %></span>
-                                                    <% } %>
-                                                </span>
-                                            </span>
-                                            <% if (item.status) { %>
-                                                <span class="db-badge <%= statusClassOf(item.status) %>"><%= item.status %></span>
-                                            <% } %>
-                                        </a>
-                                    <% }); %>
-                                </div>
-                            <% } else { %>
-                                <div class="db-empty"><i class="fas fa-book"></i>등록된 지식이 없습니다.</div>
-                            <% } %>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-lg-6">
+                <div class="col-12">
                     <div class="db-panel" id="panel-minutes">
                         <div class="db-panel-head">
                             <h2 class="db-panel-title">
@@ -786,6 +732,62 @@
                                 </div>
                             <% } else { %>
                                 <div class="db-empty"><i class="fas fa-chart-simple"></i>통계를 표시할 데이터가 없습니다.</div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-1">
+                <div class="col-12">
+                    <div class="db-panel" id="panel-today-schedule">
+                        <div class="db-panel-head">
+                            <h2 class="db-panel-title">
+                                <i class="fas fa-calendar-day"></i>오늘 일정
+                                <span class="db-panel-count"><%= num(todaySchedules.length) %></span>
+                            </h2>
+                            <a href="/schedule" class="db-panel-link">일정 관리 <i class="fas fa-chevron-right ms-1"></i></a>
+                        </div>
+                        <div class="db-panel-body">
+                            <% if (todaySchedules && todaySchedules.length > 0) { %>
+                                <div class="db-timeline">
+                                    <% todaySchedules.forEach(function(schedule) { %>
+                                        <div class="db-tl-item <%= schedule.isMine ? 'is-mine' : '' %>">
+                                            <div class="db-tl-time">
+                                                <%= schedule.timeText %>
+                                            </div>
+                                            <div class="db-tl-body">
+                                                <div class="db-tl-title"><%= schedule.title %></div>
+                                                <div class="db-tl-meta">
+                                                    <% if (schedule.scheduleType) { %>
+                                                        <span class="db-badge"><%= schedule.scheduleType %></span>
+                                                    <% } %>
+                                                    <span><i class="fas fa-user me-1"></i><%= schedule.userName || '담당자 없음' %></span>
+                                                    <% if (schedule.departmentName) { %>
+                                                        <span>· <%= schedule.departmentName %></span>
+                                                    <% } %>
+                                                    <% if (schedule.isMine) { %>
+                                                        <span class="db-tl-mine">내 일정</span>
+                                                    <% } %>
+                                                </div>
+                                            </div>
+                                            <button type="button" class="db-tl-btn"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#scheduleDetailModal"
+                                                    data-title="<%= schedule.title %>"
+                                                    data-time="<%= schedule.timeText %><%= schedule.endTimeText ? ' ~ ' + schedule.endTimeText : '' %>"
+                                                    data-owner="<%= (schedule.departmentName || '부서 없음') + ' · ' + (schedule.userName || '') %>"
+                                                    data-description="<%= schedule.description || '설명이 없습니다.' %>">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    <% }); %>
+                                </div>
+                            <% } else { %>
+                                <div class="db-empty">
+                                    <i class="fas fa-mug-hot"></i>
+                                    오늘 등록된 일정이 없습니다.
+                                </div>
                             <% } %>
                         </div>
                     </div>
