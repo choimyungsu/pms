@@ -1,12 +1,59 @@
 <%- include('../partials/header', { page: 'knowledge' }) %>
 <%- include('../partials/sidebar', { page: 'knowledge' }) %>
 
+<%
+  // ---------- 화면 표시용 헬퍼 (기능 변경 없음, 표현만 개선) ----------
+  const TYPE_CLASS = {
+    '회의': 'k-type-meeting',
+    '보고': 'k-type-report',
+    '요구사항': 'k-type-req',
+    '설명': 'k-type-desc',
+    '이슈': 'k-type-issue',
+    '자료': 'k-type-data'
+  };
+  const STATUS_CLASS = {
+    '완료': 'k-status-done',
+    '종료': 'k-status-done',
+    '진행중': 'k-status-ing',
+    '진행': 'k-status-ing',
+    '검토중': 'k-status-wait',
+    '대기': 'k-status-wait',
+    '보류': 'k-status-wait'
+  };
+
+  const isBlank = (v) => (v === null || v === undefined || String(v).trim() === '');
+  const dateOnly = (v) => (isBlank(v) ? '' : String(v).substring(0, 10));
+  const dateTimeText = (v) => {
+    if (isBlank(v)) return '';
+    const raw = String(v);
+    const datePart = raw.substring(0, 10);
+    const m = raw.match(/(\d{2}:\d{2})/);
+    return m ? datePart + ' ' + m[1] : datePart;
+  };
+  const fileIconOf = (name) => {
+    const ext = String(name || '').split('.').pop().toLowerCase();
+    if (['xls', 'xlsx', 'csv'].indexOf(ext) !== -1) return 'fa-file-excel';
+    if (['doc', 'docx', 'hwp', 'hwpx', 'odt', 'txt', 'md', 'rtf'].indexOf(ext) !== -1) return 'fa-file-word';
+    if (['ppt', 'pptx', 'odp'].indexOf(ext) !== -1) return 'fa-file-powerpoint';
+    if (ext === 'pdf') return 'fa-file-pdf';
+    if (['zip', '7z', 'rar', 'tar', 'gz'].indexOf(ext) !== -1) return 'fa-file-archive';
+    if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'].indexOf(ext) !== -1) return 'fa-file-image';
+    return 'fa-file';
+  };
+
+  const itemType = item ? (item.type || '') : '';
+  const itemStatus = item ? String(item.status || '').trim() : '';
+  const attCount = (attachments && attachments.length) ? attachments.length : 0;
+  const canEdit = currentUser && item && (currentUser.role === 'admin' || currentUser.id === item.creator_id);
+  const hasPeriod = item && (!isBlank(item.start_date) || !isBlank(item.end_date) || !isBlank(item.planned_date));
+%>
+
 <style>
-/* Make detail page content fill height and be scrollable */
+/* =================== 지식 상세 (개편) =================== */
 .knowledge-page .app-content {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 135px); /* Adjust if header/footer height is different */
+    height: calc(100vh - 135px);
 }
 .knowledge-page .app-content > .container-fluid {
     flex: 1;
@@ -14,141 +61,624 @@
     flex-direction: column;
     min-height: 0;
 }
-/* Target the main row in detail.ejs */
-.knowledge-page .app-content > .container-fluid > .row {
-    flex: 1;
+
+#split-row {
     display: flex;
+    flex-wrap: nowrap;
+    position: relative;
+    flex: 1;
     min-height: 0;
 }
-.knowledge-page .app-content .col-md-3,
-.knowledge-page .app-content .col-md-9 {
-    display: flex;
-    flex-direction: column;
-}
-.knowledge-page .app-content .card {
-    flex: 1;
+#tree-col {
+    min-width: 210px;
+    max-width: 560px;
+    flex: 0 0 300px;
     display: flex;
     flex-direction: column;
     min-height: 0;
 }
-/* The comments card should not grow */
-.knowledge-page .app-content .col-md-9 .card.mt-4 {
-    flex: 0 1 auto;
+#tree-col .card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin-bottom: 0;
 }
-.knowledge-page .app-content .card-body {
+#tree-col .card-body {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    padding: .6rem .7rem;
+}
+#splitter-bar {
+    width: 8px;
+    background: transparent;
+    cursor: col-resize;
+    z-index: 10;
+    position: relative;
+}
+#splitter-bar::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 44px;
+    border-radius: 2px;
+    background: #e3e8ef;
+    transition: background .15s ease;
+}
+#splitter-bar:hover::before { background: #b9c6d6; }
+
+#right-col {
+    min-width: 0;
+    flex: 1 1 0%;
+    display: flex;
+    flex-direction: column;
+    gap: .85rem;
+    overflow-y: auto;
+    padding-right: 2px;
+    padding-bottom: .5rem;
+}
+#right-col .card { flex: 0 0 auto; margin-bottom: 0; }
+
+/* ---- 상세 헤더 ---- */
+.k-detail-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+.k-detail-title {
+    font-size: 1.12rem;
+    font-weight: 700;
+    color: #1f2a3a;
+    margin: 0 0 .4rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+.k-detail-badges { display: flex; gap: .35rem; align-items: center; flex-wrap: wrap; }
+.k-detail-actions { display: flex; gap: .35rem; flex-shrink: 0; flex-wrap: wrap; }
+.k-detail-actions .btn { white-space: nowrap; }
+
+/* ---- 배지 ---- */
+.k-type {
+    display: inline-block;
+    padding: .16rem .55rem;
+    border-radius: 1rem;
+    font-size: .74rem;
+    font-weight: 600;
+    white-space: nowrap;
+    background: #eef2f7;
+    color: #55637a;
+}
+.k-type-meeting { background: #e7f1ff; color: #2f6bbd; }
+.k-type-report  { background: #e8f6ec; color: #2b7a45; }
+.k-type-req     { background: #f0eaff; color: #6a45c2; }
+.k-type-desc    { background: #eaf6f8; color: #21717f; }
+.k-type-issue   { background: #fdecec; color: #b93a3a; }
+.k-type-data    { background: #fdf3e3; color: #96631a; }
+
+.k-status {
+    display: inline-block;
+    padding: .16rem .55rem;
+    border-radius: .25rem;
+    font-size: .74rem;
+    font-weight: 600;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+.k-status-done { background: #eef8f1; color: #2b7a45; border-color: #cfe9d8; }
+.k-status-ing  { background: #eaf3ff; color: #2f6bbd; border-color: #cfe2fb; }
+.k-status-wait { background: #fff8e6; color: #9a6b00; border-color: #ffe6ae; }
+.k-status-default { background: #f1f3f6; color: #5b6779; border-color: #e2e6ec; }
+
+.k-none { color: #c3cad3; font-size: .76rem; font-style: italic; }
+
+/* ---- 메타 그리드 ---- */
+.k-section { padding: 1rem 1.15rem; }
+.k-section + .k-section { border-top: 1px solid #eef1f5; }
+.k-section-title {
+    font-size: .78rem;
+    font-weight: 700;
+    color: #6b7788;
+    letter-spacing: .02em;
+    margin: 0 0 .7rem;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+}
+.k-section-title i { color: #9aa8ba; font-size: .78rem; }
+.k-section-title .k-count {
+    font-weight: 600;
+    font-size: .68rem;
+    color: #4a6fa5;
+    background: #e8eefb;
+    border-radius: .7rem;
+    padding: .06rem .45rem;
 }
 
-/* On mobile, revert to natural height */
-@media (max-width: 767px) {
-    .knowledge-page .app-content {
-        height: auto;
-    }
-    .knowledge-page .app-content > .container-fluid > .row {
-        display: block; /* Revert to default bootstrap row behavior */
-    }
+.k-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: .1rem 1.4rem;
+    margin: 0;
 }
+.k-meta-grid .k-meta-item { display: flex; gap: .5rem; padding: .34rem 0; min-width: 0; }
+.k-meta-grid dt {
+    flex: 0 0 62px;
+    font-weight: 500;
+    font-size: .78rem;
+    color: #8b95a4;
+    margin: 0;
+}
+.k-meta-grid dd {
+    flex: 1 1 auto;
+    margin: 0;
+    font-size: .84rem;
+    color: #2b3648;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.k-meta-grid dd a { color: #1a4b8c; text-decoration: none; font-weight: 500; }
+.k-meta-grid dd a:hover { text-decoration: underline; }
+
+/* ---- 기간 정보 ---- */
+.k-period {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: .6rem;
+}
+.k-period-item {
+    background: #f8fafc;
+    border: 1px solid #eaeef4;
+    border-radius: .4rem;
+    padding: .5rem .65rem;
+}
+.k-period-item .k-period-label {
+    display: block;
+    font-size: .72rem;
+    color: #8b95a4;
+    margin-bottom: .1rem;
+}
+.k-period-item .k-period-value {
+    font-size: .86rem;
+    font-weight: 600;
+    color: #2b3648;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- 설명 ---- */
+.k-desc-block + .k-descr-block { margin-top: .8rem; }
+.k-desc-label {
+    font-size: .75rem;
+    font-weight: 600;
+    color: #7b8798;
+    margin-bottom: .35rem;
+}
+.k-desc-body {
+    background: #fbfcfd;
+    border: 1px solid #eef1f5;
+    border-left: 3px solid #dbe4f0;
+    border-radius: .35rem;
+    padding: .75rem .9rem;
+    font-size: .86rem;
+    line-height: 1.65;
+    color: #2b3648;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    margin: 0;
+    font-family: inherit;
+}
+
+/* ---- 첨부파일 ---- */
+.k-att-list { display: flex; flex-direction: column; gap: .35rem; }
+.k-att-item {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .5rem .65rem;
+    border: 1px solid #eaeef4;
+    border-radius: .4rem;
+    background: #fbfcfd;
+    text-decoration: none;
+    color: #2b3648;
+    transition: border-color .15s ease, background .15s ease;
+}
+.k-att-item:hover {
+    background: #f3f8ff;
+    border-color: #c5d9f5;
+    color: #1a4b8c;
+    text-decoration: none;
+}
+.k-att-item > i { color: #7a93b5; font-size: .95rem; flex: 0 0 auto; width: 1.1rem; text-align: center; }
+.k-att-item .k-att-name { flex: 1 1 auto; font-size: .84rem; overflow-wrap: anywhere; }
+.k-att-item .k-att-dl { color: #a8b4c4; font-size: .74rem; flex: 0 0 auto; }
+.k-att-empty {
+    color: #a9b1bc;
+    font-size: .82rem;
+    font-style: italic;
+    padding: .35rem 0;
+}
+
+/* ---- 댓글 ---- */
+.k-comment-list { display: flex; flex-direction: column; gap: .55rem; margin-bottom: .9rem; }
+.k-comment {
+    display: flex;
+    gap: .6rem;
+    padding: .65rem .8rem;
+    border: 1px solid #eef1f5;
+    border-radius: .45rem;
+    background: #fff;
+}
+.k-comment-avatar {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #e8eefb;
+    color: #40679b;
+    font-size: .78rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase;
+    user-select: none;
+}
+.k-comment-main { flex: 1 1 auto; min-width: 0; }
+.k-comment-top {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    flex-wrap: wrap;
+    margin-bottom: .2rem;
+}
+.k-comment-author { font-size: .82rem; font-weight: 600; color: #2b3648; }
+.k-comment-time { font-size: .71rem; color: #a3acb9; }
+.k-comment-actions { margin-left: auto; display: flex; gap: .2rem; }
+.k-comment-actions .btn { padding: .08rem .38rem; font-size: .7rem; line-height: 1.4; }
+.k-comment-body {
+    font-size: .84rem;
+    line-height: 1.55;
+    color: #3b4759;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.k-comment-empty {
+    color: #a9b1bc;
+    font-size: .82rem;
+    font-style: italic;
+    padding: .6rem .2rem;
+}
+
+#comment-content { resize: vertical; min-height: 74px; }
+.k-comment-form-foot { display: flex; justify-content: flex-end; margin-top: .5rem; }
+
+/* ---- 트리: 문서수 / 문서없음 ---- */
+#category-tree a[data-empty="1"] { color: #a9b1bc !important; font-style: italic; }
+#category-tree a[data-empty="1"]::after {
+    content: "문서없음";
+    margin-left: .35rem;
+    font-size: .62rem;
+    font-style: normal;
+    color: #b6bdc7;
+    border: 1px dashed #d9dee6;
+    border-radius: .65rem;
+    padding: 0 .32rem;
+    white-space: nowrap;
+}
+#category-tree a[data-empty="0"]::after {
+    content: attr(data-count);
+    margin-left: .35rem;
+    font-size: .62rem;
+    font-weight: 600;
+    color: #4a6fa5;
+    background: #e8eefb;
+    border-radius: .65rem;
+    padding: 0 .32rem;
+    min-width: 1rem;
+    display: inline-block;
+    text-align: center;
+    white-space: nowrap;
+}
+#category-tree .jstree-clicked[data-empty="1"] { color: #8b93a0 !important; }
+
+/* 현재 보고 있는 문서의 분류 강조 (선택이 아닌 표시 전용) */
+#category-tree a.k-tree-current {
+    font-weight: 700 !important;
+    color: #1a4b8c !important;
+    background: #e8eefb;
+    border-radius: .3rem;
+    box-shadow: inset 2px 0 0 #1a4b8c;
+}
+#category-tree a.k-tree-current::before {
+    content: "\f02e";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: .6rem;
+    margin-right: .3rem;
+    color: #1a4b8c;
+    opacity: .85;
+}
+.dark-mode #category-tree a.k-tree-current {
+    color: #8ab4f8 !important;
+    background: #364a63;
+    box-shadow: inset 2px 0 0 #8ab4f8;
+}
+.dark-mode #category-tree a.k-tree-current::before { color: #8ab4f8; }
+#category-tree .tree-legend {
+    font-size: .66rem;
+    color: #9aa4b2;
+    padding: .4rem .3rem 0;
+    border-top: 1px dashed #eceff4;
+    margin-top: .4rem;
+    line-height: 1.45;
+}
+#category-tree .tree-legend .lg-empty { font-style: italic; color: #a9b1bc; }
+
+/* ---- 모바일 ---- */
+@media (max-width: 991px) {
+    .knowledge-page .app-content { height: auto; }
+    #split-row { flex-direction: column; }
+    #tree-col { flex: none; width: 100%; max-width: none; margin-bottom: .85rem; }
+    #tree-col .card-body { max-height: 240px; }
+    #splitter-bar { display: none; }
+    #right-col { flex: none; width: 100%; overflow-y: visible; }
+}
+
+/* ---- 다크모드 ---- */
+.dark-mode .k-detail-title { color: #e8ecf2; }
+.dark-mode .k-meta-grid dt { color: #9aa5b4; }
+.dark-mode .k-meta-grid dd { color: #dce2ea; }
+.dark-mode .k-meta-grid dd a { color: #8ab4f8; }
+.dark-mode .k-section + .k-section { border-top-color: #444; }
+.dark-mode .k-section-title { color: #b3bdcb; }
+.dark-mode .k-period-item { background: #313131; border-color: #474747; }
+.dark-mode .k-period-item .k-period-value { color: #e0e0e0; }
+.dark-mode .k-desc-body { background: #2f2f2f; border-color: #474747; border-left-color: #4a6fa5; color: #dce2ea; }
+.dark-mode .k-att-item { background: #2f2f2f; border-color: #474747; color: #dce2ea; }
+.dark-mode .k-att-item:hover { background: #364a63; border-color: #4a6fa5; color: #cfe2ff; }
+.dark-mode .k-comment { background: #2f2f2f; border-color: #474747; }
+.dark-mode .k-comment-avatar { background: #3a4a60; color: #cfe2ff; }
+.dark-mode .k-comment-author { color: #e0e0e0; }
+.dark-mode .k-comment-body { color: #cfd6e0; }
+.dark-mode .k-none, .dark-mode .k-att-empty, .dark-mode .k-comment-empty { color: #7b8595; }
+.dark-mode #splitter-bar::before { background: #4a4a4a; }
+.dark-mode #category-tree a[data-empty="0"]::after { background: #3a4a60; color: #cfe2ff; }
+.dark-mode .k-type { background: #3a3a3a; color: #cfd6e0; }
 </style>
+
 <main class="app-main">
   <div class="app-content-header">
     <div class="container-fluid">
-      <div class="row">
+      <div class="row align-items-center">
         <div class="col-sm-6">
-          <h3 class="mb-0">지식 상세정보</h3>
+          <h3 class="mb-0"><i class="fas fa-book-open me-2"></i>지식 상세정보</h3>
+        </div>
+        <div class="col-sm-6 text-sm-end mt-2 mt-sm-0">
+          <a href="/knowledge" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>목록으로
+          </a>
         </div>
       </div>
     </div>
   </div>
+
   <div class="app-content">
     <div class="container-fluid">
       <% if (error) { %>
-        <div class="alert alert-danger"><%= error %></div>
+        <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i><%= error %></div>
       <% } else if (item) { %>
-        <div class="row">
-          <!-- Categories Sidebar -->
-          <div class="col-md-3">
-            <div class="card">
-              <div class="card-header">
-                <h4>카테고리</h4>
+        <div id="split-row">
+
+          <!-- ===================== 좌측: 분류 트리 ===================== -->
+          <aside id="tree-col">
+            <div class="card card-primary card-outline">
+              <div class="card-header py-2">
+                <h6 class="card-title mb-0">
+                  <i class="fas fa-sitemap me-1"></i>분류
+                </h6>
+                <div class="card-tools">
+                  <button type="button" class="btn btn-tool btn-sm" id="expand-all-btn" title="모두 확장">
+                    <i class="fas fa-plus-square"></i>
+                  </button>
+                  <button type="button" class="btn btn-tool btn-sm" id="collapse-all-btn" title="모두 축소">
+                    <i class="fas fa-minus-square"></i>
+                  </button>
+                </div>
               </div>
-              <div class="card-body" style="max-height: 75vh; overflow-y: auto;">
+              <div class="px-2 pt-2">
+                <input type="text" id="tree-search-input" class="form-control form-control-sm"
+                       placeholder="분류명 찾기" autocomplete="off">
+              </div>
+              <div class="card-body">
                 <div id="category-tree"></div>
               </div>
             </div>
-          </div>
+          </aside>
 
-          <!-- Knowledge Item Details -->
-          <div class="col-md-9">
-            <div class="card">
+          <div id="splitter-bar" title="드래그하여 폭 조절"></div>
+
+          <!-- ===================== 우측: 상세 내용 ===================== -->
+          <div id="right-col">
+
+            <!-- 기본 정보 -->
+            <div class="card card-primary card-outline">
               <div class="card-header">
-                <h4><%= item.title %></h4>
-              </div>
-              <div class="card-body">
-                <dl class="row">
-                  <dt class="col-sm-3">구분</dt>
-                  <dd class="col-sm-9"><%= item.type %></dd>
-                  <dt class="col-sm-3">카테고리</dt>
-                  <dd class="col-sm-9"><a href="/knowledge?category_id=<%= item.category_id %>"><%= item.category_name || '미지정' %></a></dd>
-                  <dt class="col-sm-3">상태</dt>
-                  <dd class="col-sm-9"><%= item.status %></dd>
-                  <dt class="col-sm-3">생성자</dt>
-                  <dd class="col-sm-9"><%= item.creator_name %></dd>
-                  <dt class="col-sm-3">담당자</dt>
-                  <dd class="col-sm-9"><%= item.assignee %></dd>
-                  <dt class="col-sm-3">시작일</dt>
-                  <dd class="col-sm-9"><%= item.start_date %></dd>
-                  <dt class="col-sm-3">종료일</dt>
-                  <dd class="col-sm-9"><%= item.end_date %></dd>
-                  <dt class="col-sm-3">계획일</dt>
-                  <dd class="col-sm-9"><%= item.planned_date %></dd>
-                  <dt class="col-sm-3">설명1</dt>
-                  <dd class="col-sm-9"><pre class="card p-2" style="white-space: pre-wrap;"><%= item.description1 %></pre></dd>
-                  <dt class="col-sm-3">설명2</dt>
-                  <dd class="col-sm-9"><pre class="card p-2" style="white-space: pre-wrap;"><%= item.description2 %></pre></dd>
-                  <dt class="col-sm-3">첨부파일</dt>
-                  <dd class="col-sm-9">
-                    <% if (attachments && attachments.length > 0) { %>
-                      <ul class="list-group list-group-flush">
-                        <% attachments.forEach(function(attachment) { %>
-                          <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <a href="/knowledge/api/attachments/<%= attachment.id %>/download">
-                              <i class="fas fa-file-download me-2"></i> <%= attachment.original_name || attachment.file_path.split('/').pop() %>
-                            </a>
-                          </li>
-                        <% })
-                        %> 
-                      </ul>
-                    <% } else { %>
-                      <p>첨부된 파일이 없습니다.</p>
+                <div class="k-detail-head">
+                  <div style="min-width:0;">
+                    <h4 class="k-detail-title"><%= item.title %></h4>
+                    <div class="k-detail-badges">
+                      <% if (!isBlank(itemType)) { %>
+                        <span class="k-type <%= TYPE_CLASS[itemType] || '' %>"><%= itemType %></span>
+                      <% } else { %>
+                        <span class="k-none">구분 없음</span>
+                      <% } %>
+                      <% if (!isBlank(itemStatus)) { %>
+                        <span class="k-status <%= STATUS_CLASS[itemStatus] || 'k-status-default' %>"><%= itemStatus %></span>
+                      <% } else { %>
+                        <span class="k-none">상태 없음</span>
+                      <% } %>
+                      <% if (attCount > 0) { %>
+                        <span class="k-none" style="font-style:normal;color:#5b6779;">
+                          <i class="fas fa-paperclip me-1"></i>첨부 <%= attCount %>건
+                        </span>
+                      <% } %>
+                    </div>
+                  </div>
+                  <div class="k-detail-actions">
+                    <a href="/knowledge" class="btn btn-sm btn-outline-secondary">
+                      <i class="fas fa-list me-1"></i>목록
+                    </a>
+                    <% if (canEdit) { %>
+                      <a href="/knowledge/edit/<%= item.id %>" class="btn btn-sm btn-primary">
+                        <i class="fas fa-pen me-1"></i>수정
+                      </a>
+                      <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteKnowledgeItem(<%= item.id %>)">
+                        <i class="fas fa-trash me-1"></i>삭제
+                      </button>
                     <% } %>
-                  </dd>
-                </dl>
-                <div class="mt-3">
-                  <a href="/knowledge" class="btn btn-secondary">목록으로</a>
-                  <% if (currentUser && (currentUser.role === 'admin' || currentUser.id === item.creator_id)) { %>
-                    <a href="/knowledge/edit/<%= item.id %>" class="btn btn-primary">수정</a>
-                    <button type="button" class="btn btn-danger" onclick="deleteKnowledgeItem(<%= item.id %>)">삭제</button>
-                  <% }
-                  %> 
+                  </div>
                 </div>
+              </div>
+
+              <div class="card-body p-0">
+                <!-- 메타 정보 -->
+                <section class="k-section">
+                  <h6 class="k-section-title"><i class="fas fa-circle-info"></i>기본 정보</h6>
+                  <dl class="k-meta-grid">
+                    <div class="k-meta-item">
+                      <dt>카테고리</dt>
+                      <dd>
+                        <% if (!isBlank(item.category_name)) { %>
+                          <a href="/knowledge?category_id=<%= item.category_id %>">
+                            <i class="fas fa-folder me-1" style="color:#c7ae6b;"></i><%= item.category_name %>
+                          </a>
+                        <% } else { %>
+                          <span class="k-none">미지정</span>
+                        <% } %>
+                      </dd>
+                    </div>
+                    <div class="k-meta-item">
+                      <dt>작성자</dt>
+                      <dd><%= isBlank(item.creator_name) ? '-' : item.creator_name %></dd>
+                    </div>
+                    <div class="k-meta-item">
+                      <dt>담당자</dt>
+                      <dd><%= isBlank(item.assignee) ? '-' : item.assignee %></dd>
+                    </div>
+                    <div class="k-meta-item">
+                      <dt>등록일</dt>
+                      <dd><%= isBlank(item.created_at) ? '-' : dateTimeText(item.created_at) %></dd>
+                    </div>
+                    <div class="k-meta-item">
+                      <dt>수정일</dt>
+                      <dd><%= isBlank(item.updated_at) ? '-' : dateTimeText(item.updated_at) %></dd>
+                    </div>
+                    <div class="k-meta-item">
+                      <dt>문서번호</dt>
+                      <dd><span style="color:#8b95a4;font-variant-numeric:tabular-nums;">#<%= item.id %></span></dd>
+                    </div>
+                  </dl>
+                </section>
+
+                <!-- 기간 정보 -->
+                <section class="k-section">
+                  <h6 class="k-section-title"><i class="fas fa-calendar-days"></i>일정 정보</h6>
+                  <div class="k-period">
+                    <div class="k-period-item">
+                      <span class="k-period-label">시작일</span>
+                      <span class="k-period-value">
+                        <%= isBlank(item.start_date) ? '없음' : dateOnly(item.start_date) %>
+                      </span>
+                    </div>
+                    <div class="k-period-item">
+                      <span class="k-period-label">종료일</span>
+                      <span class="k-period-value">
+                        <%= isBlank(item.end_date) ? '없음' : dateOnly(item.end_date) %>
+                      </span>
+                    </div>
+                    <div class="k-period-item">
+                      <span class="k-period-label">계획일</span>
+                      <span class="k-period-value">
+                        <%= isBlank(item.planned_date) ? '없음' : dateOnly(item.planned_date) %>
+                      </span>
+                    </div>
+                  </div>
+                </section>
+
+                <!-- 설명 -->
+                <section class="k-section">
+                  <h6 class="k-section-title"><i class="fas fa-align-left"></i>내용</h6>
+                  <% if (isBlank(item.description1) && isBlank(item.description2)) { %>
+                    <div class="k-att-empty">등록된 설명이 없습니다.</div>
+                  <% } else { %>
+                    <% if (!isBlank(item.description1)) { %>
+                      <div class="k-desc-block">
+                        <div class="k-desc-label">설명 1</div>
+                        <pre class="k-desc-body"><%= item.description1 %></pre>
+                      </div>
+                    <% } %>
+                    <% if (!isBlank(item.description2)) { %>
+                      <div class="k-desc-block" style="margin-top:.8rem;">
+                        <div class="k-desc-label">설명 2</div>
+                        <pre class="k-desc-body"><%= item.description2 %></pre>
+                      </div>
+                    <% } %>
+                  <% } %>
+                </section>
+
+                <!-- 첨부파일 -->
+                <section class="k-section">
+                  <h6 class="k-section-title">
+                    <i class="fas fa-paperclip"></i>첨부파일
+                    <% if (attCount > 0) { %><span class="k-count"><%= attCount %></span><% } %>
+                  </h6>
+                  <% if (attCount > 0) { %>
+                    <div class="k-att-list">
+                      <% attachments.forEach(function(attachment) {
+                           const attName = attachment.original_name || String(attachment.file_path || '').split('/').pop();
+                      %>
+                        <a class="k-att-item" href="/knowledge/api/attachments/<%= attachment.id %>/download">
+                          <i class="fas <%= fileIconOf(attName) %>"></i>
+                          <span class="k-att-name"><%= attName %></span>
+                          <i class="fas fa-download k-att-dl"></i>
+                        </a>
+                      <% }); %>
+                    </div>
+                  <% } else { %>
+                    <div class="k-att-empty">첨부된 파일이 없습니다.</div>
+                  <% } %>
+                </section>
               </div>
             </div>
 
-            <!-- Comments Section -->
-            <div class="card mt-4">
+            <!-- 댓글 -->
+            <div class="card card-primary card-outline">
               <div class="card-header">
-                <h5>댓글</h5>
+                <h5 class="card-title mb-0">
+                  <i class="fas fa-comments me-1"></i>댓글
+                </h5>
               </div>
               <div class="card-body">
-                <div id="comments-list" class="mb-3"></div>
+                <div id="comments-list" class="k-comment-list"></div>
                 <form id="comment-form">
-                  <div class="mb-3">
-                    <textarea class="form-control" id="comment-content" rows="3" placeholder="댓글을 입력하세요." required></textarea>
+                  <div class="mb-2">
+                    <textarea class="form-control" id="comment-content" rows="3"
+                              placeholder="댓글을 입력하세요." required></textarea>
                   </div>
-                  <button type="submit" class="btn btn-primary">댓글 추가</button>
+                  <div class="k-comment-form-foot">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                      <i class="fas fa-paper-plane me-1"></i>댓글 추가
+                    </button>
+                  </div>
                 </form>
               </div>
             </div>
+
           </div>
         </div>
       <% } %>
@@ -159,7 +689,7 @@
 
 <!-- Delete Comment Modal -->
 <div class="modal fade" id="deleteCommentModal" tabindex="-1" aria-labelledby="deleteCommentModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="deleteCommentModalLabel">댓글 삭제 확인</h5>
@@ -178,7 +708,7 @@
 
 <!-- Success Message Modal -->
 <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="successModalLabel">알림</h5>
@@ -196,7 +726,7 @@
 
 <!-- Edit Comment Modal -->
 <div class="modal fade" id="editCommentModal" tabindex="-1" aria-labelledby="editCommentModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="editCommentModalLabel">댓글 수정</h5>
@@ -216,86 +746,231 @@
 <%- include('../partials/footer') %>
 
 <script>
-  const categories = <%- JSON.stringify(categories || []) %>;
-  const currentCategoryId = <%- item.category_id %>;
+  // ===================== 분류 트리 (좌측) =====================
+  const currentCategoryId = Number(<%- JSON.stringify(item ? item.category_id : null) %>);
 
-  function buildCategoryTree(categories, parentId = null) {
-    const ul = document.createElement('ul');
-    ul.className = 'list-unstyled ps-3';
+  $(function () {
+    const $tree = $('#category-tree');
 
-    const children = categories.filter(cat => cat.parent_id === parentId);
+    function escapeHtml(value) {
+      return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
 
-    children.forEach(cat => {
-      const li = document.createElement('li');
-      li.className = 'mb-1';
+    $.get('/knowledge/api/categories', function (categories) {
+      const list = categories || [];
 
-      const a = document.createElement('a');
-      a.href = `/knowledge?category_id=${cat.id}`;
-      a.className = `btn btn-toggle d-inline-flex align-items-center rounded border-0 ${cat.id === currentCategoryId ? 'fw-bold bg-warning' : ''}`;
-      
-      const icon = document.createElement('i');
-      const hasChildren = categories.some(child => child.parent_id === cat.id);
-      icon.className = `fas ${hasChildren ? 'fa-folder-open' : 'fa-folder'} me-2`;
-      
-      a.appendChild(icon);
-      a.appendChild(document.createTextNode(cat.name));
+      // 현재 문서의 분류는 "표시(하이라이트)"만 하고, 선택 이벤트로 페이지 이동이
+      // 일어나지 않도록 state.selected 는 사용하지 않는다.
+      const jstreeData = list.map(function (cat) {
+        const total = Number(cat.doc_count) || 0;
+        const isEmpty = total === 0;
+        const isCurrent = Number(cat.id) === currentCategoryId;
+        return {
+          id: String(cat.id),
+          parent: cat.parent_id === null ? '#' : String(cat.parent_id),
+          text: cat.name,
+          li_attr: {
+            'data-empty': isEmpty ? '1' : '0',
+            'data-count': String(total),
+            'data-current': isCurrent ? '1' : '0'
+          },
+          a_attr: { 'data-empty': isEmpty ? '1' : '0', 'data-count': String(total) }
+        };
+      });
 
-      li.appendChild(a);
+      $tree.jstree('destroy').empty();
+      $tree.jstree({
+        core: {
+          data: jstreeData,
+          check_callback: true,
+          themes: { name: 'default', dots: true, icons: true }
+        },
+        plugins: ['wholerow', 'search']
+      });
 
-      const childTree = buildCategoryTree(categories, cat.id);
-      if (childTree.children.length > 0) {
-        li.appendChild(childTree);
-      }
-      ul.appendChild(li);
+      $tree.on('ready.jstree', function () {
+        const tree = $tree.jstree(true);
+        tree.open_all();
+
+        // 현재 문서의 분류는 select_node() 를 호출하지 않고 CSS 로만 강조한다.
+        // (select_node 는 select_node.jstree 이벤트를 발생시켜 목록 페이지로
+        //  이동하는 문제가 있으므로 사용하지 않는다)
+        if (currentCategoryId) {
+          const $current = $tree.find('li[data-current="1"] > a');
+          $current.addClass('k-tree-current');
+          if ($current.length) {
+            $current[0].scrollIntoView({ block: 'nearest' });
+          }
+        }
+
+        if (!$tree.find('.tree-legend').length) {
+          $tree.append(
+            '<div class="tree-legend">숫자 = 문서 수 · ' +
+            '<span class="lg-empty">문서없음</span> = 연결된 문서가 없는 분류</div>'
+          );
+        }
+      });
+
+      // 분류 클릭 = 목록 페이지로 이동 (기존과 동일한 동작)
+      $tree.on('select_node.jstree', function (e, data) {
+        if (!data || !data.node || !data.node.id) return;
+        window.location.href = '/knowledge?category_id=' + encodeURIComponent(data.node.id);
+      });
+
+      let searchTimer = null;
+      $('#tree-search-input').on('keyup', function () {
+        const v = $(this).val();
+        if (searchTimer) clearTimeout(searchTimer);
+        searchTimer = setTimeout(function () {
+          $tree.jstree(true).search(v);
+        }, 250);
+      });
+
+      $('#expand-all-btn').on('click', function () { $tree.jstree(true).open_all(); });
+      $('#collapse-all-btn').on('click', function () { $tree.jstree(true).close_all(); });
+    }).fail(function () {
+      $tree.html('<p class="k-att-empty">분류를 불러오지 못했습니다.</p>');
     });
 
-    return ul;
-  }
+    // ----- 좌우 폭 조절 -----
+    const splitter = document.getElementById('splitter-bar');
+    const treeCol = document.getElementById('tree-col');
+    if (splitter && treeCol) {
+      let dragging = false;
+      splitter.addEventListener('mousedown', function (e) {
+        dragging = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        const startX = e.pageX;
+        const startWidth = treeCol.offsetWidth;
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const categoryTreeContainer = document.getElementById('category-tree');
-    if (categoryTreeContainer) {
-      const categoryTree = buildCategoryTree(categories);
-      if (categoryTree.children.length > 0) {
-          categoryTreeContainer.appendChild(categoryTree);
-      } else {
-          categoryTreeContainer.innerHTML = '<p>카테고리가 없습니다.</p>';
-      }
+        function onMove(ev) {
+          if (!dragging) return;
+          const next = startWidth + (ev.pageX - startX);
+          treeCol.style.flexBasis = Math.max(210, Math.min(560, next)) + 'px';
+        }
+        function onUp() {
+          dragging = false;
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
     }
   });
 </script>
 
 <script>
-  const knowledgeId = <%= item.id %>;
-  const currentUserId = <%= currentUser.id %>;
-  const isAdmin = <%= isAdmin %>;
+  // ===================== 댓글 / 삭제 (기능 동일) =====================
+  const knowledgeId = <%- JSON.stringify(item ? item.id : null) %>;
+  const currentUserId = <%- JSON.stringify(currentUser ? currentUser.id : null) %>;
+  const isAdmin = <%- JSON.stringify(!!isAdmin) %>;
 
-  let commentIdToDelete = null; // To store the ID of the comment to be deleted
+  let commentIdToDelete = null;
+  let commentIdToEdit = null;
+
+  function escapeText(value) {
+    return String(value === null || value === undefined ? '' : value);
+  }
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function formatCommentTime(raw) {
+    if (!raw) return '';
+    const d = new Date(String(raw).replace(' ', 'T'));
+    if (isNaN(d.getTime())) return String(raw).substring(0, 16);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) +
+      ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
 
   async function fetchComments() {
     try {
-      const response = await fetch(`/knowledge/api/items/${knowledgeId}/comments`);
+      const response = await fetch('/knowledge/api/items/' + knowledgeId + '/comments');
       const comments = await response.json();
       const commentsList = document.getElementById('comments-list');
+      if (!commentsList) return;
       commentsList.innerHTML = '';
-      if (comments.length === 0) {
-        commentsList.innerHTML = '<p>아직 댓글이 없습니다.</p>';
+
+      if (!Array.isArray(comments) || comments.length === 0) {
+        commentsList.innerHTML = '<div class="k-comment-empty">아직 댓글이 없습니다.</div>';
         return;
       }
-      comments.forEach(comment => {
-        const commentElement = document.createElement('div');
-        commentElement.classList.add('card', 'mb-2');
-        commentElement.innerHTML = `
-          <div class="card-body">
-            <p class="card-text">${comment.content}</p>
-            <small class="text-muted">${comment.author} - ${new Date(comment.created_at).toLocaleString()}</small>
-            ${(currentUserId === comment.user_id || isAdmin) ? `
-              <button type="button" class="btn btn-info btn-sm float-end ms-2" data-bs-toggle="modal" data-bs-target="#editCommentModal" onclick="showEditCommentModal(${comment.id}, '${comment.content.replace(/'/g, '\'').replace(/\n/g, '\n')}')">수정</button>
-              <button type="button" class="btn btn-danger btn-sm float-end" data-bs-toggle="modal" data-bs-target="#deleteCommentModal" onclick="showDeleteCommentModal(${comment.id})">삭제</button>
-            ` : ''}
-          </div>
-        `;
-        commentsList.appendChild(commentElement);
+
+      comments.forEach(function (comment) {
+        const article = document.createElement('article');
+        article.className = 'k-comment';
+
+        // 아바타
+        const avatar = document.createElement('div');
+        avatar.className = 'k-comment-avatar';
+        avatar.textContent = escapeText(comment.author || '?').trim().substring(0, 1) || '?';
+
+        const main = document.createElement('div');
+        main.className = 'k-comment-main';
+
+        const top = document.createElement('div');
+        top.className = 'k-comment-top';
+
+        const author = document.createElement('span');
+        author.className = 'k-comment-author';
+        author.textContent = escapeText(comment.author);
+
+        const time = document.createElement('span');
+        time.className = 'k-comment-time';
+        time.textContent = formatCommentTime(comment.created_at);
+
+        top.appendChild(author);
+        top.appendChild(time);
+
+        // 본인 또는 관리자만 수정/삭제 가능 (기존과 동일한 조건)
+        if (currentUserId === comment.user_id || isAdmin) {
+          const actions = document.createElement('div');
+          actions.className = 'k-comment-actions';
+
+          const editBtn = document.createElement('button');
+          editBtn.type = 'button';
+          editBtn.className = 'btn btn-outline-secondary';
+          editBtn.innerHTML = '<i class="fas fa-pen"></i>';
+          editBtn.title = '수정';
+          editBtn.addEventListener('click', function () {
+            showEditCommentModal(comment.id, comment.content);
+            const el = document.getElementById('editCommentModal');
+            bootstrap.Modal.getOrCreateInstance(el).show();
+          });
+
+          const delBtn = document.createElement('button');
+          delBtn.type = 'button';
+          delBtn.className = 'btn btn-outline-danger';
+          delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+          delBtn.title = '삭제';
+          delBtn.addEventListener('click', function () {
+            showDeleteCommentModal(comment.id);
+            const el = document.getElementById('deleteCommentModal');
+            bootstrap.Modal.getOrCreateInstance(el).show();
+          });
+
+          actions.appendChild(editBtn);
+          actions.appendChild(delBtn);
+          top.appendChild(actions);
+        }
+
+        const body = document.createElement('div');
+        body.className = 'k-comment-body';
+        body.textContent = escapeText(comment.content);
+
+        main.appendChild(top);
+        main.appendChild(body);
+        article.appendChild(avatar);
+        article.appendChild(main);
+        commentsList.appendChild(article);
       });
     } catch (error) {
       console.error('Error fetching comments:', error);
@@ -308,12 +983,10 @@
     const content = document.getElementById('comment-content').value;
 
     try {
-      const response = await fetch(`/knowledge/api/items/${knowledgeId}/comments`, {
+      const response = await fetch('/knowledge/api/items/' + knowledgeId + '/comments', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ content })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content })
       });
       const data = await response.json();
       if (response.ok) {
@@ -332,8 +1005,6 @@
     commentIdToDelete = commentId;
   }
 
-  let commentIdToEdit = null; // To store the ID of the comment to be edited
-
   function showEditCommentModal(commentId, currentContent) {
     commentIdToEdit = commentId;
     document.getElementById('editCommentContent').value = currentContent;
@@ -344,11 +1015,9 @@
     const newContent = document.getElementById('editCommentContent').value;
 
     try {
-      const response = await fetch(`/knowledge/api/comments/${commentIdToEdit}`, {
+      const response = await fetch('/knowledge/api/comments/' + commentIdToEdit, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: newContent })
       });
       const data = await response.json();
@@ -364,16 +1033,16 @@
     } finally {
       commentIdToEdit = null;
       const editModalElement = document.getElementById('editCommentModal');
-      const editModal = bootstrap.Modal.getInstance(editModalElement) || new bootstrap.Modal(editModalElement);
+      const editModal = bootstrap.Modal.getOrCreateInstance(editModalElement);
       editModal.hide();
     }
   }
 
   async function confirmDeleteComment() {
-    if (commentIdToDelete === null) return; // Should not happen
+    if (commentIdToDelete === null) return;
 
     try {
-      const response = await fetch(`/knowledge/api/comments/${commentIdToDelete}`, {
+      const response = await fetch('/knowledge/api/comments/' + commentIdToDelete, {
         method: 'DELETE'
       });
       const data = await response.json();
@@ -387,9 +1056,9 @@
       console.error('Error deleting comment:', error);
       showSuccessModal('댓글 삭제 중 오류가 발생했습니다.');
     } finally {
-      commentIdToDelete = null; // Reset
+      commentIdToDelete = null;
       const deleteModalElement = document.getElementById('deleteCommentModal');
-      const deleteModal = bootstrap.Modal.getInstance(deleteModalElement) || new bootstrap.Modal(deleteModalElement);
+      const deleteModal = bootstrap.Modal.getOrCreateInstance(deleteModalElement);
       deleteModal.hide();
     }
   }
@@ -397,43 +1066,38 @@
   function showSuccessModal(message) {
     const successModalBody = document.getElementById('successModalBody');
     successModalBody.textContent = message;
-    const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+    const successModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('successModal'));
     successModal.show();
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', function () {
     if (knowledgeId) {
       fetchComments();
-      document.getElementById('comment-form').addEventListener('submit', addComment);
+      const commentForm = document.getElementById('comment-form');
+      if (commentForm) commentForm.addEventListener('submit', addComment);
     }
     const confirmDeleteBtn = document.getElementById('confirmDeleteCommentBtn');
-    if (confirmDeleteBtn) {
-      confirmDeleteBtn.addEventListener('click', confirmDeleteComment);
-    }
+    if (confirmDeleteBtn) confirmDeleteBtn.addEventListener('click', confirmDeleteComment);
     const saveEditedBtn = document.getElementById('saveEditedCommentBtn');
-    if (saveEditedBtn) {
-      saveEditedBtn.addEventListener('click', saveEditedComment);
-    }
+    if (saveEditedBtn) saveEditedBtn.addEventListener('click', saveEditedComment);
   });
 
   function deleteKnowledgeItem(id) {
     if (confirm('정말로 이 지식 정보를 삭제하시겠습니까?')) {
-      fetch(`/knowledge/api/items/${id}`, {
-        method: 'DELETE'
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.message) {
-          showSuccessModal(data.message);
-          window.location.href = '/knowledge';
-        } else {
-          showSuccessModal('삭제 중 오류가 발생했습니다.');
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-        showSuccessModal('삭제 처리 중 오류가 발생했습니다.');
-      });
+      fetch('/knowledge/api/items/' + id, { method: 'DELETE' })
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+          if (data.message) {
+            showSuccessModal(data.message);
+            window.location.href = '/knowledge';
+          } else {
+            showSuccessModal('삭제 중 오류가 발생했습니다.');
+          }
+        })
+        .catch(function (error) {
+          console.error('Error:', error);
+          showSuccessModal('삭제 처리 중 오류가 발생했습니다.');
+        });
     }
   }
 </script>
