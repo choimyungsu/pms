@@ -647,7 +647,14 @@
         });
 
         const currentUser = <%- JSON.stringify(currentUser || {}) %>;
-        let currentCategoryId = null;
+
+        // URL 의 category_id 를 미리 읽어, DataTable 의 첫 요청부터 올바른 분류로 조회한다.
+        // (트리 준비 후 다시 reload 하면 진행 중이던 요청이 abort 되므로 중복 요청을 없앤다)
+        const urlCategoryId = new URLSearchParams(window.location.search).get('category_id');
+        let currentCategoryId = urlCategoryId ? String(urlCategoryId) : null;
+        // 트리 재구성 직후의 자동 선택 1회는 재조회를 건너뛴다.
+        // (DataTable 초기화/새로고침이 이미 요청했으므로 reload 하면 진행 중 요청이 abort 된다)
+        let skipSelectReloadNodeId = null;
         let currentSearch = '';
         let knowledgeTable;
         let uploadedFiles = [];
@@ -800,10 +807,20 @@
                     if (currentSearch) d.search = currentSearch;
                     d._ts = Date.now();
                 },
-                "error": function(xhr) {
+                "error": function(xhr, textStatus) {
+                    // 재조회(reload)나 검색어 입력으로 인해 진행 중이던 이전 요청이
+                    // 취소된 경우(abort)는 정상 동작이므로 조용히 무시한다.
+                    // (timeout 등 실제 통신 실패는 아래에서 정상적으로 안내한다)
+                    const statusText = String((xhr && xhr.statusText) || '').toLowerCase();
+                    const ts = String(textStatus || '').toLowerCase();
+                    if (ts === 'abort' || statusText === 'abort') {
+                        return;
+                    }
                     console.error('DataTable Ajax error:', xhr.responseJSON || xhr.statusText);
                     let errorMessage = '지식 목록을 불러오는 중 오류가 발생했습니다.';
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                    if (ts === 'timeout') {
+                        errorMessage = '지식 목록 요청 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.';
+                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
                         errorMessage = xhr.responseJSON.message;
                     } else if (xhr.status === 403) {
                         errorMessage = '이 카테고리의 지식을 볼 수 있는 권한이 없습니다.';
@@ -1089,14 +1106,15 @@
                             '<span class="lg-empty">문서없음</span> = 연결된 문서가 없는 분류</div>'
                         );
                     }
-                    const categoryIdFromUrl = new URLSearchParams(window.location.search).get('category_id');
-                    if (categoryIdFromUrl) {
-                        tree.select_node(categoryIdFromUrl);
+                    // 첫 진입/트리 재구성 시에는 자동 선택으로 인한 재조회를 하지 않는다.
+                    // (DataTable 초기화 또는 새로고침 버튼이 이미 1회 요청했으므로
+                    //  reload 를 또 호출하면 진행 중인 요청이 abort 된다)
+                    if (currentCategoryId && tree.get_node(currentCategoryId)) {
+                        skipSelectReloadNodeId = String(currentCategoryId);
+                        tree.select_node(currentCategoryId);
                     } else {
-                        // 기본은 '전체 보기' : 모든 분류의 문서를 한 번에 보여준다.
                         currentCategoryId = null;
                         updateScopeLabel();
-                        knowledgeTable.ajax.reload();
                     }
                 });
 
@@ -1109,6 +1127,14 @@
                         (isEmpty ? ' <span class="k-none ms-1" style="font-size:.75rem;">문서 없음</span>' : '')
                     );
                     updateScopeLabel();
+
+                    // 트리 재구성 직후의 자동 선택(1회)은 이미 로드된 목록을 그대로 사용한다.
+                    // 사용자가 실제로 다른 분류를 클릭한 경우에는 정상적으로 재조회한다.
+                    if (skipSelectReloadNodeId !== null && String(data.node.id) === skipSelectReloadNodeId) {
+                        skipSelectReloadNodeId = null;
+                        return;
+                    }
+                    skipSelectReloadNodeId = null;
                     knowledgeTable.ajax.reload();
                 });
 
