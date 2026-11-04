@@ -8,11 +8,19 @@ const pool = require('../config/db');
  *   - tb_maintenance_summary_items  : 품목(item_name) / 상세(item_detail)
  *
  *  필요한 추가 컬럼
- *   - tb_maintenance_summary_items.item_version      : 품목 버전 (신규 입력 항목)
- *   - tb_maintenance_summary_items.patch_required    : 패치필요 여부
- *   - tb_maintenance_summary_items.patch_required_at : 판정 일시
- *   - tb_maintenance_summary_items.patch_required_by : 판정자
- *   - tb_maintenance_summary_items.patch_condition   : 판정 조건 요약
+ *   - tb_maintenance_summary_items.item_version             : 품목 버전 (신규 입력 항목)
+ *   - tb_maintenance_summary_items.manufacturer             : 제조사
+ *   - tb_maintenance_summary_items.model_name               : 모델명
+ *   - tb_maintenance_summary_items.eos_date                 : EoS (지원종료일)
+ *   - tb_maintenance_summary_items.eol_date                 : EoL (수명종료일)
+ *   - tb_maintenance_summary_items.serial_number            : S/N (시리얼넘버)
+ *   - tb_maintenance_summary_items.fw_version               : FW 버전
+ *   - tb_maintenance_summary_items.os_version               : OS 버전
+ *   - tb_maintenance_summary_items.inspection_location_item : 점검위치(품목별)
+ *   - tb_maintenance_summary_items.patch_required           : 패치필요 여부
+ *   - tb_maintenance_summary_items.patch_required_at        : 판정 일시
+ *   - tb_maintenance_summary_items.patch_required_by        : 판정자
+ *   - tb_maintenance_summary_items.patch_condition          : 판정 조건 요약
  *
  *  ※ 패치 전용 테이블은 추후 별도 설계 예정.
  *    그 전까지는 위 컬럼을 사용하며, 컨트롤러의 조회/갱신부만 교체하면 이관 가능하도록 분리해 두었습니다.
@@ -30,6 +38,34 @@ const REQUIRED_COLUMNS = [
     {
         name: 'manufacturer',
         ddl: "ADD COLUMN `manufacturer` VARCHAR(255) NULL DEFAULT NULL COMMENT '제조사'"
+    },
+    {
+        name: 'model_name',
+        ddl: "ADD COLUMN `model_name` VARCHAR(255) NULL DEFAULT NULL COMMENT '모델명'"
+    },
+    {
+        name: 'eos_date',
+        ddl: "ADD COLUMN `eos_date` VARCHAR(50) NULL DEFAULT NULL COMMENT 'EoS (지원종료일)'"
+    },
+    {
+        name: 'eol_date',
+        ddl: "ADD COLUMN `eol_date` VARCHAR(50) NULL DEFAULT NULL COMMENT 'EoL (수명종료일)'"
+    },
+    {
+        name: 'serial_number',
+        ddl: "ADD COLUMN `serial_number` VARCHAR(255) NULL DEFAULT NULL COMMENT 'S/N (시리얼넘버)'"
+    },
+    {
+        name: 'fw_version',
+        ddl: "ADD COLUMN `fw_version` VARCHAR(255) NULL DEFAULT NULL COMMENT 'FW 버전'"
+    },
+    {
+        name: 'os_version',
+        ddl: "ADD COLUMN `os_version` VARCHAR(255) NULL DEFAULT NULL COMMENT 'OS 버전'"
+    },
+    {
+        name: 'inspection_location_item',
+        ddl: "ADD COLUMN `inspection_location_item` VARCHAR(255) NULL DEFAULT NULL COMMENT '점검위치(품목별)'"
     },
     {
         name: 'patch_required',

@@ -31,6 +31,36 @@ const COLUMNS = [
         sql: 'i.item_version', width: 200, defaultVisible: true, order: 30
     },
 
+    /* ---- 품목 상세 정보 (신규) --- */
+    {
+        key: 'model_name', label: '모델명', group: 'item', type: 'editable',
+        sql: 'i.model_name', width: 180, defaultVisible: true, order: 31
+    },
+    {
+        key: 'eos_date', label: 'EoS', group: 'item', type: 'editable',
+        sql: 'i.eos_date', width: 120, defaultVisible: true, order: 32
+    },
+    {
+        key: 'eol_date', label: 'EoL', group: 'item', type: 'editable',
+        sql: 'i.eol_date', width: 120, defaultVisible: true, order: 33
+    },
+    {
+        key: 'serial_number', label: 'S/N', group: 'item', type: 'editable',
+        sql: 'i.serial_number', width: 180, defaultVisible: true, order: 34
+    },
+    {
+        key: 'fw_version', label: 'FW버전', group: 'item', type: 'editable',
+        sql: 'i.fw_version', width: 140, defaultVisible: true, order: 35
+    },
+    {
+        key: 'os_version', label: 'OS버전', group: 'item', type: 'editable',
+        sql: 'i.os_version', width: 140, defaultVisible: true, order: 36
+    },
+    {
+        key: 'inspection_location_item', label: '점검위치', group: 'item', type: 'editable',
+        sql: 'i.inspection_location_item', width: 150, defaultVisible: false, order: 37
+    },
+
     /* ---- 고객사 / 패치필요 --- */
     {
         key: 'customer_company', label: '고객사', group: 'summary', type: 'text',

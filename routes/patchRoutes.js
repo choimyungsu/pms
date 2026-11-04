@@ -19,6 +19,12 @@ router.post('/patch/save-fields', isAuthenticated, patchController.saveItemField
 // 선택한 고객사(라인)에 품목 행 추가 (AJAX)
 router.post('/patch/add-item', isAuthenticated, patchController.addItem);
 
+// 엑셀 복사&붙여넣기 — 미리보기 (DB 변경 없음)
+router.post('/patch/paste-preview', isAuthenticated, patchController.pastePreview);
+
+// 엑셀 복사&붙여넣기 — 실제 반영 (서버 재매칭 후 트랜잭션 일괄 UPDATE)
+router.post('/patch/paste-apply', isAuthenticated, patchController.pasteApply);
+
 // 하위 호환: 버전만 저장하던 기존 경로
 router.post('/patch/save-versions', isAuthenticated, patchController.saveItemVersions);
 

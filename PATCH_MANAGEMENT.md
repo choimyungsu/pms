@@ -144,6 +144,8 @@ UPDATE tb_maintenance_summary_items i
 | POST | `/maintenance/patch/save-fields` | 품목/제조사/버전 복수행 일괄 저장 (JSON body `{rows:[{id,item_name?,manufacturer?,item_version?}]}`) |
 | POST | `/maintenance/patch/save-versions` | 하위 호환 — 버전 전용 저장 (내부적으로 save-fields 와 동일 핸들러) |
 | POST | `/maintenance/patch/add-item` | 선택한 고객사(라인)에 품목 추가 (JSON body `{summary_id, items:[{item_name,manufacturer,item_version,item_detail}]}`) |
+| POST | `/maintenance/patch/paste-preview` | 엑셀 붙여넣기 **미리보기** — DB 변경 없음 (JSON body `{text, has_header, column_order}`) |
+| POST | `/maintenance/patch/paste-apply` | 엑셀 붙여넣기 **실제 반영** — 서버 재매칭 후 트랜잭션 일괄 UPDATE (동일 body) |
 | POST | `/maintenance/patch/reset` | 전체 초기화 |
 | GET | `/maintenance/patch/download-excel` | 엑셀 다운로드 (현재 필터 반영) |
 | GET | `/maintenance/patch/options` | 조건 옵션 목록 (JSON) |
@@ -155,6 +157,74 @@ UPDATE tb_maintenance_summary_items i
 - 기본: `제조사 · 품목 · 버전 · 고객사 · 패치필요` (화면 순서 그대로)
 - "컬럼 선택"으로 추가한 항목(정엔지니어, 점검방식, 판정일시 등)도 엑셀에 함께 포함
 - 값 변환: `patch_required` → `O`/공백, 날짜는 `YYYY-MM-DD`, 일시는 `YYYY-MM-DD HH:mm`
+
+## 7-1. 품목 상세 필드 (신규 컬럼)
+
+`tb_maintenance_summary_items` 에 아래 7개 컬럼이 추가되었습니다.
+(`utils/patchSchema.js` 가 서버 기동 시 `INFORMATION_SCHEMA` 를 조회해 **없을 때만** 자동 `ALTER TABLE`)
+
+| 컬럼 | 타입 | 화면 라벨 | 비고 |
+|---|---|---|---|
+| `model_name` | VARCHAR(255) | 모델명 | |
+| `eos_date` | VARCHAR(50) | EoS | 지원종료일. 엑셀 표기가 제각각이라 문자열로 보관 |
+| `eol_date` | VARCHAR(50) | EoL | 수명종료일. 위와 동일 |
+| `serial_number` | VARCHAR(255) | S/N | 시리얼넘버. 붙여넣기 매칭의 1순위 키 |
+| `fw_version` | VARCHAR(255) | FW버전 | 펌웨어 |
+| `os_version` | VARCHAR(255) | OS버전 | |
+| `inspection_location_item` | VARCHAR(255) | 점검위치 | 기본 표시 항목에서는 제외(컬럼 선택으로 켜기) |
+
+기존 `item_name`(품목), `manufacturer`(제조사) 는 그대로 사용합니다.
+위 10개 필드가 모두 **목록에서 인라인 편집** 가능하며(`EDITABLE_FIELDS`), 엑셀 다운로드에도 포함됩니다.
+
+## 7-2. 엑셀 복사&붙여넣기 일괄 업데이트
+
+대량 데이터를 한 번에 갱신하기 위한 기능입니다. 목록 상단 **`엑셀 붙여넣기`** 버튼 → 모달.
+
+### 사용 흐름
+1. 엑셀에서 **머리글(컬럼명) 행을 포함**해 셀 범위를 복사 (Excel → 메모장 경유 시 탭 구분 유지)
+2. 모달의 입력란에 붙여넣기 → `미리보기`
+3. 결과 표에서 상태/변경 전→후 값을 확인 → `적용`
+
+### 입력 해석 (`utils/patchPaste.js`)
+- 구분자: **탭(TAB) 우선**, 없으면 쉼표(,) 자동 판별
+- 머리글: 첫 줄 셀이 알려진 라벨/별칭과 일치하면 자동 인식 (모달에서 `있음`/`없음` 강제 가능)
+- 인식 헤더/별칭 예: `고객사`, `품목`(품목명·제품·장비), `제조사`·`벤더`, `모델명`·`모델`,
+  `EoS`·`지원종료일`, `EoL`·`수명종료일`, `S/N`·`시리얼`·`serial`, `FW버전`·`펌웨어`,
+  `OS버전`, `점검위치`·`설치위치`, `상세내용`
+- 머리글이 없으면 **컬럼 순서**를 지정 (`기본 순서 채우기` 버튼: 품목, 제조사, 모델명, EoS, EoL, S/N, FW버전, OS버전, 점검위치)
+- 한도: 최대 2,000행 / 1MB
+
+### 매칭 규칙 (`matchRows`)
+1. **S/N 이 있으면 S/N 우선 매칭** (가장 정확)
+2. S/N 이 없거나 미일치면 **품목명**으로 찾고, `고객사 · 제조사 · 모델명` 으로 후보를 좁힘
+3. 결과 상태
+   - `matched` — 1건으로 특정됨
+   - `ambiguous` (중복매칭) — 후보가 2건 이상. **반영하지 않음** → S/N 을 함께 입력
+   - `not_found` (미매칭) — 대상 없음. 반영하지 않음
+
+> ⚠️ 고객사 컬럼을 **반드시 포함**하는 것을 권장합니다.
+> 실제 데이터에는 동일 품목명이 여러 고객사에 존재하므로, 고객사 없이 품목명만 넣으면 `중복매칭` 이 다수 발생합니다.
+
+### 값 반영 규칙
+- **빈 칸은 기존 값을 유지**합니다 (덮어쓰지 않음)
+- 기존 값과 동일한 칸은 변경 목록에서 제외
+- 실제 변경이 있는 행만 `UPDATE` (변경된 컬럼만 SET)
+- 전체가 **하나의 트랜잭션** — 중간 실패 시 전부 롤백
+- 적용 시점에 **서버가 다시 매칭**합니다 (클라이언트가 보낸 id 를 신뢰하지 않음)
+- SQL 은 `PASTE_FIELDS` 화이트리스트의 컬럼명만 사용 (SQL 인젝션 차단)
+
+### 응답 예시 (`paste-preview`)
+```json
+{
+  "success": true,
+  "headerDetected": true,
+  "delimiter": "TAB",
+  "fields": ["customer_company","item_name","model_name","serial_number","fw_version"],
+  "counts": { "total": 3, "matched": 2, "changed": 2, "unchanged": 0, "notFound": 1, "ambiguous": 0 },
+  "rows": [ { "index":1, "status":"matched", "strategy":"품목명+상세",
+              "changes": [{"label":"FW버전","before":"7.0.12","after":"7.0.13"}] } ]
+}
+```
 
 ## 8. 라우트 등록 순서 주의
 

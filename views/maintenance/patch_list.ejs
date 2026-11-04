@@ -288,6 +288,10 @@
                         <button type="button" class="btn btn-outline-success btn-sm" id="addItemBtn" disabled title="목록에서 고객사 라인을 먼저 클릭하세요">
                             <i class="fa-solid fa-plus me-1"></i>품목 추가
                         </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="pasteBtn"
+                                title="엑셀에서 복사한 셀 범위를 붙여넣어 여러 품목을 한 번에 업데이트합니다">
+                            <i class="fa-solid fa-clipboard-list me-1"></i>엑셀 붙여넣기
+                        </button>
                         <div class="btn-group btn-group-sm">
                             <a href="<%= buildUrl('1') %>" class="btn btn-<%= filters.patch === '1' ? 'danger' : 'outline-danger' %>">패치필요만</a>
                             <a href="<%= buildUrl('0') %>" class="btn btn-<%= filters.patch === '0' ? 'success' : 'outline-success' %>">패치불필요만</a>
@@ -444,6 +448,113 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
                     <button type="button" class="btn btn-primary" id="addItemSubmitBtn">
                         <i class="fa-solid fa-plus me-1"></i>추가
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 엑셀 복사&붙여넣기 모달 (대량 데이터 일괄 업데이트) -->
+    <div class="modal fade" id="pasteModal" tabindex="-1" aria-labelledby="pasteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="pasteModalLabel">
+                        <i class="fa-solid fa-clipboard-list me-1"></i>엑셀 붙여넣기로 일괄 업데이트
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                </div>
+                <div class="modal-body">
+                    <% /* ---------- 1단계: 붙여넣기 ---------- */ %>
+                    <section id="pasteStep1">
+                        <div class="alert alert-light border small mb-3">
+                            <div class="fw-semibold mb-1"><i class="fa-solid fa-circle-info me-1"></i>사용 방법</div>
+                            <ol class="mb-1 ps-3">
+                                <li>엑셀에서 <strong>머리글(컬럼명) 행을 포함</strong>해 데이터를 복사한 뒤 아래 입력란에 붙여넣습니다. (Excel → Notepad → 붙여넣기 하면 탭 구분이 유지됩니다)</li>
+                                <li><strong>미리보기</strong>를 눌러 어떤 품목이 어떤 값으로 바뀌는지 확인합니다.</li>
+                                <li><strong>적용</strong>을 누르면 실제 DB에 반영됩니다.</li>
+                            </ol>
+                            <div class="text-muted">
+                                빈 칸은 <strong>기존 값을 그대로 유지</strong>합니다. 품목 매칭은 <strong>S/N 우선</strong>,
+                                S/N이 없으면 <strong>품목명 + 고객사/제조사/모델명</strong>으로 찾습니다.
+                                인식 가능한 헤더: <%= pasteFieldLabels %>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-4">
+                                <label for="pasteHasHeader" class="form-label small fw-semibold mb-1">머리글(헤더) 행</label>
+                                <select class="form-select form-select-sm" id="pasteHasHeader">
+                                    <option value="auto" selected>자동 판단 (권장)</option>
+                                    <option value="1">있음 — 첫 줄은 컬럼명</option>
+                                    <option value="0">없음 — 첫 줄부터 데이터</option>
+                                </select>
+                            </div>
+                            <div class="col-md-8">
+                                <label for="pasteColumnOrder" class="form-label small fw-semibold mb-1">
+                                    컬럼 순서 <span class="text-muted fw-normal">(머리글이 없을 때만 사용)</span>
+                                </label>
+                                <input type="text" class="form-control form-control-sm" id="pasteColumnOrder"
+                                       placeholder="예: 품목, 제조사, 모델명, EoS, EoL, S/N, FW버전, OS버전, 점검위치"
+                                       autocomplete="off">
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mb-1">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="pasteFillOrderBtn"
+                                    title="기본 컬럼 순서를 입력란에 채웁니다">
+                                <i class="fa-solid fa-wand-magic-sparkles me-1"></i>기본 순서 채우기
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="pasteClearBtn">
+                                <i class="fa-solid fa-eraser me-1"></i>입력 지우기
+                            </button>
+                            <span class="ms-auto text-muted small align-self-center" id="pasteTextStat">0줄 · 0자</span>
+                        </div>
+
+                        <textarea class="form-control font-monospace" id="pasteText" rows="9" spellcheck="false"
+                                  placeholder="엑셀에서 복사한 셀 범위를 여기에 붙여넣으세요 (Ctrl+V)"></textarea>
+                    </section>
+
+                    <% /* ---------- 2단계: 미리보기 결과 ---------- */ %>
+                    <section id="pasteStep2" class="d-none">
+                        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                            <span class="badge text-bg-primary" id="pasteBadgeTotal">전체 0</span>
+                            <span class="badge text-bg-success" id="pasteBadgeChanged">변경 0</span>
+                            <span class="badge text-bg-secondary" id="pasteBadgeUnchanged">변경없음 0</span>
+                            <span class="badge text-bg-warning" id="pasteBadgeNotFound">미매칭 0</span>
+                            <span class="badge text-bg-danger" id="pasteBadgeAmbiguous">중복매칭 0</span>
+                            <span class="text-muted small ms-auto" id="pasteParseInfo"></span>
+                        </div>
+                        <div class="alert alert-warning small py-2 d-none" id="pasteWarnBox"></div>
+
+                        <div class="table-responsive" style="max-height:46vh;">
+                            <table class="table table-sm table-bordered align-middle mb-0 paste-preview-table">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th style="width:52px;" class="text-center">#</th>
+                                        <th style="width:64px;" class="text-center">줄</th>
+                                        <th style="width:96px;" class="text-center">상태</th>
+                                        <th>고객사</th>
+                                        <th>품목</th>
+                                        <th>변경 내용</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pastePreviewBody"></tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+                <div class="modal-footer">
+                    <span class="text-muted small me-auto" id="pasteFooterHint"></span>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-outline-primary" id="pastePreviewBtn">
+                        <i class="fa-solid fa-magnifying-glass me-1"></i>미리보기
+                    </button>
+                    <button type="button" class="btn btn-primary d-none" id="pasteApplyBtn">
+                        <i class="fa-solid fa-cloud-arrow-up me-1"></i>적용
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary d-none" id="pasteBackBtn">
+                        <i class="fa-solid fa-arrow-left me-1"></i>다시 입력
                     </button>
                 </div>
             </div>
@@ -1283,5 +1394,394 @@
             }
         });
     }
+})();
+</script>
+
+
+<script>
+/* ------------------------------------------------------------------
+ * 엑셀 복사&붙여넣기 — 대량 일괄 업데이트
+ *
+ *  1) 엑셀에서 머리글 포함 셀 범위를 복사해 textarea 에 붙여넣기
+ *  2) 미리보기 → POST /maintenance/patch/paste-preview  (DB 변경 없음)
+ *  3) 적용     → POST /maintenance/patch/paste-apply    (서버 재매칭 후 트랜잭션 UPDATE)
+ *
+ *  ※ 모든 화면 출력은 createElement / textContent 로만 처리 (붙여넣은 값 = 사용자 입력)
+ * ------------------------------------------------------------------ */
+(function () {
+    const btn = document.getElementById('pasteBtn');
+    const modalEl = document.getElementById('pasteModal');
+    if (!btn || !modalEl || !window.bootstrap) return;
+
+    const modal = new bootstrap.Modal(modalEl);
+
+    const step1 = document.getElementById('pasteStep1');
+    const step2 = document.getElementById('pasteStep2');
+    const textarea = document.getElementById('pasteText');
+    const hasHeaderSel = document.getElementById('pasteHasHeader');
+    const orderInput = document.getElementById('pasteColumnOrder');
+    const fillOrderBtn = document.getElementById('pasteFillOrderBtn');
+    const clearBtn = document.getElementById('pasteClearBtn');
+    const textStat = document.getElementById('pasteTextStat');
+
+    const previewBtn = document.getElementById('pastePreviewBtn');
+    const applyBtn = document.getElementById('pasteApplyBtn');
+    const backBtn = document.getElementById('pasteBackBtn');
+    const footerHint = document.getElementById('pasteFooterHint');
+
+    const body = document.getElementById('pastePreviewBody');
+    const badgeTotal = document.getElementById('pasteBadgeTotal');
+    const badgeChanged = document.getElementById('pasteBadgeChanged');
+    const badgeUnchanged = document.getElementById('pasteBadgeUnchanged');
+    const badgeNotFound = document.getElementById('pasteBadgeNotFound');
+    const badgeAmbiguous = document.getElementById('pasteBadgeAmbiguous');
+    const parseInfo = document.getElementById('pasteParseInfo');
+    const warnBox = document.getElementById('pasteWarnBox');
+
+    const DEFAULT_ORDER = '품목, 제조사, 모델명, EoS, EoL, S/N, FW버전, OS버전, 점검위치';
+    const DELIM_LABEL = { TAB: '탭(Tab) 구분', COMMA: '쉼표(,) 구분' };
+
+    let lastPayload = null;     // 미리보기 성공 시 요청 본문 캐시 (적용 시 동일 본문 재사용)
+    let lastChangedCount = 0;   // 미리보기에서 계산된 변경 예정 건수
+
+    function notify(type, message) {
+        if (window.showNotification) window.showNotification(type, message);
+        else if (type === 'error') alert(message);
+    }
+
+    function el(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined && text !== null) node.textContent = String(text);
+        return node;
+    }
+
+    /* ---------------- 붙여넣기 통계 ---------------- */
+    function updateTextStat() {
+        const raw = textarea.value || '';
+        const lines = raw.trim() === '' ? 0 : raw.replace(/\r\n/g, '\n').replace(/\s+$/, '').split('\n').length;
+        textStat.textContent = lines + '줄 · ' + raw.length.toLocaleString() + '자';
+        if (previewBtn) previewBtn.disabled = raw.trim() === '';
+    }
+
+    textarea.addEventListener('input', updateTextStat);
+
+    fillOrderBtn.addEventListener('click', function () {
+        orderInput.value = DEFAULT_ORDER;
+        if (hasHeaderSel.value === 'auto') hasHeaderSel.value = '0';
+        orderInput.focus();
+    });
+
+    clearBtn.addEventListener('click', function () {
+        textarea.value = '';
+        orderInput.value = '';
+        hasHeaderSel.value = 'auto';
+        resetToStep1();
+        updateTextStat();
+        textarea.focus();
+    });
+
+    /* ---------------- 단계 전환 ---------------- */
+    function resetToStep1() {
+        clearPreview();
+        step1.classList.remove('d-none');
+        step2.classList.add('d-none');
+        previewBtn.classList.remove('d-none');
+        previewBtn.disabled = (textarea.value || '').trim() === '';
+        applyBtn.classList.add('d-none');
+        backBtn.classList.add('d-none');
+        footerHint.textContent = '';
+    }
+
+    function showStep2() {
+        step1.classList.add('d-none');
+        step2.classList.remove('d-none');
+        previewBtn.classList.add('d-none');
+        backBtn.classList.remove('d-none');
+    }
+
+    function clearPreview() {
+        while (body.firstChild) body.removeChild(body.firstChild);
+        lastPayload = null;
+        warnBox.classList.add('d-none');
+        warnBox.textContent = '';
+        parseInfo.textContent = '';
+        [badgeTotal, badgeChanged, badgeUnchanged, badgeNotFound, badgeAmbiguous].forEach(function (b) {
+            b.textContent = b.dataset.base || b.textContent;
+        });
+        applyBtn.disabled = false;
+    }
+
+    /* ---------------- 미리보기 렌더링 ---------------- */
+    function statusBadge(status, strategy) {
+        const map = {
+            matched: ['text-bg-success', '일치'],
+            not_found: ['text-bg-warning', '미매칭'],
+            ambiguous: ['text-bg-danger', '중복']
+        };
+        const conf = map[status] || ['text-bg-secondary', status || '-'];
+        const wrap = el('span', 'd-inline-flex flex-column gap-1');
+        wrap.appendChild(el('span', 'badge ' + conf[0], conf[1]));
+        if (strategy) {
+            const s = String(strategy);
+            let label = s;
+            if (s === 'serial') label = 'S/N';
+            else if (s === 'item') label = '품목명';
+            wrap.appendChild(el('span', 'text-muted', label));
+        }
+        return wrap;
+    }
+
+    function renderChangeList(changes) {
+        const wrap = el('div', 'd-flex flex-column gap-1');
+        if (!changes || changes.length === 0) {
+            wrap.appendChild(el('span', 'text-muted fst-italic', '변경 없음'));
+            return wrap;
+        }
+
+        changes.forEach(function (chg) {
+            const line = el('div', 'small d-flex flex-wrap align-items-center gap-1');
+
+            const key = el('span', 'fw-semibold text-secondary', (chg.label || chg.key) + ':');
+            line.appendChild(key);
+
+            const before = (chg.before === null || chg.before === undefined || chg.before === '')
+                ? '(빈값)'
+                : String(chg.before);
+            const after = (chg.after === null || chg.after === undefined || chg.after === '')
+                ? '(빈값)'
+                : String(chg.after);
+
+            const b = el('span', 'text-danger text-decoration-line-through paste-before', before);
+            b.title = '변경 전: ' + before;
+            line.appendChild(b);
+
+            line.appendChild(el('span', 'text-muted', '→'));
+
+            const a = el('span', 'text-success fw-semibold paste-after', after);
+            a.title = '변경 후: ' + after;
+            line.appendChild(a);
+
+            wrap.appendChild(line);
+        });
+
+        return wrap;
+    }
+
+    function renderPreview(data) {
+        clearPreview();
+
+        const counts = data.counts || {};
+        const total = Number(counts.total) || 0;
+        const changed = Number(counts.changed) || 0;
+        const unchanged = Number(counts.unchanged) || 0;
+        const notFound = Number(counts.notFound) || 0;
+        const ambiguous = Number(counts.ambiguous) || 0;
+
+        badgeTotal.textContent = '전체 ' + total;
+        badgeChanged.textContent = '변경 ' + changed;
+        badgeUnchanged.textContent = '변경없음 ' + unchanged;
+        badgeNotFound.textContent = '미매칭 ' + notFound;
+        badgeAmbiguous.textContent = '중복매칭 ' + ambiguous;
+
+        [badgeTotal, badgeChanged, badgeUnchanged, badgeNotFound, badgeAmbiguous].forEach(function (b) {
+            b.dataset.base = b.textContent;
+        });
+
+        const info = [];
+        info.push('헤더 ' + (data.headerDetected ? '자동 인식' : '없음'));
+        info.push(DELIM_LABEL[data.delimiter] || '구분자 자동');
+        if (Array.isArray(data.fields) && data.fields.length) {
+            info.push('인식 컬럼 ' + data.fields.length + '개');
+        }
+        if (data.previewLimited) info.push('결과는 최대 ' + data.rows.length + '건만 표시');
+        parseInfo.textContent = info.join(' · ');
+
+        const warnings = [];
+        if (Array.isArray(data.ignoredHeaders) && data.ignoredHeaders.length) {
+            warnings.push('무시된 헤더: ' + data.ignoredHeaders.join(', '));
+        }
+        if (data.truncated) {
+            warnings.push('입력한 행이 너무 많아 일부만 처리했습니다.');
+        }
+        if (notFound > 0 || ambiguous > 0) {
+            warnings.push('미매칭/중복매칭 ' + (notFound + ambiguous) + '건은 반영되지 않습니다. S/N 또는 품목명을 확인해 주세요.');
+        }
+        if (warnings.length) {
+            warnBox.textContent = warnings.join(' ');
+            warnBox.classList.remove('d-none');
+        }
+
+        (data.rows || []).forEach(function (row) {
+            const tr = el('tr');
+            if (row.status === 'not_found') tr.className = 'table-warning';
+            if (row.status === 'ambiguous') tr.className = 'table-danger';
+            if (row.status === 'matched' && row.changeCount > 0) tr.className = 'table-success-subtle';
+
+            tr.appendChild(el('td', 'text-center text-muted', row.index));
+            tr.appendChild(el('td', 'text-center text-muted', row.line));
+
+            const tdStatus = el('td', 'text-center');
+            tdStatus.appendChild(statusBadge(row.status, row.strategy));
+            tr.appendChild(tdStatus);
+
+            const customer = row.customerCompany || '';
+            tr.appendChild(el('td', '', customer || '-'));
+
+            const tdItem = el('td');
+            tdItem.appendChild(el('div', 'fw-semibold', row.itemName || '-'));
+            const sub = [];
+            if (row.modelName) sub.push('모델 ' + row.modelName);
+            if (row.serialNumber) sub.push('S/N ' + row.serialNumber);
+            if (sub.length) tdItem.appendChild(el('div', 'text-muted small', sub.join(' · ')));
+            if (row.status === 'ambiguous') {
+                tdItem.appendChild(el('div', 'text-danger small', '후보 ' + row.candidateCount + '건 — S/N을 함께 입력해 주세요'));
+            }
+            tr.appendChild(tdItem);
+
+            const tdChg = el('td');
+            tdChg.appendChild(renderChangeList(row.changes));
+            tr.appendChild(tdChg);
+
+            body.appendChild(tr);
+        });
+
+        if (!body.firstChild) {
+            const tr = el('tr');
+            const td = el('td', 'text-center text-muted py-4', '표시할 결과가 없습니다.');
+            td.colSpan = 6;
+            tr.appendChild(td);
+            body.appendChild(tr);
+        }
+
+        if (changed > 0) {
+            lastChangedCount = changed;
+            applyBtn.disabled = false;
+            while (applyBtn.firstChild) applyBtn.removeChild(applyBtn.firstChild);
+            const icon = document.createElement('i');
+            icon.className = 'fa-solid fa-cloud-arrow-up me-1';
+            applyBtn.appendChild(icon);
+            applyBtn.appendChild(document.createTextNode('적용 (' + changed + '건)'));
+            footerHint.textContent = '적용하면 ' + changed + '건의 값이 실제로 변경됩니다.';
+        } else {
+            lastChangedCount = 0;
+            applyBtn.disabled = true;
+            applyBtn.textContent = '적용 (변경 0건)';
+            footerHint.textContent = '변경되는 값이 없습니다. 붙여넣은 값이 기존 값과 동일합니다.';
+        }
+    }
+
+    /* ---------------- 서버 통신 ---------------- */
+    async function postJson(url, payload) {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        let data = {};
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            data = { success: false, message: '응답을 해석할 수 없습니다. (HTTP ' + res.status + ')' };
+        }
+        return { ok: res.ok, data: data };
+    }
+
+    previewBtn.addEventListener('click', async function () {
+        const raw = (textarea.value || '').trim();
+        if (raw === '') {
+            notify('warning', '붙여넣은 내용이 없습니다. 엑셀에서 셀 범위를 복사해 붙여넣어 주세요.');
+            textarea.focus();
+            return;
+        }
+
+        const original = previewBtn.innerHTML;
+        previewBtn.disabled = true;
+        previewBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>확인 중...';
+
+        try {
+            const payload = {
+                text: textarea.value,
+                has_header: hasHeaderSel.value,
+                column_order: (orderInput.value || '').trim()
+            };
+
+            const { ok, data } = await postJson('/maintenance/patch/paste-preview', payload);
+
+            if (!ok || !data.success) {
+                notify('error', data.message || '미리보기에 실패했습니다.');
+                return;
+            }
+
+            lastPayload = payload;
+            showStep2();
+            renderPreview(data);
+        } catch (err) {
+            notify('error', err.message || '미리보기 중 오류가 발생했습니다.');
+        } finally {
+            previewBtn.innerHTML = original;
+            previewBtn.disabled = false;
+        }
+    });
+
+    backBtn.addEventListener('click', function () {
+        resetToStep1();
+    });
+
+    applyBtn.addEventListener('click', async function () {
+        if (!lastPayload) {
+            notify('warning', '먼저 미리보기를 실행해 주세요.');
+            return;
+        }
+
+        const ok = window.confirm('미리보기 결과대로 DB에 반영합니다.\n변경 ' + lastChangedCount + '건이 업데이트됩니다. 계속할까요?');
+        if (!ok) return;
+
+        const original = applyBtn.innerHTML;
+        const originalWidth = applyBtn.offsetWidth;
+        applyBtn.disabled = true;
+        applyBtn.style.minWidth = originalWidth + 'px';
+        applyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>적용 중...';
+
+        try {
+            const { ok: httpOk, data } = await postJson('/maintenance/patch/paste-apply', lastPayload);
+
+            if (!httpOk || !data.success) {
+                notify('error', data.message || '적용에 실패했습니다.');
+                return;
+            }
+
+            notify('success', data.message || '업데이트했습니다.');
+            modal.hide();
+            setTimeout(function () { window.location.reload(); }, 400);
+        } catch (err) {
+            notify('error', err.message || '적용 중 오류가 발생했습니다.');
+        } finally {
+            applyBtn.innerHTML = original;
+            applyBtn.disabled = false;
+            applyBtn.style.minWidth = '';
+        }
+    });
+
+    /* ---------------- 열기/닫기 ---------------- */
+    btn.addEventListener('click', function () {
+        resetToStep1();
+        updateTextStat();
+        modal.show();
+        setTimeout(function () { textarea.focus(); }, 300);
+    });
+
+    modalEl.addEventListener('shown.bs.modal', function () {
+        updateTextStat();
+        textarea.focus();
+    });
+
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        resetToStep1();
+    });
+
+    // 최초 상태
+    updateTextStat();
 })();
 </script>

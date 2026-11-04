@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const xlsx = require('xlsx');
 const patchColumns = require('../utils/patchColumns');
+const patchPaste = require('../utils/patchPaste');
 
 /**
  * 패치관리 (Patch Management)
@@ -248,6 +249,11 @@ exports.getPatchList = async (req, res) => {
             customerOptions: options.customerOptions,
             manufacturerOptions: options.manufacturerOptions,
             summaryOptions,
+            // 붙여넣기 모달 안내문에 표시할 인식 가능한 헤더 목록
+            pasteFieldLabels: patchPaste.PASTE_FIELDS
+                .filter((f) => f.column)
+                .map((f) => f.label)
+                .join(', '),
             currentPage,
             totalPages,
             totalRecords,
@@ -466,7 +472,14 @@ exports.getOptions = async (req, res) => {
 const EDITABLE_FIELDS = [
     { key: 'item_name', label: '품목', column: 'item_name', allowEmpty: false },
     { key: 'manufacturer', label: '제조사', column: 'manufacturer', allowEmpty: true },
-    { key: 'item_version', label: '버전', column: 'item_version', allowEmpty: true }
+    { key: 'item_version', label: '버전', column: 'item_version', allowEmpty: true },
+    { key: 'model_name', label: '모델명', column: 'model_name', allowEmpty: true },
+    { key: 'eos_date', label: 'EoS', column: 'eos_date', allowEmpty: true },
+    { key: 'eol_date', label: 'EoL', column: 'eol_date', allowEmpty: true },
+    { key: 'serial_number', label: 'S/N', column: 'serial_number', allowEmpty: true },
+    { key: 'fw_version', label: 'FW버전', column: 'fw_version', allowEmpty: true },
+    { key: 'os_version', label: 'OS버전', column: 'os_version', allowEmpty: true },
+    { key: 'inspection_location_item', label: '점검위치', column: 'inspection_location_item', allowEmpty: true }
 ];
 
 exports.saveItemFields = async (req, res) => {
@@ -709,6 +722,185 @@ exports.addItem = async (req, res) => {
         return res.status(500).json({ success: false, message: '품목 추가 중 오류가 발생했습니다.' });
     }
 };
+
+/* ------------------------------------------------------------------ */
+/* 엑셀 붙여넣기 (Copy & Paste) 대량 업데이트                          */
+/* ------------------------------------------------------------------ */
+/*
+ *  엑셀에서 셀 범위를 복사해 그대로 붙여넣으면
+ *   1) [미리보기] : 파싱 + 매칭 결과만 반환 (DB 변경 없음)
+ *   2) [적용]     : 동일한 텍스트를 서버가 **다시 파싱·재매칭** 후 트랜잭션 일괄 UPDATE
+ *
+ *  - 클라이언트가 보낸 id 는 신뢰하지 않습니다 (서버 재매칭).
+ *  - 빈 셀은 "기존 값 유지" 로 처리합니다. (지우려면 명시적으로 값을 넣어야 함)
+ *  - 매칭 기준: S/N 우선, 없으면 품목명(+고객사/제조사/모델명)
+ */
+
+function normalizePasteOptions(body) {
+    const source = body || {};
+
+    // 1) 헤더 포함 여부
+    //    - 'auto' / 미지정 : 서버가 첫 줄을 보고 자동 판단
+    //    - '1' / true      : 첫 줄을 헤더로 강제
+    //    - '0' / false     : 첫 줄부터 데이터로 해석
+    const rawHeader = source.has_header;
+    let hasHeader = null;
+    if (rawHeader === true || rawHeader === 'true' || rawHeader === '1') hasHeader = true;
+    else if (rawHeader === false || rawHeader === 'false' || rawHeader === '0') hasHeader = false;
+
+    // 2) 헤더 없이 붙여넣을 때의 컬럼 순서 (JSON 배열 또는 콤마 문자열)
+    let columnOrder = source.column_order;
+    if (typeof columnOrder === 'string') {
+        const trimmed = columnOrder.trim();
+        if (trimmed === '') {
+            columnOrder = [];
+        } else {
+            try {
+                columnOrder = JSON.parse(trimmed);
+            } catch (e) {
+                columnOrder = trimmed.split(',');
+            }
+        }
+    }
+    if (!Array.isArray(columnOrder)) columnOrder = [];
+
+    return {
+        hasHeader,
+        columnOrder: columnOrder.map((k) => String(k).trim()).filter(Boolean)
+    };
+}
+
+// 미리보기 응답용 행 요약 (앞부분만)
+function buildPreviewPayload(parsed, matches, limit) {
+    const max = Math.min(Number(limit) || 200, 500);
+    const items = matches.slice(0, MAX_IN_LIST).map((m, i) => {
+        const changes = patchPaste.buildChanges(m);
+        const changeList = [];
+        if (changes) {
+            Object.keys(changes).forEach((key) => {
+                const def = patchPaste.PASTE_FIELDS.find((f) => f.key === key);
+                changes[key].label = def ? def.label : key;
+                changes[key].key = key;
+                changes[key].itemId = m.item.id;
+                changes[key].customerCompany = m.item.customer_company || '';
+                changes[key].itemName = m.item.item_name || '';
+                changes[key].modelName = m.item.model_name || '';
+                changes[key].serialNumber = m.item.serial_number || '';
+                changes[key].line = m.row.__line;
+                changeList.push(changes[key]);
+            });
+        }
+        return {
+            index: i + 1,
+            line: m.row.__line,
+            status: m.status,
+            strategy: m.strategy,
+            itemId: m.item ? m.item.id : null,
+            customerCompany: m.item ? (m.item.customer_company || '') : (m.row.customer_company || ''),
+            itemName: m.item ? (m.item.item_name || '') : (m.row.item_name || ''),
+            modelName: m.item ? (m.item.model_name || '') : (m.row.model_name || ''),
+            serialNumber: m.item ? (m.item.serial_number || '') : (m.row.serial_number || ''),
+            candidateCount: (m.candidates || []).length,
+            changeCount: changeList.length,
+            changes: changeList
+        };
+    });
+
+    const counts = patchPaste.summarize(matches);
+
+    return {
+        success: true,
+        headerDetected: parsed.headerDetected,
+        delimiter: parsed.delimiter,
+        fields: parsed.fields,
+        columnLabels: parsed.columnLabels,
+        ignoredHeaders: parsed.ignoredHeaders,
+        truncated: parsed.truncated,
+        counts,
+        rows: items,
+        previewLimited: matches.length > items.length,
+        previewLimit: max
+    };
+}
+
+exports.pastePreview = async (req, res) => {
+    try {
+        const body = req.body || {};
+        const text = body.text || req.query.text || '';
+        if (String(text).trim() === '') {
+            return res.status(400).json({ success: false, message: '붙여넣은 내용이 없습니다. 엑셀에서 셀 범위를 복사해 붙여넣어 주세요.' });
+        }
+
+        const options = normalizePasteOptions(req.body);
+        const parsed = patchPaste.parsePasteText(text, options);
+
+        if (!parsed.ok) {
+            return res.status(400).json({
+                success: false,
+                message: parsed.message || '붙여넣은 데이터를 해석할 수 없습니다.',
+                headerDetected: parsed.headerDetected,
+                fields: parsed.fields,
+                columnLabels: parsed.columnLabels,
+                ignoredHeaders: parsed.ignoredHeaders
+            });
+        }
+
+        const matches = await patchPaste.matchRows(parsed.rows);
+        return res.json(buildPreviewPayload(parsed, matches, body.limit));
+    } catch (error) {
+        console.error('[patch] pastePreview error:', error);
+        return res.status(500).json({ success: false, message: '미리보기 중 오류가 발생했습니다.' });
+    }
+};
+
+exports.pasteApply = async (req, res) => {
+    try {
+        const body = req.body || {};
+        const text = body.text || '';
+        if (String(text).trim() === '') {
+            return res.status(400).json({ success: false, message: '붙여넣은 내용이 없습니다.' });
+        }
+
+        const options = normalizePasteOptions(req.body);
+        const parsed = patchPaste.parsePasteText(text, options);
+
+        if (!parsed.ok) {
+            return res.status(400).json({ success: false, message: parsed.message || '붙여넣은 데이터를 해석할 수 없습니다.' });
+        }
+
+        // 적용 시점에 서버가 다시 매칭 (클라이언트 id 신뢰 X)
+        const matches = await patchPaste.matchRows(parsed.rows);
+        const counts = patchPaste.summarize(matches);
+
+        if (counts.matched === 0) {
+            return res.status(400).json({
+                success: false,
+                message: '일치하는 품목이 없습니다. S/N 또는 품목명을 확인해 주세요. (미리보기로 매칭 결과를 먼저 확인하세요)',
+                counts
+            });
+        }
+
+        const result = await patchPaste.applyMatches(matches);
+        const operator = (req.session.user && req.session.user.name) || 'system';
+        console.log(`[patch] pasteApply by ${operator}: rows=${counts.total} changed=${counts.changed} updated=${result.updated}`);
+
+        const parts = [`${result.updated}건을 업데이트했습니다.`];
+        if (counts.notFound > 0) parts.push(`미매칭 ${counts.notFound}건`);
+        if (counts.ambiguous > 0) parts.push(`중복매칭 ${counts.ambiguous}건`);
+        if (counts.unchanged > 0) parts.push(`변경없음 ${counts.unchanged}건`);
+
+        return res.json({
+            success: true,
+            updated: result.updated,
+            counts,
+            message: parts.join(' · ')
+        });
+    } catch (error) {
+        console.error('[patch] pasteApply error:', error);
+        return res.status(500).json({ success: false, message: '적용 중 오류가 발생했습니다.' });
+    }
+};
+
 
 /* ------------------------------------------------------------------ */
 /* 엑셀 다운로드                                                        */
