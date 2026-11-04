@@ -14,6 +14,7 @@ const minutesRoutes = require('./routes/minutesRoutes'); // minutesRoutes 추가
 const minutesController = require('./controllers/minutesController'); // minutesController 추가
 const scheduleRoutes = require('./routes/scheduleRoutes'); // scheduleRoutes 추가
 const patchRoutes = require('./routes/patchRoutes'); // 패치관리 라우트 추가 (maintenanceRoutes 보다 먼저 등록)
+const maintenanceImportRoutes = require('./routes/maintenanceImportRoutes'); // 엑셀 일괄 반영 (maintenanceRoutes 보다 먼저)
 const maintenanceRoutes = require('./routes/maintenanceRoutes'); // 유지보수 라우트 추가
 const maintenanceSummaryRoutes = require('./routes/maintenanceSummaryRoutes');
 const maintenanceSupportRoutes = require('./routes/maintenanceSupportRoutes');
@@ -120,6 +121,7 @@ app.get('/minutes/download-docx/:id', minutesController.downloadMeetingMinutesAs
 app.use('/minutes', isAuthenticated, minutesRoutes); // 회의록 라우트 추가
 app.use('/schedule', isAuthenticated, scheduleRoutes); // 일정 라우트 추가
 app.use('/maintenance', isAuthenticated, patchRoutes); // 패치관리 라우트 (유지보수 라우트보다 먼저 등록)
+app.use('/maintenance', isAuthenticated, maintenanceImportRoutes); // 엑셀 일괄 반영 (maintenanceRoutes '/:id' 보다 먼저)
 app.use('/maintenance', isAuthenticated, maintenanceRoutes); // 유지보수 라우트 추가
 app.use('/maintenance', isAuthenticated, maintenanceSummaryRoutes);
 app.use('/maintenance', isAuthenticated, maintenanceSupportRoutes);

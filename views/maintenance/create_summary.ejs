@@ -27,96 +27,129 @@
                 </div>
                 <div class="card-body">
                     <form id="create-summary-form" action="/maintenance/summary/create" method="POST">
+
+                        <!-- 기본 정보 -->
+                        <h6 class="text-primary border-bottom pb-2 mb-3">기본 정보</h6>
                         <div class="row">
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <label for="division" class="form-label">구분</label>
                                 <input type="text" class="form-control" id="division" name="division">
                             </div>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <label for="customer_company" class="form-label">고객사</label>
                                 <input type="text" class="form-control" id="customer_company" name="customer_company">
                             </div>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <label for="project_name" class="form-label">사업명</label>
                                 <input type="text" class="form-control" id="project_name" name="project_name">
                             </div>
                             <% if (user && user.role === 'admin') { %>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <label for="cost" class="form-label">비용</label>
                                 <input type="text" class="form-control" id="cost" name="cost">
                             </div>
                             <% } %>
                         </div>
+
+                        <!-- 기간 정보 -->
+                        <h6 class="text-primary border-bottom pb-2 mb-3">기간 정보</h6>
                         <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="maintenance_start_date" class="form-label">유지보수시작일</label>
+                            <div class="col-md-3 mb-3">
+                                <label for="inspection_date" class="form-label">검수일</label>
+                                <input type="text" class="form-control" id="inspection_date" name="inspection_date" placeholder="YYYY-MM-DD">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="introduction_date" class="form-label">도입일</label>
+                                <input type="text" class="form-control" id="introduction_date" name="introduction_date" placeholder="YYYY-MM-DD">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="maintenance_start_date" class="form-label">유지보수 시작일</label>
                                 <input type="date" class="form-control" id="maintenance_start_date" name="maintenance_start_date">
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="maintenance_end_date" class="form-label">유지보수종료일</label>
+                            <div class="col-md-3 mb-3">
+                                <label for="maintenance_end_date" class="form-label">유지보수 종료일</label>
                                 <input type="date" class="form-control" id="maintenance_end_date" name="maintenance_end_date">
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">품목</label>
-                            <div id="items-container">
-                                <div class="item-row row mb-2">
-                                    <div class="col-md-3">
-                                        <input type="text" class="form-control" name="item_names[]" placeholder="품목명">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <input type="text" class="form-control" name="manufacturers[]" placeholder="제조사">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <input type="text" class="form-control" name="item_versions[]" placeholder="버전">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <input type="text" class="form-control" name="item_details[]" placeholder="상세내용">
-                                    </div>
-                                    <div class="col-md-2">
-                                        <button type="button" class="btn btn-danger btn-sm remove-item">삭제</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-success btn-sm" id="add-item">품목 추가</button>
-                        </div>
+
+                        <!-- 담당 정보 -->
+                        <h6 class="text-primary border-bottom pb-2 mb-3">담당 정보</h6>
                         <div class="row">
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <label for="main_engineer" class="form-label">정엔지니어</label>
                                 <input type="text" class="form-control" id="main_engineer" name="main_engineer">
                             </div>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <label for="sub_engineer" class="form-label">부엔지니어</label>
                                 <input type="text" class="form-control" id="sub_engineer" name="sub_engineer">
                             </div>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <label for="sales_manager" class="form-label">영업담당</label>
                                 <input type="text" class="form-control" id="sales_manager" name="sales_manager">
                             </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="inspection_method" class="form-label">점검방식</label>
+                                <input type="text" class="form-control" id="inspection_method" name="inspection_method">
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="inspection_method" class="form-label">점검방식</label>
-                            <input type="text" class="form-control" id="inspection_method" name="inspection_method">
-                        </div>
+
+                        <!-- 유지보수 업체 -->
+                        <h6 class="text-primary border-bottom pb-2 mb-3">유지보수 업체 정보</h6>
                         <div class="row">
                             <div class="col-md-4 mb-3">
-                                <label for="customer_contact_person" class="form-label">고객담당자</label>
+                                <label for="vendor_name" class="form-label">업체명</label>
+                                <input type="text" class="form-control" id="vendor_name" name="vendor_name" placeholder="예: 제이원아이티">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="vendor_contact_person" class="form-label">업체 담당자</label>
+                                <input type="text" class="form-control" id="vendor_contact_person" name="vendor_contact_person">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="vendor_contact" class="form-label">업체 연락처 / 이메일</label>
+                                <input type="text" class="form-control" id="vendor_contact" name="vendor_contact">
+                            </div>
+                        </div>
+
+                        <!-- 고객 정보 -->
+                        <h6 class="text-primary border-bottom pb-2 mb-3">고객 정보</h6>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="customer_department" class="form-label">고객 부서명</label>
+                                <input type="text" class="form-control" id="customer_department" name="customer_department" placeholder="예: IT팀">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="customer_contact_person" class="form-label">고객 담당자</label>
                                 <input type="text" class="form-control" id="customer_contact_person" name="customer_contact_person">
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label for="customer_contact" class="form-label">고객연락처</label>
+                                <label for="customer_contact" class="form-label">고객 연락처</label>
                                 <input type="text" class="form-control" id="customer_contact" name="customer_contact">
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label for="customer_email" class="form-label">고객이메일</label>
+                                <label for="customer_email" class="form-label">고객 이메일</label>
                                 <input type="email" class="form-control" id="customer_email" name="customer_email">
                             </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="inspection_location" class="form-label">점검위치</label>
+                                <input type="text" class="form-control" id="inspection_location" name="inspection_location">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="quote_file" class="form-label">견적서 파일명</label>
+                                <input type="text" class="form-control" id="quote_file" name="quote_file" placeholder="예: 20240925 견적서">
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="inspection_location" class="form-label">점검위치</label>
-                            <input type="text" class="form-control" id="inspection_location" name="inspection_location">
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="customer_location" class="form-label">고객사 위치</label>
+                                <input type="text" class="form-control" id="customer_location" name="customer_location" placeholder="예: 서울특별시 영등포구 국제금융로2길 32, 21층">
+                            </div>
                         </div>
-                        <div class="mb-3">
+
+                        <!-- 품목 -->
+                        <h6 class="text-primary border-bottom pb-2 mb-3">품목 정보</h6>
+                        <%- include('./partials/_item_table', { items: [], isRestricted: false }) %>
+
+                        <div class="mb-3 mt-4">
                             <label for="attachments" class="form-label">첨부파일</label>
                             <div id="drop-zone">
                                 <div>파일을 드래그하거나 여기를 클릭하여 파일을 선택하세요.</div>
@@ -195,37 +228,6 @@
     document.addEventListener('DOMContentLoaded', function () {
         let remarksEditor;
 
-        // Add Item Logic
-        const itemsContainer = document.getElementById('items-container');
-        document.getElementById('add-item').addEventListener('click', function() {
-            const newRow = document.createElement('div');
-            newRow.className = 'item-row row mb-2';
-            newRow.innerHTML = `
-                <div class="col-md-3">
-                    <input type="text" class="form-control" name="item_names[]" placeholder="품목명">
-                </div>
-                <div class="col-md-2">
-                    <input type="text" class="form-control" name="manufacturers[]" placeholder="제조사">
-                </div>
-                <div class="col-md-2">
-                    <input type="text" class="form-control" name="item_versions[]" placeholder="버전">
-                </div>
-                <div class="col-md-3">
-                    <input type="text" class="form-control" name="item_details[]" placeholder="상세내용">
-                </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-danger btn-sm remove-item">삭제</button>
-                </div>
-            `;
-            itemsContainer.appendChild(newRow);
-        });
-
-        itemsContainer.addEventListener('click', function(e) {
-            if (e.target.classList.contains('remove-item')) {
-                e.target.closest('.item-row').remove();
-            }
-        });
-
         ClassicEditor
             .create(document.querySelector('#remarks'), {
                 extraPlugins: [MyUploadAdapterPlugin],
@@ -239,7 +241,11 @@
                     fileInputId: 'file-input',
                     fileListId: 'file-list',
                     isEdit: false,
-                    editor: remarksEditor
+                    editor: remarksEditor,
+                    itemTableId: 'items-container-table',
+                    pasteBtnId: 'item-paste-btn',
+                    addItemBtnId: 'add-item',
+                    itemRowCountId: 'item-row-count'
                 });
             })
             .catch(error => {

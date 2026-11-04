@@ -292,6 +292,10 @@
                                 title="엑셀에서 복사한 셀 범위를 붙여넣어 여러 품목을 한 번에 업데이트합니다">
                             <i class="fa-solid fa-clipboard-list me-1"></i>엑셀 붙여넣기
                         </button>
+                        <button type="button" class="btn btn-outline-dark btn-sm" id="importBtn"
+                                title="유지보수 총괄표 엑셀 파일을 업로드해 요약/품목을 한 번에 반영합니다">
+                            <i class="fa-solid fa-file-import me-1"></i>엑셀 업로드
+                        </button>
                         <div class="btn-group btn-group-sm">
                             <a href="<%= buildUrl('1') %>" class="btn btn-<%= filters.patch === '1' ? 'danger' : 'outline-danger' %>">패치필요만</a>
                             <a href="<%= buildUrl('0') %>" class="btn btn-<%= filters.patch === '0' ? 'success' : 'outline-success' %>">패치불필요만</a>
@@ -555,6 +559,119 @@
                     </button>
                     <button type="button" class="btn btn-outline-secondary d-none" id="pasteBackBtn">
                         <i class="fa-solid fa-arrow-left me-1"></i>다시 입력
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 유지보수 총괄표 엑셀 업로드 모달 (요약 + 품목 일괄 반영) -->
+    <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="importModalLabel">
+                        <i class="fa-solid fa-file-import me-1"></i>유지보수 총괄표 엑셀 일괄 반영
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+                </div>
+                <div class="modal-body">
+                    <% /* ---------- 1단계: 파일 선택 ---------- */ %>
+                    <section id="importStep1">
+                        <div class="alert alert-light border small mb-3">
+                            <div class="fw-semibold mb-1"><i class="fa-solid fa-circle-info me-1"></i>사용 방법</div>
+                            <ol class="mb-1 ps-3">
+                                <li>유지보수 총괄표 엑셀 파일을 선택합니다. (「고객사」「품목」 헤더가 있는 시트를 자동 인식)</li>
+                                <li><strong>분석</strong>을 눌러 어떤 고객사·품목이 반영될지 미리 확인합니다.</li>
+                                <li>반영 방식을 고르고 <strong>DB 반영</strong> 또는 <strong>SQL 다운로드</strong>를 선택합니다.</li>
+                            </ol>
+                            <div class="text-muted">
+                                요약(고객사+사업명)은 기존 건이 있으면 <strong>갱신</strong>, 없으면 <strong>신규 생성</strong>합니다.
+                                품목은 S/N → 품목명+모델명 순으로 매칭하며, <strong>빈 칸은 기존 값을 유지</strong>합니다.
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-7">
+                                <label for="importFile" class="form-label small fw-semibold mb-1">엑셀 파일 <span class="text-danger">*</span></label>
+                                <input type="file" class="form-control form-control-sm" id="importFile"
+                                       accept=".xlsx,.xlsm,.xls,.csv">
+                                <div class="form-text">최대 40MB. 여러 시트가 있으면 분석 후 시트를 선택할 수 있습니다.</div>
+                            </div>
+                            <div class="col-md-5">
+                                <label for="importSheet" class="form-label small fw-semibold mb-1">시트</label>
+                                <select class="form-select form-select-sm" id="importSheet" disabled>
+                                    <option value="">파일을 먼저 분석하세요</option>
+                                </select>
+                                <div class="form-text">분석 시 자동으로 가장 알맞은 시트를 고릅니다.</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 p-3 bg-light border rounded">
+                            <div class="fw-semibold small mb-2"><i class="fa-solid fa-sliders me-1"></i>반영 방식</div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="importStrategy" id="strategyMerge" value="merge" checked>
+                                <label class="form-check-label small" for="strategyMerge">
+                                    <strong>병합(권장)</strong> — 기존 품목을 유지하고, 매칭되면 갱신 / 없으면 추가
+                                </label>
+                            </div>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="radio" name="importStrategy" id="strategyReplace" value="replace">
+                                <label class="form-check-label small" for="strategyReplace">
+                                    <strong>교체</strong> — 해당 고객사/사업의 기존 품목을 모두 삭제하고 엑셀 내용으로 대체
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="importTemplateBtn">
+                                <i class="fa-solid fa-download me-1"></i>업로드 양식 받기
+                            </button>
+                        </div>
+                    </section>
+
+                    <% /* ---------- 2단계: 분석 결과 ---------- */ %>
+                    <section id="importStep2" class="d-none">
+                        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                            <span class="badge text-bg-primary" id="importBadgeGroups">그룹 0</span>
+                            <span class="badge text-bg-info" id="importBadgeItems">품목 0</span>
+                            <span class="badge text-bg-success" id="importBadgeNew">신규 0</span>
+                            <span class="badge text-bg-secondary" id="importBadgeExist">기존 0</span>
+                            <span class="text-muted small ms-auto" id="importParseInfo"></span>
+                        </div>
+                        <div class="alert alert-warning small py-2 d-none" id="importWarnBox"></div>
+
+                        <div class="table-responsive" style="max-height:44vh;">
+                            <table class="table table-sm table-bordered align-middle mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th style="width:52px;" class="text-center">#</th>
+                                        <th style="width:90px;" class="text-center">상태</th>
+                                        <th>고객사</th>
+                                        <th>사업명</th>
+                                        <th style="width:80px;" class="text-center">품목</th>
+                                        <th>품목 미리보기</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="importPreviewBody"></tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+                <div class="modal-footer">
+                    <span class="text-muted small me-auto" id="importFooterHint"></span>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-outline-primary" id="importAnalyzeBtn">
+                        <i class="fa-solid fa-magnifying-glass me-1"></i>분석
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary d-none" id="importBackBtn">
+                        <i class="fa-solid fa-arrow-left me-1"></i>다시 선택
+                    </button>
+                    <button type="button" class="btn btn-outline-dark d-none" id="importSqlBtn">
+                        <i class="fa-solid fa-file-code me-1"></i>SQL 다운로드
+                    </button>
+                    <button type="button" class="btn btn-primary d-none" id="importApplyBtn">
+                        <i class="fa-solid fa-cloud-arrow-up me-1"></i>DB 반영
                     </button>
                 </div>
             </div>
@@ -1783,5 +1900,412 @@
 
     // 최초 상태
     updateTextStat();
+})();
+</script>
+
+
+<script>
+/* ------------------------------------------------------------------
+ * 유지보수 총괄표 엑셀 일괄 반영
+ *
+ *  1) 파일 선택 → 분석   POST /maintenance/import/preview  (multipart, DB 변경 없음)
+ *  2) DB 반영            POST /maintenance/import/apply    (JSON, 트랜잭션)
+ *  3) SQL 다운로드        POST /maintenance/import/sql      (JSON → .sql 파일)
+ *
+ *  ※ 화면 출력은 createElement / textContent 로만 처리합니다.
+ * ------------------------------------------------------------------ */
+(function () {
+    const btn = document.getElementById('importBtn');
+    const modalEl = document.getElementById('importModal');
+    if (!btn || !modalEl || !window.bootstrap) return;
+
+    const modal = new bootstrap.Modal(modalEl);
+
+    const step1 = document.getElementById('importStep1');
+    const step2 = document.getElementById('importStep2');
+    const fileInput = document.getElementById('importFile');
+    const sheetSel = document.getElementById('importSheet');
+
+    const analyzeBtn = document.getElementById('importAnalyzeBtn');
+    const applyBtn = document.getElementById('importApplyBtn');
+    const sqlBtn = document.getElementById('importSqlBtn');
+    const backBtn = document.getElementById('importBackBtn');
+    const templateBtn = document.getElementById('importTemplateBtn');
+    const footerHint = document.getElementById('importFooterHint');
+
+    const body = document.getElementById('importPreviewBody');
+    const badgeGroups = document.getElementById('importBadgeGroups');
+    const badgeItems = document.getElementById('importBadgeItems');
+    const badgeNew = document.getElementById('importBadgeNew');
+    const badgeExist = document.getElementById('importBadgeExist');
+    const parseInfo = document.getElementById('importParseInfo');
+    const warnBox = document.getElementById('importWarnBox');
+
+    let token = null;          // 업로드된 임시 파일명
+    let sheets = [];           // 시트 후보
+    let busy = false;
+    let sent = false;          // 파일이 이미 서버로 전송되었는지 (시트 변경 시 재전송 방지)
+
+    function notify(type, message) {
+        if (window.showNotification) window.showNotification(type, message);
+        else if (type === 'error') alert(message);
+    }
+
+    function el(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined && text !== null) node.textContent = String(text);
+        return node;
+    }
+
+    function selectedStrategy() {
+        const checked = document.querySelector('input[name="importStrategy"]:checked');
+        return checked ? checked.value : 'merge';
+    }
+
+    /* ---------------- 단계 전환 ---------------- */
+    function resetToStep1() {
+        step1.classList.remove('d-none');
+        step2.classList.add('d-none');
+        analyzeBtn.classList.remove('d-none');
+        applyBtn.classList.add('d-none');
+        sqlBtn.classList.add('d-none');
+        backBtn.classList.add('d-none');
+        footerHint.textContent = '';
+        token = null;
+        while (body.firstChild) body.removeChild(body.firstChild);
+        warnBox.classList.add('d-none');
+        warnBox.textContent = '';
+        parseInfo.textContent = '';
+        sheetSel.innerHTML = '';
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '파일을 먼저 분석하세요';
+        sheetSel.appendChild(opt);
+        sheetSel.disabled = true;
+    }
+
+    function showStep2() {
+        step1.classList.add('d-none');
+        step2.classList.remove('d-none');
+        analyzeBtn.classList.add('d-none');
+        applyBtn.classList.remove('d-none');
+        sqlBtn.classList.remove('d-none');
+        backBtn.classList.remove('d-none');
+    }
+
+    /* ---------------- 시트 선택 채우기 ---------------- */
+    function fillSheets(list, current) {
+        sheets = list || [];
+        sheetSel.innerHTML = '';
+        if (!sheets.length) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = '시트 없음';
+            sheetSel.appendChild(opt);
+            sheetSel.disabled = true;
+            return;
+        }
+        sheets.forEach(function (s) {
+            const opt = document.createElement('option');
+            opt.value = s.name;
+            if (!s.usable) {
+                opt.textContent = s.name + '  (사용 불가: ' + (s.reason || '헤더 없음') + ')';
+                opt.disabled = true;
+            } else {
+                opt.textContent = s.name + '  (' + s.dataRows + '행 · 컬럼 ' + s.fields + ')';
+            }
+            if (s.name === current) opt.selected = true;
+            sheetSel.appendChild(opt);
+        });
+        sheetSel.disabled = false;
+    }
+
+    /* ---------------- 미리보기 렌더 ---------------- */
+    function renderPreview(data) {
+        while (body.firstChild) body.removeChild(body.firstChild);
+
+        const counts = data.counts || {};
+        const groups = Number(counts.groups) || 0;
+        const items = Number(counts.items) || 0;
+        const newG = Number(counts.newGroups) || 0;
+        const existG = Number(counts.existingGroups) || 0;
+
+        badgeGroups.textContent = '그룹 ' + groups;
+        badgeItems.textContent = '품목 ' + items;
+        badgeNew.textContent = '신규 ' + newG;
+        badgeExist.textContent = '기존 ' + existG;
+
+        const info = [];
+        info.push('시트: ' + (data.sheetName || '-'));
+        info.push('헤더 ' + (data.headerRow || '?') + '행');
+        info.push('컬럼 ' + ((data.columns || []).length) + '개 인식');
+        if (data.subHeaderUsed) info.push('2단 헤더');
+        parseInfo.textContent = info.join(' · ');
+
+        const warnings = [];
+        if (Array.isArray(data.unmappedColumns) && data.unmappedColumns.length) {
+            warnings.push('인식 못한 컬럼: ' + data.unmappedColumns.join(', '));
+        }
+        const stats = data.stats || {};
+        if (stats.skipped) warnings.push('빈 행 ' + stats.skipped + '건 제외');
+        if (stats.truncated) warnings.push('행이 너무 많아 일부만 처리했습니다.');
+        if (data.previewLimited) warnings.push('목록은 최대 ' + (data.rows || []).length + '건만 표시합니다.');
+        if (warnings.length) {
+            warnBox.textContent = warnings.join(' ');
+            warnBox.classList.remove('d-none');
+        }
+
+        (data.rows || []).forEach(function (row) {
+            const tr = el('tr');
+            if (row.status === 'new') tr.className = 'table-success-subtle';
+
+            tr.appendChild(el('td', 'text-center text-muted', row.index));
+
+            const tdStatus = el('td', 'text-center');
+            tdStatus.appendChild(el('span',
+                'badge ' + (row.status === 'new' ? 'text-bg-success' : 'text-bg-secondary'),
+                row.status === 'new' ? '신규' : '기존'));
+            tr.appendChild(tdStatus);
+
+            tr.appendChild(el('td', 'fw-semibold', row.customerCompany || '-'));
+            tr.appendChild(el('td', 'small', row.projectName || '-'));
+
+            const tdCount = el('td', 'text-center');
+            tdCount.appendChild(el('span', 'badge text-bg-info', row.itemCount));
+            tr.appendChild(tdCount);
+
+            const tdItems = el('td', 'small');
+            const shown = (row.items || []).slice(0, 3);
+            shown.forEach(function (it) {
+                const line = el('div', 'text-truncate');
+                const parts = [it.itemName || '-'];
+                if (it.manufacturer) parts.push(it.manufacturer);
+                if (it.modelName) parts.push(it.modelName);
+                if (it.serialNumber) parts.push('S/N ' + it.serialNumber);
+                line.textContent = parts.join(' · ');
+                line.title = parts.join(' · ');
+                tdItems.appendChild(line);
+            });
+            if ((row.items || []).length > shown.length) {
+                tdItems.appendChild(el('div', 'text-muted', '… 외 ' + ((row.items || []).length - shown.length) + '건'));
+            }
+            tr.appendChild(tdItems);
+
+            body.appendChild(tr);
+        });
+
+        if (!body.firstChild) {
+            const tr = el('tr');
+            const td = el('td', 'text-center text-muted py-4', '반영할 데이터가 없습니다.');
+            td.colSpan = 6;
+            tr.appendChild(td);
+            body.appendChild(tr);
+        }
+
+        const strat = selectedStrategy();
+        footerHint.textContent = '반영 방식: ' + (strat === 'replace' ? '교체' : '병합')
+            + ' · 그룹 ' + groups + ' / 품목 ' + items + '건';
+        applyBtn.disabled = items === 0;
+        sqlBtn.disabled = items === 0;
+    }
+
+    /* ---------------- 분석 ---------------- */
+    async function analyze(sheetName) {
+        const file = fileInput.files && fileInput.files[0];
+        if (!file && !token) {
+            notify('warning', '엑셀 파일을 먼저 선택해 주세요.');
+            return;
+        }
+        if (busy) return;
+        busy = true;
+
+        const original = analyzeBtn.innerHTML;
+        analyzeBtn.disabled = true;
+        analyzeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>분석 중...';
+
+        try {
+            const fd = new FormData();
+            // 파일이 아직 전송되지 않았을 때만 파일을 첨부합니다.
+            // (시트 변경 시에는 서버가 token 으로 저장된 파일을 다시 읽습니다)
+            if (file && !sent) fd.append('excelFile', file);
+            if (!file && token) fd.append('token', token);
+            if (sheetName) fd.append('sheet', sheetName);
+
+            const res = await fetch('/maintenance/import/preview', { method: 'POST', body: fd });
+            const text = await res.text();
+            let data = {};
+            try { data = JSON.parse(text); } catch (e) {
+                data = { success: false, message: '응답을 해석할 수 없습니다. (HTTP ' + res.status + ')' };
+            }
+
+            if (!res.ok || !data.success) {
+                if (data.sheets) fillSheets(data.sheets, data.sheetName);
+                notify('error', data.message || '엑셀 분석에 실패했습니다.');
+                return;
+            }
+
+            token = data.token;
+            sent = true;
+            fillSheets(data.sheets, data.sheetName);
+            showStep2();
+            renderPreview(data);
+        } catch (err) {
+            notify('error', err.message || '엑셀 분석 중 오류가 발생했습니다.');
+        } finally {
+            analyzeBtn.innerHTML = original;
+            analyzeBtn.disabled = false;
+            busy = false;
+        }
+    }
+
+    /* ---------------- 공통 JSON POST ---------------- */
+    async function postJson(url, payload) {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        let data = {};
+        try { data = JSON.parse(text); } catch (e) {
+            data = { success: false, message: '응답을 해석할 수 없습니다. (HTTP ' + res.status + ')' };
+        }
+        return { ok: res.ok, data: data };
+    }
+
+    /* ---------------- DB 반영 ---------------- */
+    applyBtn.addEventListener('click', async function () {
+        if (!token) {
+            notify('warning', '먼저 분석을 실행해 주세요.');
+            return;
+        }
+        const strat = selectedStrategy();
+        const msg = strat === 'replace'
+            ? '해당 고객사/사업의 기존 품목을 모두 삭제하고 엑셀 내용으로 교체합니다.\n계속할까요?'
+            : '엑셀 내용을 DB에 병합 반영합니다.\n계속할까요?';
+        if (!window.confirm(msg)) return;
+
+        const original = applyBtn.innerHTML;
+        applyBtn.disabled = true;
+        applyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>반영 중...';
+
+        try {
+            const { ok, data } = await postJson('/maintenance/import/apply', {
+                token: token,
+                sheet: sheetSel.value,
+                strategy: strat
+            });
+
+            if (!ok || !data.success) {
+                notify('error', data.message || '반영에 실패했습니다.');
+                return;
+            }
+
+            notify('success', data.message || '반영했습니다.');
+            modal.hide();
+            setTimeout(function () { window.location.reload(); }, 500);
+        } catch (err) {
+            notify('error', err.message || '반영 중 오류가 발생했습니다.');
+        } finally {
+            applyBtn.innerHTML = original;
+            applyBtn.disabled = false;
+        }
+    });
+
+    /* ---------------- SQL 다운로드 ---------------- */
+    sqlBtn.addEventListener('click', async function () {
+        if (!token) {
+            notify('warning', '먼저 분석을 실행해 주세요.');
+            return;
+        }
+
+        const original = sqlBtn.innerHTML;
+        sqlBtn.disabled = true;
+        sqlBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>생성 중...';
+
+        try {
+            const res = await fetch('/maintenance/import/sql', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: token,
+                    sheet: sheetSel.value,
+                    strategy: selectedStrategy()
+                })
+            });
+
+            if (!res.ok) {
+                let msg = 'SQL 생성에 실패했습니다.';
+                try {
+                    const j = await res.json();
+                    if (j && j.message) msg = j.message;
+                } catch (e) { /* ignore */ }
+                notify('error', msg);
+                return;
+            }
+
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            a.href = url;
+            a.download = 'maintenance_import_' + stamp + '.sql';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+
+            notify('success', 'SQL 스크립트를 다운로드했습니다. 실행 전 백업을 권장합니다.');
+        } catch (err) {
+            notify('error', err.message || 'SQL 생성 중 오류가 발생했습니다.');
+        } finally {
+            sqlBtn.innerHTML = original;
+            sqlBtn.disabled = false;
+        }
+    });
+
+    /* ---------------- 시트 변경 → 재분석 ---------------- */
+    sheetSel.addEventListener('change', function () {
+        const name = sheetSel.value;
+        if (!name) return;
+        const s = sheets.find(function (x) { return x.name === name; });
+        if (s && !s.usable) {
+            notify('warning', '이 시트는 사용할 수 없습니다: ' + (s.reason || '헤더 없음'));
+            return;
+        }
+        analyze(name);
+    });
+
+    /* ---------------- 버튼 ---------------- */
+    analyzeBtn.addEventListener('click', function () { analyze(sheetSel.value || null); });
+
+    backBtn.addEventListener('click', function () { resetToStep1(); });
+
+    templateBtn.addEventListener('click', function () {
+        window.location.href = '/maintenance/import/template';
+    });
+
+    fileInput.addEventListener('change', function () {
+        // 파일을 새로 고르면 이전 토큰 무효화
+        token = null;
+    });
+
+    btn.addEventListener('click', function () {
+        resetToStep1();
+        modal.show();
+    });
+
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        if (token) {
+            // 임시 파일 정리 (실패해도 무시)
+            fetch('/maintenance/import/discard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: token })
+            }).catch(function () { /* ignore */ });
+        }
+        resetToStep1();
+    });
 })();
 </script>

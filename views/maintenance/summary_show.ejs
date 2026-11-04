@@ -62,27 +62,100 @@
                                     </tr>
                                     <% } %>
                                     <tr>
+                                        <th>검수일</th>
+                                        <td><%= summary.inspection_date || '-' %></td>
+                                    </tr>
+                                    <tr>
+                                        <th>도입일</th>
+                                        <td><%= summary.introduction_date || '-' %></td>
+                                    </tr>
+                                    <tr>
                                         <th>유지보수 시작일</th>
-                                        <td><%= summary.maintenance_start_date %></td>
+                                        <td><%= summary.maintenance_start_date || '-' %></td>
                                     </tr>
                                     <tr>
                                         <th>유지보수 종료일</th>
-                                        <td><%= summary.maintenance_end_date %></td>
+                                        <td><%= summary.maintenance_end_date || '-' %></td>
+                                    </tr>
+                                    <tr>
+                                        <th>업체명</th>
+                                        <td><%= summary.vendor_name || '-' %></td>
+                                    </tr>
+                                    <tr>
+                                        <th>업체 담당자</th>
+                                        <td><%= summary.vendor_contact_person || '-' %></td>
+                                    </tr>
+                                    <tr>
+                                        <th>업체 연락처</th>
+                                        <td><%= summary.vendor_contact || '-' %></td>
+                                    </tr>
+                                    <tr>
+                                        <th>고객 부서명</th>
+                                        <td><%= summary.customer_department || '-' %></td>
+                                    </tr>
+                                    <tr>
+                                        <th>고객사 위치</th>
+                                        <td><%= summary.customer_location || '-' %></td>
+                                    </tr>
+                                    <tr>
+                                        <th>견적서 파일</th>
+                                        <td><%= summary.quote_file || '-' %></td>
                                     </tr>
                                     <tr>
                                         <th>품목</th>
                                         <td>
                                             <% if (summary.items && summary.items.length > 0) { %>
-                                                <ul class="mb-0">
-                                                    <% summary.items.forEach(item => { %>
-                                                        <li>
-                                                            <strong><%= item.item_name %></strong>
-                                                            <% if (item.item_version) { %><span class="badge text-bg-secondary ms-1"><%= item.item_version %></span><% } %>
-                                                            <% if (item.item_detail) { %>: <%= item.item_detail %><% } %>
-                                                            <% if (item.patch_required) { %><span class="badge text-bg-warning ms-1">패치필요</span><% } %>
-                                                        </li>
-                                                    <% }); %>
-                                                </ul>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-bordered mb-0 align-middle">
+                                                        <thead class="table-light">
+                                                            <tr>
+                                                                <th style="min-width: 120px;">품목명</th>
+                                                                <th style="min-width: 100px;">제조사</th>
+                                                                <th style="min-width: 140px;">모델명</th>
+                                                                <th style="min-width: 60px;">수량</th>
+                                                                <th style="min-width: 130px;">S/N</th>
+                                                                <th style="min-width: 90px;">FW</th>
+                                                                <th style="min-width: 100px;">OS</th>
+                                                                <th style="min-width: 100px;">EoS</th>
+                                                                <th style="min-width: 100px;">EoL</th>
+                                                                <th style="min-width: 120px;">점검위치</th>
+                                                                <th style="min-width: 120px;">백계약업체</th>
+                                                                <th style="min-width: 100px;">백계약</th>
+                                                                <th style="min-width: 110px;">계약일</th>
+                                                                <th style="min-width: 110px;">종료일</th>
+                                                                <th style="min-width: 110px;">담당자</th>
+                                                                <th style="min-width: 120px;">연락처</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <% summary.items.forEach(item => { %>
+                                                            <tr>
+                                                                <td>
+                                                                    <strong><%= item.item_name || '-' %></strong>
+                                                                    <% if (item.patch_required) { %><span class="badge text-bg-warning ms-1">패치필요</span><% } %>
+                                                                    <% if (item.item_version) { %><div class="small text-muted">버전: <%= item.item_version %></div><% } %>
+                                                                    <% if (item.item_detail) { %><div class="small text-muted"><%= item.item_detail %></div><% } %>
+                                                                </td>
+                                                                <td><%= item.manufacturer || '-' %></td>
+                                                                <td><%= item.model_name || '-' %></td>
+                                                                <td class="text-center"><%= (item.quantity === null || item.quantity === undefined) ? '-' : item.quantity %></td>
+                                                                <td><%= item.serial_number || '-' %></td>
+                                                                <td><%= item.fw_version || '-' %></td>
+                                                                <td><%= item.os_version || '-' %></td>
+                                                                <td><%= item.eos_date || '-' %></td>
+                                                                <td><%= item.eol_date || '-' %></td>
+                                                                <td><%= item.inspection_location_item || '-' %></td>
+                                                                <td><%= item.contractor_company || '-' %></td>
+                                                                <td><%= item.contractor_contract || '-' %></td>
+                                                                <td><%= item.contractor_start_date || '-' %></td>
+                                                                <td><%= item.contractor_end_date || '-' %></td>
+                                                                <td><%= item.contractor_contact_person || '-' %></td>
+                                                                <td><%= item.contractor_contact || '-' %></td>
+                                                            </tr>
+                                                            <% }); %>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             <% } else { %>
                                                 정보 없음
                                             <% } %>

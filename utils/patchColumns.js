@@ -60,6 +60,70 @@ const COLUMNS = [
         key: 'inspection_location_item', label: '점검위치', group: 'item', type: 'editable',
         sql: 'i.inspection_location_item', width: 150, defaultVisible: false, order: 37
     },
+    {
+        key: 'quantity', label: '수량', group: 'item', type: 'text',
+        sql: 'i.quantity', width: 80, defaultVisible: false, order: 38, align: 'center'
+    },
+
+    /* ---- 백계약 정보 (엑셀 총괄표) --- */
+    {
+        key: 'contractor_company', label: '백계약업체', group: 'contract', type: 'text',
+        sql: 'i.contractor_company', width: 150, defaultVisible: false, order: 300
+    },
+    {
+        key: 'contractor_contract', label: '백계약', group: 'contract', type: 'text',
+        sql: 'i.contractor_contract', width: 100, defaultVisible: false, order: 301
+    },
+    {
+        key: 'contractor_start_date', label: '백계약 계약일', group: 'contract', type: 'text',
+        sql: 'i.contractor_start_date', width: 130, defaultVisible: false, order: 302
+    },
+    {
+        key: 'contractor_end_date', label: '백계약 종료일', group: 'contract', type: 'text',
+        sql: 'i.contractor_end_date', width: 130, defaultVisible: false, order: 303
+    },
+    {
+        key: 'contractor_contact_person', label: '백계약 담당자', group: 'contract', type: 'text',
+        sql: 'i.contractor_contact_person', width: 130, defaultVisible: false, order: 304
+    },
+    {
+        key: 'contractor_contact', label: '백계약 연락처', group: 'contract', type: 'text',
+        sql: 'i.contractor_contact', width: 200, defaultVisible: false, order: 305
+    },
+
+    /* ---- 유지보수 요약 신규 필드 (엑셀 총괄표) --- */
+    {
+        key: 'inspection_date', label: '검수일', group: 'summary', type: 'text',
+        sql: 's.inspection_date', width: 120, defaultVisible: false, order: 306
+    },
+    {
+        key: 'introduction_date', label: '도입일', group: 'summary', type: 'text',
+        sql: 's.introduction_date', width: 120, defaultVisible: false, order: 307
+    },
+    {
+        key: 'vendor_name', label: '업체명', group: 'summary', type: 'text',
+        sql: 's.vendor_name', width: 140, defaultVisible: false, order: 308
+    },
+    {
+        key: 'vendor_contact_person', label: '업체담당자', group: 'summary', type: 'text',
+        sql: 's.vendor_contact_person', width: 120, defaultVisible: false, order: 309
+    },
+    {
+        key: 'vendor_contact', label: '업체연락처', group: 'summary', type: 'text',
+        sql: 's.vendor_contact', width: 200, defaultVisible: false, order: 310
+    },
+    {
+        key: 'customer_department', label: '고객부서', group: 'summary', type: 'text',
+        sql: 's.customer_department', width: 130, defaultVisible: false, order: 311
+    },
+    {
+        key: 'customer_location', label: '고객사위치', group: 'summary', type: 'text',
+        sql: 's.customer_location', width: 220, defaultVisible: false, order: 312
+    },
+    {
+        key: 'quote_file', label: '견적서파일', group: 'summary', type: 'text',
+        sql: 's.quote_file', width: 220, defaultVisible: false, order: 313
+    },
 
     /* ---- 고객사 / 패치필요 --- */
     {
@@ -224,6 +288,7 @@ function selectClause() {
 /** 컬럼 선택 UI 용 그룹 목록 */
 const GROUPS = [
     { key: 'item', label: '품목 정보' },
+    { key: 'contract', label: '백계약 정보' },
     { key: 'summary', label: '유지보수 정보' },
     { key: 'patch', label: '패치 판정' }
 ];

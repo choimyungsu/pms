@@ -1,0 +1,122 @@
+<%
+    // 유지보수 요약 - 품목 입력 테이블 (등록/수정 공용)
+    // 사용법: include('./partials/_item_table', { items: [...], isRestricted: false })
+    var itemRows = (typeof items !== 'undefined' && Array.isArray(items) && items.length > 0) ? items : [{}];
+    var locked = (typeof isRestricted !== 'undefined' && isRestricted) ? true : false;
+    var ro = locked ? 'readonly' : '';
+    var roSel = locked ? 'disabled' : '';
+%>
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+    <div class="text-muted small">
+        품목명은 필수이며, 나머지 항목은 비워두어도 저장됩니다.
+        <span class="ms-2">총 <strong id="item-row-count"><%= itemRows.length %></strong>건</span>
+    </div>
+    <% if (!locked) { %>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-primary btn-sm" id="item-paste-btn">
+            <i class="fas fa-paste me-1"></i>엑셀 붙여넣기
+        </button>
+        <button type="button" class="btn btn-success btn-sm" id="add-item">
+            <i class="fas fa-plus me-1"></i>품목 추가
+        </button>
+    </div>
+    <% } %>
+</div>
+
+<div class="table-responsive border rounded" style="max-height: 480px;">
+    <table class="table table-sm table-bordered align-middle mb-0 item-table" id="items-container-table">
+        <thead class="table-light" style="position: sticky; top: 0; z-index: 2;">
+            <tr>
+                <th style="min-width: 150px;">품목명 <span class="text-danger">*</span></th>
+                <th style="min-width: 120px;">제조사</th>
+                <th style="min-width: 160px;">모델명</th>
+                <th style="min-width: 72px;">수량</th>
+                <th style="min-width: 150px;">S/N</th>
+                <th style="min-width: 100px;">FW버전</th>
+                <th style="min-width: 115px;">OS버전</th>
+                <th style="min-width: 110px;">EoS</th>
+                <th style="min-width: 110px;">EoL</th>
+                <th style="min-width: 140px;">점검위치</th>
+                <th style="min-width: 130px;">백계약업체</th>
+                <th style="min-width: 110px;">백계약상태</th>
+                <th style="min-width: 120px;">백계약시작</th>
+                <th style="min-width: 120px;">백계약종료</th>
+                <th style="min-width: 120px;">백계약담당자</th>
+                <th style="min-width: 130px;">백계약연락처</th>
+                <th style="min-width: 95px;">버전</th>
+                <th style="min-width: 170px;">상세내용</th>
+                <% if (!locked) { %><th style="width: 56px;"></th><% } %>
+            </tr>
+        </thead>
+        <tbody>
+            <% itemRows.forEach(function (row) { %>
+            <tr class="item-row">
+                <td><input type="text" class="form-control form-control-sm" data-field="item_name" value="<%= row.item_name || '' %>" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="manufacturer" value="<%= row.manufacturer || '' %>" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="model_name" value="<%= row.model_name || '' %>" <%= ro %>></td>
+                <td><input type="number" min="0" class="form-control form-control-sm text-center" data-field="quantity" value="<%= (row.quantity === null || row.quantity === undefined) ? '' : row.quantity %>" placeholder="1" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="serial_number" value="<%= row.serial_number || '' %>" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="fw_version" value="<%= row.fw_version || '' %>" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="os_version" value="<%= row.os_version || '' %>" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="eos_date" value="<%= row.eos_date || '' %>" placeholder="YYYY-MM-DD" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="eol_date" value="<%= row.eol_date || '' %>" placeholder="YYYY-MM-DD" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="inspection_location_item" value="<%= row.inspection_location_item || '' %>" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="contractor_company" value="<%= row.contractor_company || '' %>" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="contractor_contract" value="<%= row.contractor_contract || '' %>" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="contractor_start_date" value="<%= row.contractor_start_date || '' %>" placeholder="YYYY-MM-DD" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="contractor_end_date" value="<%= row.contractor_end_date || '' %>" placeholder="YYYY-MM-DD" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="contractor_contact_person" value="<%= row.contractor_contact_person || '' %>" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="contractor_contact" value="<%= row.contractor_contact || '' %>" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="item_version" value="<%= row.item_version || '' %>" <%= ro %>></td>
+                <td><input type="text" class="form-control form-control-sm" data-field="item_detail" value="<%= row.item_detail || '' %>" <%= ro %>></td>
+                <% if (!locked) { %>
+                <td class="text-center">
+                    <button type="button" class="btn btn-danger btn-sm remove-item" title="행 삭제">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </td>
+                <% } %>
+            </tr>
+            <% }); %>
+        </tbody>
+    </table>
+</div>
+
+<% if (!locked) { %>
+<!-- 엑셀 붙여넣기 모달 -->
+<div class="modal fade" id="itemPasteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-paste me-2"></i>엑셀 붙여넣기</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-light border small mb-3">
+                    <strong>엑셀에서 셀 범위를 복사(Ctrl+C)한 뒤 아래 상자에 붙여넣기(Ctrl+V)</strong> 하세요.<br>
+                    첫 줄이 머리글이면 <em>「첫 줄은 머리글」</em> 을 체크하면 컬럼명으로 자동 매핑됩니다.
+                    미체크 시 위 표의 컬럼 순서대로 채워집니다.
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="pasteHasHeader" checked>
+                    <label class="form-check-label" for="pasteHasHeader">첫 줄은 머리글</label>
+                </div>
+                <textarea id="pasteArea" class="form-control font-monospace" rows="10"
+                          placeholder="품목명&#9;제조사&#9;모델명&#9;수량&#9;S/N&#9;FW버전&#9;OS버전&#9;EoS&#9;EoL&#9;점검위치..."></textarea>
+                <div id="pastePreviewInfo" class="small text-muted mt-2"></div>
+                <div id="pastePreviewWrap" class="table-responsive mt-2" style="max-height: 260px; display: none;">
+                    <table class="table table-sm table-bordered mb-0">
+                        <thead class="table-light" id="pastePreviewHead"></thead>
+                        <tbody id="pastePreviewBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-outline-primary" id="pastePreviewBtn">미리보기</button>
+                <button type="button" class="btn btn-primary" id="pasteAppendBtn">표에 추가</button>
+            </div>
+        </div>
+    </div>
+</div>
+<% } %>

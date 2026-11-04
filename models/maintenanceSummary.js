@@ -91,6 +91,25 @@ async function sanitizeSummaryData(data) {
     return clean;
 }
 
+/**
+ * 품목 INSERT 값 정규화
+ *  - undefined → null
+ *  - 문자열 trim, 빈 문자열 → null
+ *  - quantity 는 정수로 변환 (실패 시 기본 1)
+ */
+function normalizeItemValue(column, value) {
+    if (column === 'quantity') {
+        const n = parseInt(String(value === null || value === undefined ? '' : value).replace(/[^0-9-]/g, ''), 10);
+        return Number.isFinite(n) ? n : 1;
+    }
+    if (value === undefined || value === null) return null;
+    if (value instanceof Date) return value;
+    if (typeof value === 'number') return String(value);
+    if (typeof value !== 'string') return null;   // 배열/객체 방지
+    const s = value.trim();
+    return s === '' ? null : s.slice(0, 500);
+}
+
 const MaintenanceSummary = {
     pool: pool,
     getSummaryColumnMeta: getSummaryColumnMeta,
@@ -159,39 +178,103 @@ const MaintenanceSummary = {
         return rows;
     },
 
+    /**
+     * 품목 여러 건을 한 번에 저장
+     *
+     * tb_maintenance_summary_items 의 실제 컬럼 목록을 조회해 **존재하는 컬럼만** INSERT 합니다.
+     * (DB 버전에 따라 item_version / manufacturer / 신규 15개 컬럼이 없을 수 있음)
+     *
+     * item 객체가 가질 수 있는 키 (없는 키는 NULL 로 저장):
+     *   item_name, item_detail, item_version, manufacturer,
+     *   model_name, eos_date, eol_date, serial_number, fw_version, os_version,
+     *   inspection_location_item, quantity,
+     *   contractor_company, contractor_contract, contractor_start_date,
+     *   contractor_end_date, contractor_contact_person, contractor_contact
+     */
     async addItems(summaryId, items) {
         if (!items || items.length === 0) return;
-        // item_version / manufacturer 컬럼이 없을 수도 있으므로 존재 여부를 확인해 유연하게 대응
-        const hasVersion = await this.hasItemVersionColumn();
-        const hasManufacturer = await this.hasItemColumn('manufacturer');
 
-        if (hasVersion && hasManufacturer) {
-            const values = items.map(item => [
-                summaryId,
-                item.item_name,
-                item.item_detail || null,
-                item.item_version || null,
-                item.manufacturer || null
-            ]);
-            await pool.query(
-                'INSERT INTO tb_maintenance_summary_items (summary_id, item_name, item_detail, item_version, manufacturer) VALUES ?',
-                [values]
+        const metas = await this.getItemColumnMeta();
+        if (!metas.length) return;
+
+        // 값이 실제로 존재하는 컬럼만 INSERT 대상으로 삼는다.
+        // (patch_required 처럼 NOT NULL + DEFAULT 0 인 컬럼에 NULL 을 밀어넣으면
+        //  ER_BAD_NULL_ERROR 가 발생하므로, 값이 없으면 컬럼 자체를 생략한다)
+        const provided = new Set();
+        const rows = items.map((item) => {
+            const out = {};
+            for (const meta of metas) {
+                const raw = item[meta.name];
+                const val = normalizeItemValue(meta.name, raw);
+                if (val !== null && val !== undefined) {
+                    out[meta.name] = val;
+                    provided.add(meta.name);
+                }
+            }
+            return out;
+        });
+
+        // INSERT 목록: 값이 하나라도 있는 컬럼만 사용
+        const columns = ['summary_id'].concat(metas.map((m) => m.name).filter((n) => provided.has(n)));
+        if (columns.length <= 1) return;   // 품목명조차 없으면 저장 안 함
+
+        const rowsValues = rows.map((row) => {
+            const vals = [summaryId];
+            columns.slice(1).forEach((col) => {
+                vals.push(row[col] === undefined ? null : row[col]);
+            });
+            return vals;
+        });
+
+        const placeholders = rowsValues
+            .map(() => '(' + columns.map(() => '?').join(', ') + ')')
+            .join(', ');
+
+        await pool.query(
+            `INSERT INTO tb_maintenance_summary_items (${columns.map((c) => '`' + c + '`').join(', ')}) VALUES ${placeholders}`,
+            rowsValues.flat()
+        );
+    },
+
+    /**
+     * 품목 테이블 컬럼 메타(이름/널허용/기본값) 조회 (1회 캐시)
+     */
+    async getItemColumnMeta() {
+        if (this._itemColumnMeta) return this._itemColumnMeta;
+        try {
+            const [rows] = await pool.query(
+                `SELECT LOWER(COLUMN_NAME) AS name,
+                        IS_NULLABLE AS nullable,
+                        COLUMN_DEFAULT AS dflt,
+                        LOWER(DATA_TYPE) AS type
+                   FROM INFORMATION_SCHEMA.COLUMNS
+                  WHERE TABLE_SCHEMA = DATABASE()
+                    AND TABLE_NAME = 'tb_maintenance_summary_items'
+                  ORDER BY ORDINAL_POSITION`
             );
-        } else if (hasVersion) {
-            const values = items.map(item => [
-                summaryId,
-                item.item_name,
-                item.item_detail || null,
-                item.item_version || null
-            ]);
-            await pool.query(
-                'INSERT INTO tb_maintenance_summary_items (summary_id, item_name, item_detail, item_version) VALUES ?',
-                [values]
-            );
-        } else {
-            const values = items.map(item => [summaryId, item.item_name, item.item_detail]);
-            await pool.query('INSERT INTO tb_maintenance_summary_items (summary_id, item_name, item_detail) VALUES ?', [values]);
+            const excluded = new Set(['id', 'summary_id', 'created_at', 'updated_at']);
+            this._itemColumnMeta = rows
+                .map((r) => ({
+                    name: r.name,
+                    nullable: String(r.nullable).toUpperCase() === 'YES',
+                    hasDefault: r.dflt !== null && r.dflt !== undefined,
+                    default: r.dflt,
+                    type: r.type
+                }))
+                .filter((m) => !excluded.has(m.name));
+        } catch (err) {
+            console.error('[maintenanceSummary] 품목 컬럼 메타 조회 실패:', err.message);
+            this._itemColumnMeta = [];
         }
+        return this._itemColumnMeta;
+    },
+
+    /**
+     * INSERT 가능한 품목 컬럼 이름 목록 (하위 호환)
+     */
+    async getItemWritableColumns() {
+        const metas = await this.getItemColumnMeta();
+        return metas.map((m) => m.name);
     },
 
     // 특정 컬럼 존재 여부 (1회 캐시)
