@@ -1,341 +1,939 @@
 <%- include('../partials/header', { page: 'dashboard' }) %>
 <%- include('../partials/sidebar', { page: 'dashboard' }) %>
 
+<%
+  // ---------- 표시용 헬퍼 (기능 변경 없음, 표현만 개선) ----------
+  const isBlank = (v) => (v === null || v === undefined || String(v).trim() === '');
+  const num = (v) => Number(v) || 0;
+  const ddayText = (d) => {
+    if (d === null || d === undefined) return '';
+    if (d === 0) return 'D-DAY';
+    return d > 0 ? 'D-' + d : 'D+' + Math.abs(d);
+  };
+  const ddayClass = (d) => {
+    if (d === null || d === undefined) return 'db-dday-normal';
+    if (d <= 3) return 'db-dday-urgent';
+    if (d <= 7) return 'db-dday-warn';
+    return 'db-dday-normal';
+  };
+  const typeClassOf = (t) => {
+    const map = { '회의': 'db-type-meeting', '보고': 'db-type-report', '요구사항': 'db-type-req',
+                  '설명': 'db-type-desc', '이슈': 'db-type-issue', '자료': 'db-type-data' };
+    return map[String(t || '').trim()] || '';
+  };
+  const statusClassOf = (s) => {
+    const v = String(s || '').trim();
+    if (['완료', '종료'].indexOf(v) !== -1) return 'db-st-done';
+    if (['진행중', '진행'].indexOf(v) !== -1) return 'db-st-ing';
+    if (['검토중', '대기', '보류'].indexOf(v) !== -1) return 'db-st-wait';
+    return 'db-st-default';
+  };
+  const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+  const todayDateObj = new Date();
+  const todayLabel = todayDateObj.getFullYear() + '년 ' + (todayDateObj.getMonth() + 1) + '월 ' +
+                     todayDateObj.getDate() + '일 (' + WEEKDAYS[todayDateObj.getDay()] + ')';
+%>
+
 <style>
-    /* Custom styles for dashboard cards */
-    .card-header.bg-today-schedule {
-        background-color: #fff3cd; /* Light yellow */
-        color: #664d03;
-        border-bottom: 1px solid #ffecb5;
-    }
-    .card-header.bg-issue-status {
-        background-color: #f8d7da; /* Soft red */
-        color: #842029;
-        border-bottom: 1px solid #f5c2c7;
-    }
-    .card-header.bg-recent-knowledge {
-        background-color: #d1e7dd; /* Light green */
-        color: #0f5132;
-        border-bottom: 1px solid #badbcc;
-    }
-    .card-header.bg-recent-cards {
-        background-color: #cfe2ff; /* Light blue */
-        color: #052c65;
-        border-bottom: 1px solid #b6d4fe;
-    }
-    .card-header h3.card-title {
-        margin-bottom: 0;
-    }
+/* ===================== 업무지원 대시보드 (개편) ===================== */
+.db-page { background: #f5f7fa; }
+.db-wrap { padding-bottom: 1.6rem; }
+
+/* ---- 환영 헤더 ---- */
+.db-hero {
+    background: linear-gradient(120deg, #1e3c66 0%, #2c5c96 55%, #3a76b8 100%);
+    border-radius: .7rem;
+    padding: 1.15rem 1.35rem;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 10px rgba(24, 52, 90, .16);
+}
+.db-hero-main { min-width: 0; flex: 1 1 320px; }
+.db-hero-greet {
+    font-size: .8rem;
+    opacity: .82;
+    margin-bottom: .2rem;
+    letter-spacing: .01em;
+}
+.db-hero-name { font-size: 1.22rem; font-weight: 700; margin: 0 0 .35rem; line-height: 1.3; }
+.db-hero-sub {
+    font-size: .79rem;
+    color: rgba(255, 255, 255, .82);
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    flex-wrap: wrap;
+}
+.db-hero-date {
+    background: rgba(255, 255, 255, .16);
+    border-radius: .7rem;
+    padding: .12rem .55rem;
+    font-size: .74rem;
+    font-weight: 600;
+}
+.db-hero-todo {
+    background: rgba(255, 255, 255, .13);
+    border: 1px solid rgba(255, 255, 255, .2);
+    border-radius: .55rem;
+    padding: .55rem .85rem;
+    text-align: center;
+    min-width: 118px;
+    flex: 0 0 auto;
+}
+.db-hero-todo-num { font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
+.db-hero-todo-label { font-size: .68rem; opacity: .85; margin-top: .1rem; }
+
+/* ---- KPI 카드 ---- */
+.db-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: .8rem;
+    margin-bottom: 1rem;
+}
+.db-kpi {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    background: #fff;
+    border: 1px solid #e9edf3;
+    border-radius: .55rem;
+    padding: .85rem .95rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.db-kpi:hover {
+    border-color: #c5d9f5;
+    box-shadow: 0 3px 12px rgba(26, 75, 140, .09);
+    transform: translateY(-1px);
+    color: inherit;
+    text-decoration: none;
+}
+.db-kpi-icon {
+    flex: 0 0 42px;
+    width: 42px;
+    height: 42px;
+    border-radius: .5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+}
+.db-kpi-body { min-width: 0; flex: 1 1 auto; }
+.db-kpi-value {
+    font-size: 1.42rem;
+    font-weight: 700;
+    line-height: 1.15;
+    color: #1f2a3a;
+    font-variant-numeric: tabular-nums;
+}
+.db-kpi-value small { font-size: .72rem; font-weight: 500; color: #96a1b0; margin-left: .15rem; }
+.db-kpi-label { font-size: .75rem; color: #8b95a4; margin-top: .1rem; }
+.db-kpi-arrow { flex: 0 0 auto; color: #c9d3e0; font-size: .78rem; }
+
+.db-kpi-blue   .db-kpi-icon { background: #e8f1fe; color: #2f6bbd; }
+.db-kpi-red    .db-kpi-icon { background: #fdecec; color: #b93a3a; }
+.db-kpi-green  .db-kpi-icon { background: #e8f6ec; color: #2b7a45; }
+.db-kpi-amber  .db-kpi-icon { background: #fdf3e3; color: #96631a; }
+.db-kpi-purple .db-kpi-icon { background: #f0eaff; color: #6a45c2; }
+
+/* ---- 패널 카드 ---- */
+.db-panel {
+    background: #fff;
+    border: 1px solid #e9edf3;
+    border-radius: .55rem;
+    box-shadow: 0 1px 2px rgba(24, 40, 72, .04);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    margin-bottom: 0;
+}
+.db-panel-head {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .72rem .95rem;
+    border-bottom: 1px solid #eef1f5;
+    flex: 0 0 auto;
+}
+.db-panel-title {
+    font-size: .86rem;
+    font-weight: 700;
+    color: #2b3648;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: .42rem;
+    min-width: 0;
+}
+.db-panel-title i { color: #7a93b5; font-size: .82rem; }
+.db-panel-title .db-panel-count {
+    font-size: .68rem;
+    font-weight: 600;
+    color: #3f6bab;
+    background: #e8eefb;
+    border-radius: .7rem;
+    padding: .06rem .45rem;
+}
+.db-panel-link {
+    margin-left: auto;
+    font-size: .73rem;
+    color: #7b8798;
+    text-decoration: none;
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+.db-panel-link:hover { color: #1a4b8c; text-decoration: none; }
+.db-panel-body { padding: .78rem .95rem; flex: 1 1 auto; min-height: 0; }
+
+/* ---- 빈 상태 ---- */
+.db-empty {
+    color: #a9b1bc;
+    font-size: .8rem;
+    font-style: italic;
+    text-align: center;
+    padding: 1.35rem .5rem;
+}
+.db-empty i { display: block; font-size: 1.25rem; margin-bottom: .4rem; color: #cbd4e0; font-style: normal; }
+
+/* ---- 오늘 일정 타임라인 ---- */
+.db-timeline { display: flex; flex-direction: column; gap: .45rem; }
+.db-tl-item {
+    display: flex;
+    gap: .6rem;
+    padding: .45rem .55rem;
+    border: 1px solid #eef1f5;
+    border-radius: .4rem;
+    background: #fbfcfd;
+    border-left: 3px solid #dbe4f0;
+}
+.db-tl-item.is-mine { border-left-color: #2f6bbd; background: #f5f9ff; }
+.db-tl-time {
+    flex: 0 0 46px;
+    font-size: .74rem;
+    font-weight: 700;
+    color: #4a6fa5;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    padding-top: .08rem;
+}
+.db-tl-body { flex: 1 1 auto; min-width: 0; }
+.db-tl-title {
+    font-size: .82rem;
+    font-weight: 600;
+    color: #2b3648;
+    overflow-wrap: anywhere;
+    margin-bottom: .1rem;
+}
+.db-tl-meta {
+    font-size: .7rem;
+    color: #96a1b0;
+    display: flex;
+    gap: .35rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.db-tl-mine {
+    font-size: .63rem;
+    font-weight: 700;
+    color: #2f6bbd;
+    background: #e2eeff;
+    border-radius: .6rem;
+    padding: .02rem .34rem;
+}
+.db-tl-btn {
+    flex: 0 0 auto;
+    align-self: center;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #7b8798;
+    border-radius: .3rem;
+    padding: .16rem .4rem;
+    font-size: .68rem;
+    line-height: 1.3;
+}
+.db-tl-btn:hover { background: #f1f5fb; color: #1a4b8c; }
+
+/* ---- 이슈 리스트 ---- */
+.db-list { display: flex; flex-direction: column; gap: .4rem; }
+.db-list-item {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .48rem .55rem;
+    border: 1px solid #eef1f5;
+    border-radius: .4rem;
+    text-decoration: none;
+    color: inherit;
+    transition: background .12s ease, border-color .12s ease;
+}
+.db-list-item:hover { background: #f5f9ff; border-color: #cfe0f7; color: inherit; text-decoration: none; }
+.db-list-main { flex: 1 1 auto; min-width: 0; }
+.db-list-title {
+    font-size: .82rem;
+    font-weight: 600;
+    color: #2b3648;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.db-list-meta {
+    font-size: .71rem;
+    color: #96a1b0;
+    display: flex;
+    gap: .35rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: .1rem;
+}
+.db-list-main i { color: #b6c0cd; }
+
+/* ---- 배지 ---- */
+.db-badge {
+    display: inline-block;
+    padding: .1rem .46rem;
+    border-radius: .7rem;
+    font-size: .68rem;
+    font-weight: 600;
+    white-space: nowrap;
+    background: #eef2f7;
+    color: #55637a;
+}
+.db-type-meeting { background: #e7f1ff; color: #2f6bbd; }
+.db-type-report  { background: #e8f6ec; color: #2b7a45; }
+.db-type-req     { background: #f0eaff; color: #6a45c2; }
+.db-type-desc    { background: #eaf6f8; color: #21717f; }
+.db-type-issue   { background: #fdecec; color: #b93a3a; }
+.db-type-data    { background: #fdf3e3; color: #96631a; }
+
+.db-st-done    { background: #eef8f1; color: #2b7a45; }
+.db-st-ing     { background: #eaf3ff; color: #2f6bbd; }
+.db-st-wait    { background: #fff8e6; color: #9a6b00; }
+.db-st-default { background: #f1f3f6; color: #5b6779; }
+
+.db-dday {
+    font-size: .68rem;
+    font-weight: 700;
+    border-radius: .3rem;
+    padding: .1rem .4rem;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+}
+.db-dday-urgent { background: #fdecec; color: #b93a3a; }
+.db-dday-warn   { background: #fff3e0; color: #96631a; }
+.db-dday-normal { background: #eef2f7; color: #55637a; }
+
+/* ---- 진행률 바 ---- */
+.db-progress {
+    height: 5px;
+    background: #eef1f5;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: .3rem;
+}
+.db-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #5b8fd0, #2f6bbd);
+    border-radius: 3px;
+    transition: width .3s ease;
+}
+.db-progress-text { font-size: .68rem; color: #96a1b0; margin-top: .15rem; }
+
+/* ---- 빠른 실행 ---- */
+.db-quick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    gap: .5rem;
+}
+.db-quick {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .3rem;
+    padding: .72rem .4rem;
+    border: 1px solid #eef1f5;
+    border-radius: .45rem;
+    background: #fbfcfd;
+    text-decoration: none;
+    color: #4a5666;
+    font-size: .73rem;
+    font-weight: 600;
+    text-align: center;
+    transition: background .13s ease, border-color .13s ease, color .12s ease;
+}
+.db-quick:hover {
+    background: #f0f6ff;
+    border-color: #c5d9f5;
+    color: #1a4b8c;
+    text-decoration: none;
+}
+.db-quick i { font-size: .98rem; color: #7a93b5; }
+.db-quick:hover i { color: #1a4b8c; }
+
+/* ---- 차트 ---- */
+.db-chart-box { height: 250px; position: relative; }
+
+/* ---- 명함 ---- */
+.db-card-name { font-size: .82rem; font-weight: 600; color: #2b3648; }
+.db-card-company { font-size: .72rem; color: #8b95a4; }
+
+/* ---- 다크모드 ---- */
+.dark-mode .db-page { background: #262626; }
+.dark-mode .db-kpi { background: #333; border-color: #444; }
+.dark-mode .db-kpi-value { color: #e8ecf2; }
+.dark-mode .db-kpi-label { color: #9aa5b4; }
+.dark-mode .db-panel { background: #333; border-color: #444; }
+.dark-mode .db-panel-head { border-bottom-color: #444; }
+.dark-mode .db-panel-title { color: #dce2ea; }
+.dark-mode .db-tl-item { background: #2f2f2f; border-color: #474747; border-left-color: #4a6fa5; }
+.dark-mode .db-tl-item.is-mine { background: #2a3a4f; border-left-color: #8ab4f8; }
+.dark-mode .db-tl-title { color: #dce2ea; }
+.dark-mode .db-tl-btn { background: #3a3a3a; border-color: #555; color: #b3bdcb; }
+.dark-mode .db-list-item { border-color: #474747; }
+.dark-mode .db-list-item:hover { background: #364a63; border-color: #4a6fa5; }
+.dark-mode .db-list-title { color: #dce2ea; }
+.dark-mode .db-quick { background: #2f2f2f; border-color: #474747; color: #cfd6e0; }
+.dark-mode .db-quick:hover { background: #364a63; border-color: #4a6fa5; color: #cfe2ff; }
+.dark-mode .db-card-name { color: #dce2ea; }
+.dark-mode .db-empty { color: #7b8595; }
+.dark-mode .db-empty i { color: #55606e; }
+.dark-mode .db-badge { background: #3a3a3a; color: #cfd6e0; }
+.dark-mode .db-progress { background: #444; }
+.dark-mode .db-panel-title .db-panel-count { background: #3a4a60; color: #cfe2ff; }
+
+/* ---- 반응형 ---- */
+@media (max-width: 767px) {
+    .db-hero { padding: .95rem 1rem; }
+    .db-hero-name { font-size: 1.06rem; }
+    .db-hero-todo { width: 100%; }
+    .db-kpi-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+    .db-kpi-value { font-size: 1.22rem; }
+}
 </style>
 
-<!-- Main content -->
-<main class="app-main">
-    <div class="app-content-header">
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-sm-6">
-                    <h3 class="mb-0">대시보드</h3>
+<main class="app-main db-page">
+    <div class="app-content pt-3">
+        <div class="container-fluid db-wrap">
+
+            <!-- ===================== 환영 헤더 ===================== -->
+            <section class="db-hero" id="dashboard-hero">
+                <div class="db-hero-main">
+                    <p class="db-hero-greet"><%= greeting %>,</p>
+                    <h1 class="db-hero-name"><%= greetingName %>님</h1>
+                    <div class="db-hero-sub">
+                        <span class="db-hero-date"><i class="fas fa-calendar-day me-1"></i><%= todayLabel %></span>
+                        <span>오늘 처리할 업무 <%= todoCount %>건이 있습니다</span>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </div>
-    <div class="app-content">
-        <div class="container-fluid">
-            <div class="row">
-                <!-- Today's Schedule -->
-                <div class="col-lg-6 mb-4">
-                    <div class="card">
-                        <div class="card-header bg-today-schedule d-flex justify-content-between align-items-center">
-                            <h3 class="card-title mb-0"><a href="/schedule" style="text-decoration: none; color: inherit;"><i class="fa-solid fa-calendar-day"></i> 오늘 일정</a></h3>
-                            <a href="/schedule" class="btn btn-sm btn-primary ms-auto"><i class="fa-solid fa-plus"></i> 일정 등록</a>
+                <div class="db-hero-todo">
+                    <div class="db-hero-todo-num"><%= todoCount %></div>
+                    <div class="db-hero-todo-label">오늘의 할 일</div>
+                </div>
+            </section>
+
+            <!-- ===================== KPI ===================== -->
+            <section class="db-kpi-grid" id="dashboard-kpi">
+                <a href="/schedule" class="db-kpi db-kpi-blue">
+                    <span class="db-kpi-icon"><i class="fas fa-calendar-check"></i></span>
+                    <span class="db-kpi-body">
+                        <span class="db-kpi-value"><%= num(todaySchedules.length) %><small>건</small></span>
+                        <span class="db-kpi-label">오늘 일정</span>
+                    </span>
+                    <i class="fas fa-chevron-right db-kpi-arrow"></i>
+                </a>
+                <a href="/issues" class="db-kpi db-kpi-red">
+                    <span class="db-kpi-icon"><i class="fas fa-triangle-exclamation"></i></span>
+                    <span class="db-kpi-body">
+                        <span class="db-kpi-value"><%= num(issueStat.openCount) %><small>건</small></span>
+                        <span class="db-kpi-label">진행중 이슈</span>
+                    </span>
+                    <i class="fas fa-chevron-right db-kpi-arrow"></i>
+                </a>
+                <a href="/projects" class="db-kpi db-kpi-green">
+                    <span class="db-kpi-icon"><i class="fas fa-diagram-project"></i></span>
+                    <span class="db-kpi-body">
+                        <span class="db-kpi-value"><%= num(activeProjectCount) %><small>개</small></span>
+                        <span class="db-kpi-label">진행중 프로젝트</span>
+                    </span>
+                    <i class="fas fa-chevron-right db-kpi-arrow"></i>
+                </a>
+                <a href="/knowledge" class="db-kpi db-kpi-amber">
+                    <span class="db-kpi-icon"><i class="fas fa-book-open"></i></span>
+                    <span class="db-kpi-body">
+                        <span class="db-kpi-value"><%= num(knowledgeStat.weekCount) %><small>건</small></span>
+                        <span class="db-kpi-label">이번 주 신규 지식</span>
+                    </span>
+                    <i class="fas fa-chevron-right db-kpi-arrow"></i>
+                </a>
+                <a href="/maintenance/summary" class="db-kpi db-kpi-purple">
+                    <span class="db-kpi-icon"><i class="fas fa-screwdriver-wrench"></i></span>
+                    <span class="db-kpi-body">
+                        <span class="db-kpi-value"><%= num(upcomingMaintenanceSummary.length) %><small>건</small></span>
+                        <span class="db-kpi-label">한 달 내 유지보수 종료</span>
+                    </span>
+                    <i class="fas fa-chevron-right db-kpi-arrow"></i>
+                </a>
+            </section>
+
+            <!-- ===================== 2단 본문 ===================== -->
+            <div class="row g-3">
+                <div class="col-lg-7">
+                    <div class="db-panel mb-3" id="panel-today-schedule">
+                        <div class="db-panel-head">
+                            <h2 class="db-panel-title">
+                                <i class="fas fa-calendar-day"></i>오늘 일정
+                                <span class="db-panel-count"><%= num(todaySchedules.length) %></span>
+                            </h2>
+                            <a href="/schedule" class="db-panel-link">일정 관리 <i class="fas fa-chevron-right ms-1"></i></a>
                         </div>
-                        <div class="card-body">
+                        <div class="db-panel-body">
                             <% if (todaySchedules && todaySchedules.length > 0) { %>
-                                <ul class="list-group list-group-flush">
+                                <div class="db-timeline">
                                     <% todaySchedules.forEach(function(schedule) { %>
-                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <strong><%= schedule.start.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) %></strong> - (<%= schedule.departmentName || '부서 없음' %> - <%= schedule.registrantName %>) <%= schedule.title %>
+                                        <div class="db-tl-item <%= schedule.isMine ? 'is-mine' : '' %>">
+                                            <div class="db-tl-time">
+                                                <%= schedule.timeText %>
                                             </div>
-                                            <button class="btn btn-outline-secondary btn-sm" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#scheduleDetailModal" 
-                                                    data-title="<%= schedule.title %>" 
+                                            <div class="db-tl-body">
+                                                <div class="db-tl-title"><%= schedule.title %></div>
+                                                <div class="db-tl-meta">
+                                                    <% if (schedule.scheduleType) { %>
+                                                        <span class="db-badge"><%= schedule.scheduleType %></span>
+                                                    <% } %>
+                                                    <span><i class="fas fa-user me-1"></i><%= schedule.userName || '담당자 없음' %></span>
+                                                    <% if (schedule.departmentName) { %>
+                                                        <span>· <%= schedule.departmentName %></span>
+                                                    <% } %>
+                                                    <% if (schedule.isMine) { %>
+                                                        <span class="db-tl-mine">내 일정</span>
+                                                    <% } %>
+                                                </div>
+                                            </div>
+                                            <button type="button" class="db-tl-btn"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#scheduleDetailModal"
+                                                    data-title="<%= schedule.title %>"
+                                                    data-time="<%= schedule.timeText %><%= schedule.endTimeText ? ' ~ ' + schedule.endTimeText : '' %>"
+                                                    data-owner="<%= (schedule.departmentName || '부서 없음') + ' · ' + (schedule.userName || '') %>"
                                                     data-description="<%= schedule.description || '설명이 없습니다.' %>">
-                                                <i class="fa-solid fa-eye"></i>
+                                                <i class="fas fa-eye"></i>
                                             </button>
-                                        </li>
+                                        </div>
                                     <% }); %>
-                                </ul>
+                                </div>
                             <% } else { %>
-                                <p>오늘 일정이 없습니다.</p>
+                                <div class="db-empty">
+                                    <i class="fas fa-mug-hot"></i>
+                                    오늘 등록된 일정이 없습니다.
+                                </div>
                             <% } %>
                         </div>
                     </div>
-                </div>
 
-                <!-- Schedule Detail Modal -->
-                <div class="modal fade" id="scheduleDetailModal" tabindex="-1" aria-labelledby="scheduleDetailModalLabel" aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title" id="scheduleDetailModalLabel">일정 상세</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body" style="white-space: pre-wrap;">
-                                <!-- Description will be inserted here -->
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
-                            </div>
+                    <div class="db-panel mb-3" id="panel-issue">
+                        <div class="db-panel-head">
+                            <h2 class="db-panel-title">
+                                <i class="fas fa-triangle-exclamation"></i>진행중 이슈
+                                <span class="db-panel-count"><%= num(recentIssues.length) %></span>
+                            </h2>
+                            <a href="/issues" class="db-panel-link">이슈 관리 <i class="fas fa-chevron-right ms-1"></i></a>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Issue Status -->
-                <div class="col-lg-6 mb-4">
-                    <div class="card">
-                        <div class="card-header bg-issue-status">
-                            <h3 class="card-title"><i class="fa-solid fa-triangle-exclamation"></i> 이슈 리스트</h3>
-                        </div>
-                        <div class="card-body">
+                        <div class="db-panel-body">
                             <% if (recentIssues && recentIssues.length > 0) { %>
-                                <ul class="list-group list-group-flush">
+                                <div class="db-list">
                                     <% recentIssues.forEach(function(issue) { %>
-                                        <li class="list-group-item">
-                                            <a href="/issues/<%= issue.id %>">
-                                                <strong><%= issue.status %></strong>: <%= issue.title %> (<%= issue.assignee_name || '담당자 없음' %>) (<%= issue.created_at.toLocaleDateString('ko-KR') %>)
-                                            </a>
-                                        </li>
+                                        <a href="/issues/<%= issue.id %>" class="db-list-item">
+                                            <span class="db-badge db-st-ing">진행중</span>
+                                            <span class="db-list-main">
+                                                <span class="db-list-title"><%= issue.title %></span>
+                                                <span class="db-list-meta">
+                                                    <i class="fas fa-user"></i><%= issue.assigneeName || '담당자 없음' %>
+                                                    <span>·</span>
+                                                    <i class="fas fa-clock"></i><%= issue.createdText %>
+                                                </span>
+                                            </span>
+                                        </a>
                                     <% }); %>
-                                </ul>
+                                </div>
                             <% } else { %>
-                                <p>최근 이슈가 없습니다.</p>
+                                <div class="db-empty">
+                                    <i class="fas fa-circle-check"></i>
+                                    진행중인 이슈가 없습니다.
+                                </div>
+                            <% } %>
+                        </div>
+                    </div>
+
+                    <div class="db-panel" id="panel-closing-project">
+                        <div class="db-panel-head">
+                            <h2 class="db-panel-title">
+                                <i class="fas fa-flag-checkered"></i>마감 임박 프로젝트
+                                <span class="db-panel-count"><%= num(closingProjects.length) %></span>
+                            </h2>
+                            <a href="/projects" class="db-panel-link">프로젝트 <i class="fas fa-chevron-right ms-1"></i></a>
+                        </div>
+                        <div class="db-panel-body">
+                            <% if (closingProjects && closingProjects.length > 0) { %>
+                                <div class="db-list">
+                                    <% closingProjects.forEach(function(project) { %>
+                                        <a href="/projects/<%= project.id %>" class="db-list-item">
+                                            <span class="db-list-main">
+                                                <span class="db-list-title"><%= project.name %></span>
+                                                <span class="db-list-meta">
+                                                    <i class="fas fa-user-tie"></i><%= project.pmName || 'PM 미지정' %>
+                                                    <span>·</span>
+                                                    <i class="fas fa-calendar"></i><%= project.endText %>
+                                                </span>
+                                                <span class="db-progress">
+                                                    <span class="db-progress-bar" style="width: <%= project.progress %>%"></span>
+                                                </span>
+                                                <span class="db-progress-text">진척률 <%= project.progress %>%</span>
+                                            </span>
+                                            <span class="db-dday <%= ddayClass(project.dday) %>"><%= ddayText(project.dday) %></span>
+                                        </a>
+                                    <% }); %>
+                                </div>
+                            <% } else { %>
+                                <div class="db-empty">
+                                    <i class="fas fa-flag"></i>
+                                    2주 이내 마감 예정인 프로젝트가 없습니다.
+                                </div>
                             <% } %>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="row">
-                <!-- Upcoming Maintenance Summary -->
-                <div class="col-lg-6 mb-4">
-                    <div class="card">
-                        <div class="card-header bg-warning">
-                            <h3 class="card-title"><i class="fa-solid fa-bell"></i> 한 달 이내 유지보수 종료 예정 (요약)</h3>
+                <div class="col-lg-5">
+                    <div class="db-panel mb-3" id="panel-maintenance">
+                        <div class="db-panel-head">
+                            <h2 class="db-panel-title">
+                                <i class="fas fa-screwdriver-wrench"></i>유지보수 종료 예정
+                                <span class="db-panel-count"><%= num(upcomingMaintenanceSummary.length) %></span>
+                            </h2>
+                            <a href="/maintenance/summary" class="db-panel-link">요약 <i class="fas fa-chevron-right ms-1"></i></a>
                         </div>
-                        <div class="card-body">
+                        <div class="db-panel-body">
                             <% if (upcomingMaintenanceSummary && upcomingMaintenanceSummary.length > 0) { %>
-                                <ul class="list-group list-group-flush">
-                                    <% upcomingMaintenanceSummary.forEach(function(summary) { %>
-                                        <li class="list-group-item">
-                                            <a href="/maintenance/summary/<%= summary.id %>">
-                                                <strong><%= summary.customer_company %></strong> - <%= summary.item %> (<%= summary.maintenance_end_date ? new Date(summary.maintenance_end_date).toLocaleDateString('ko-KR') : '' %>)
-                                            </a>
-                                        </li>
+                                <div class="db-list">
+                                    <% upcomingMaintenanceSummary.forEach(function(item) { %>
+                                        <a href="/maintenance/summary/<%= item.id %>" class="db-list-item">
+                                            <span class="db-list-main">
+                                                <span class="db-list-title"><%= item.customer_company %></span>
+                                                <span class="db-list-meta">
+                                                    <i class="fas fa-cube"></i><%= item.item || '-' %>
+                                                    <span>·</span>
+                                                    <i class="fas fa-calendar"></i><%= item.endText %>
+                                                    <% if (item.main_engineer) { %>
+                                                        <span>· <%= item.main_engineer %></span>
+                                                    <% } %>
+                                                </span>
+                                            </span>
+                                            <span class="db-dday <%= ddayClass(item.dday) %>"><%= ddayText(item.dday) %></span>
+                                        </a>
                                     <% }); %>
-                                </ul>
+                                </div>
                             <% } else { %>
-                                <p>한 달 이내 종료 예정인 유지보수 요약 항목이 없습니다.</p>
+                                <div class="db-empty">
+                                    <i class="fas fa-shield-halved"></i>
+                                    한 달 이내 종료 예정인 유지보수가 없습니다.
+                                </div>
                             <% } %>
                         </div>
                     </div>
-                </div>
 
-                <!-- Recent Knowledge -->
-                <div class="col-lg-6 mb-4">
-                    <div class="card">
-                        <div class="card-header bg-recent-knowledge">
-                            <h3 class="card-title"><i class="fa-solid fa-book"></i> 최근 지식</h3>
+                    <div class="db-panel mb-3" id="panel-quick">
+                        <div class="db-panel-head">
+                            <h2 class="db-panel-title"><i class="fas fa-bolt"></i>빠른 실행</h2>
                         </div>
-                        <div class="card-body">
-                            <% if (recentKnowledge && recentKnowledge.length > 0) { %>
-                                <ul class="list-group list-group-flush">
-                                    <% recentKnowledge.forEach(function(knowledge) { %>
-                                        <li class="list-group-item">
-                                            <a href="/knowledge/<%= knowledge.id %>">
-                                                <strong><%= knowledge.type %></strong>: <%= knowledge.title %> (<%= knowledge.created_at.toLocaleDateString('ko-KR') %>)
-                                            </a>
-                                        </li>
-                                    <% }); %>
-                                </ul>
-                            <% } else { %>
-                                <p>최근 지식이 없습니다.</p>
-                            <% } %>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row">
-                <!-- Recent Business Cards -->
-                <div class="col-lg-6 mb-4">
-                    <div class="card">
-                        <div class="card-header bg-recent-cards">
-                            <h3 class="card-title"><i class="fa-regular fa-address-card"></i> 최근 명함</h3>
-                        </div>
-                        <div class="card-body">
-                            <% if (recentCards && recentCards.length > 0) { %>
-                                <ul class="list-group list-group-flush">
-                                    <% recentCards.forEach(function(card) { %>
-                                        <li class="list-group-item">
-                                            <a href="/cards/<%= card.id %>">
-                                                <strong><%= card.name %></strong> - <%= card.company %> (<%= card.created_at.toLocaleDateString('ko-KR') %>)
-                                            </a>
-                                        </li>
-                                    <% }); %>
-                                </ul>
-                            <% } else { %>
-                                <p>최근 등록된 명함이 없습니다.</p>
-                            <% } %>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Knowledge Upload Statistics Chart -->
-                <div class="col-lg-6 mb-4">
-                    <div class="card">
-                        <div class="card-header bg-recent-knowledge">
-                            <h3 class="card-title"><i class="fa-solid fa-chart-bar"></i> 지식 업로드 통계</h3>
-                        </div>
-                        <div class="card-body">
-                            <div style="height: 300px;">
-                                <canvas id="knowledgeUploadChart"></canvas>
+                        <div class="db-panel-body">
+                            <div class="db-quick-grid">
+                                <a href="/knowledge" class="db-quick"><i class="fas fa-book-open"></i>지식관리</a>
+                                <a href="/issues/create" class="db-quick"><i class="fas fa-plus-circle"></i>이슈 등록</a>
+                                <a href="/minutes/create" class="db-quick"><i class="fas fa-pen-to-square"></i>회의록</a>
+                                <a href="/weekly-reports/create" class="db-quick"><i class="fas fa-file-lines"></i>주간보고</a>
+                                <a href="/memo" class="db-quick"><i class="fas fa-note-sticky"></i>메모</a>
+                                <a href="/cards/list" class="db-quick"><i class="fas fa-address-card"></i>명함</a>
+                                <a href="/checklist" class="db-quick"><i class="fas fa-list-check"></i>체크리스트</a>
+                                <a href="/search" class="db-quick"><i class="fas fa-magnifying-glass"></i>통합검색</a>
                             </div>
                         </div>
                     </div>
+
+                    <div class="db-panel" id="panel-card">
+                        <div class="db-panel-head">
+                            <h2 class="db-panel-title">
+                                <i class="fas fa-address-card"></i>최근 명함
+                                <span class="db-panel-count"><%= num(recentCards.length) %></span>
+                            </h2>
+                            <a href="/cards/list" class="db-panel-link">명함 목록 <i class="fas fa-chevron-right ms-1"></i></a>
+                        </div>
+                        <div class="db-panel-body">
+                            <% if (recentCards && recentCards.length > 0) { %>
+                                <div class="db-list">
+                                    <% recentCards.forEach(function(card) { %>
+                                        <a href="/cards/<%= card.id %>" class="db-list-item">
+                                            <span class="db-list-main">
+                                                <span class="db-card-name"><%= card.name %>
+                                                    <% if (card.position) { %><span class="db-card-company"> · <%= card.position %></span><% } %>
+                                                </span>
+                                                <span class="db-list-meta"><i class="fas fa-building"></i><%= card.company || '-' %></span>
+                                            </span>
+                                            <span class="db-badge"><%= card.createdText %></span>
+                                        </a>
+                                    <% }); %>
+                                </div>
+                            <% } else { %>
+                                <div class="db-empty"><i class="fas fa-address-card"></i>등록된 명함이 없습니다.</div>
+                            <% } %>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <!-- ===================== 하단: 지식 / 회의록 / 차트 ===================== -->
+            <div class="row g-3 mt-1">
+                <div class="col-lg-6">
+                    <div class="db-panel" id="panel-knowledge">
+                        <div class="db-panel-head">
+                            <h2 class="db-panel-title">
+                                <i class="fas fa-book-open"></i>최근 지식
+                                <span class="db-panel-count"><%= num(knowledgeStat.totalCount) %> 전체</span>
+                            </h2>
+                            <a href="/knowledge" class="db-panel-link">지식관리 <i class="fas fa-chevron-right ms-1"></i></a>
+                        </div>
+                        <div class="db-panel-body">
+                            <% if (recentKnowledge && recentKnowledge.length > 0) { %>
+                                <div class="db-list">
+                                    <% recentKnowledge.forEach(function(item) { %>
+                                        <a href="/knowledge/detail/<%= item.id %>" class="db-list-item">
+                                            <span class="db-list-main">
+                                                <span class="db-list-title">
+                                                    <% if (item.type) { %>
+                                                        <span class="db-badge <%= typeClassOf(item.type) %> me-1"><%= item.type %></span>
+                                                    <% } %><%= item.title %>
+                                                </span>
+                                                <span class="db-list-meta">
+                                                    <i class="fas fa-user"></i><%= item.creatorName || '-' %>
+                                                    <span>·</span><%= item.createdText %>
+                                                    <% if (item.attCount > 0) { %>
+                                                        <span>· <i class="fas fa-paperclip"></i> <%= item.attCount %></span>
+                                                    <% } %>
+                                                </span>
+                                            </span>
+                                            <% if (item.status) { %>
+                                                <span class="db-badge <%= statusClassOf(item.status) %>"><%= item.status %></span>
+                                            <% } %>
+                                        </a>
+                                    <% }); %>
+                                </div>
+                            <% } else { %>
+                                <div class="db-empty"><i class="fas fa-book"></i>등록된 지식이 없습니다.</div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="db-panel" id="panel-minutes">
+                        <div class="db-panel-head">
+                            <h2 class="db-panel-title">
+                                <i class="fas fa-pen-to-square"></i>최근 회의록
+                                <span class="db-panel-count"><%= num(recentMinutes.length) %></span>
+                            </h2>
+                            <a href="/minutes/list" class="db-panel-link">회의록 목록 <i class="fas fa-chevron-right ms-1"></i></a>
+                        </div>
+                        <div class="db-panel-body">
+                            <% if (recentMinutes && recentMinutes.length > 0) { %>
+                                <div class="db-list">
+                                    <% recentMinutes.forEach(function(minute) { %>
+                                        <a href="/minutes/view/<%= minute.id %>" class="db-list-item">
+                                            <span class="db-list-main">
+                                                <span class="db-list-title"><%= minute.title %></span>
+                                                <span class="db-list-meta">
+                                                    <i class="fas fa-user"></i><%= minute.creatorName || '-' %>
+                                                    <span>·</span><i class="fas fa-calendar"></i><%= minute.dateText %>
+                                                </span>
+                                            </span>
+                                        </a>
+                                    <% }); %>
+                                </div>
+                            <% } else { %>
+                                <div class="db-empty"><i class="fas fa-file-lines"></i>등록된 회의록이 없습니다.</div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-1">
+                <div class="col-12">
+                    <div class="db-panel" id="panel-knowledge-chart">
+                        <div class="db-panel-head">
+                            <h2 class="db-panel-title"><i class="fas fa-chart-column"></i>사용자별 지식 업로드 현황</h2>
+                            <a href="/knowledge" class="db-panel-link">지식관리 <i class="fas fa-chevron-right ms-1"></i></a>
+                        </div>
+                        <div class="db-panel-body">
+                            <% if (knowledgeStats && knowledgeStats.length > 0) { %>
+                                <div class="db-chart-box">
+                                    <canvas id="knowledgeUploadChart"></canvas>
+                                </div>
+                            <% } else { %>
+                                <div class="db-empty"><i class="fas fa-chart-simple"></i>통계를 표시할 데이터가 없습니다.</div>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 </main>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const scheduleDetailModal = document.getElementById('scheduleDetailModal');
-        scheduleDetailModal.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget;
-            const title = button.getAttribute('data-title');
-            const description = button.getAttribute('data-description');
-
-            const modalTitle = scheduleDetailModal.querySelector('.modal-title');
-            const modalBody = scheduleDetailModal.querySelector('.modal-body');
-
-            modalTitle.textContent = title;
-            modalBody.textContent = description;
-        });
-    });
-</script>
+<!-- ===================== 일정 상세 모달 ===================== -->
+<div class="modal fade" id="scheduleDetailModal" tabindex="-1" aria-labelledby="scheduleDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="scheduleDetailModalLabel">일정 상세</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="닫기"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2 db-list-meta" id="scheduleDetailTime"></div>
+                <div class="mb-2 db-list-meta" id="scheduleDetailOwner"></div>
+                <div id="scheduleDetailBody" style="white-space: pre-wrap; font-size: .86rem; line-height: 1.6;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <%- include('../partials/footer') %>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    let knowledgeUploadChart;
+    // ===================== 일정 상세 모달 =====================
+    document.addEventListener('DOMContentLoaded', function () {
+        const modalEl = document.getElementById('scheduleDetailModal');
+        if (!modalEl) return;
 
-    function getChartTextColor() {
-        return document.body.classList.contains('dark-mode') ? '#e0e0e0' : '#333';
-    }
+        modalEl.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            if (!button) return;
 
-    function renderChart() {
-        const knowledgeStats = <%- JSON.stringify(knowledgeStats) %>;
-        const userNames = knowledgeStats.map(stat => stat.userName);
-        const uploadCounts = knowledgeStats.map(stat => stat.uploadCount);
-        const colorPalette = [
-            'rgba(255, 99, 132, 0.6)',
-            'rgba(54, 162, 235, 0.6)',
-            'rgba(255, 206, 86, 0.6)',
-            'rgba(75, 192, 192, 0.6)',
-            'rgba(153, 102, 255, 0.6)',
-            'rgba(255, 159, 64, 0.6)',
-            'rgba(255, 99, 132, 0.6)'
-        ];
-        const borderPalette = [
-            'rgba(255, 99, 132, 1)',
-            'rgba(54, 162, 235, 1)',
-            'rgba(255, 206, 86, 1)',
-            'rgba(75, 192, 192, 1)',
-            'rgba(153, 102, 255, 1)',
-            'rgba(255, 159, 64, 1)',
-            'rgba(255, 99, 132, 1)'
-        ];
-        const backgroundColors = [];
-        const borderColors = [];
+            const title = button.getAttribute('data-title') || '일정 상세';
+            const time = button.getAttribute('data-time') || '';
+            const owner = button.getAttribute('data-owner') || '';
+            const description = button.getAttribute('data-description') || '설명이 없습니다.';
 
-        for (let i = 0; i < uploadCounts.length; i++) {
-            backgroundColors.push(colorPalette[i % colorPalette.length]);
-            borderColors.push(borderPalette[i % borderPalette.length]);
+            const modalTitle = modalEl.querySelector('.modal-title');
+            const timeEl = document.getElementById('scheduleDetailTime');
+            const ownerEl = document.getElementById('scheduleDetailOwner');
+            const bodyEl = document.getElementById('scheduleDetailBody');
+
+            if (modalTitle) modalTitle.textContent = title;
+            if (timeEl) {
+                timeEl.innerHTML = time
+                    ? '<i class="fas fa-clock me-1"></i>' + time
+                    : '';
+            }
+            if (ownerEl) {
+                ownerEl.textContent = owner ? '👤 ' + owner : '';
+            }
+            if (bodyEl) bodyEl.textContent = description;
+        });
+    });
+
+    // ===================== 지식 업로드 차트 =====================
+    (function () {
+        const canvas = document.getElementById('knowledgeUploadChart');
+        if (!canvas) return;
+
+        const rawStats = <%- JSON.stringify(knowledgeStats || []) %>;
+        let chartInstance = null;
+
+        function textColor() {
+            return document.body.classList.contains('dark-mode') ? '#c9d1dc' : '#5b6779';
+        }
+        function gridColor() {
+            return document.body.classList.contains('dark-mode') ? 'rgba(255,255,255,.09)' : 'rgba(24,40,72,.07)';
         }
 
-        const ctx = document.getElementById('knowledgeUploadChart').getContext('2d');
-        
-        if (knowledgeUploadChart) {
-            knowledgeUploadChart.destroy();
-        }
+        function renderChart() {
+            const labels = rawStats.map(function (s) { return s.userName; });
+            const values = rawStats.map(function (s) { return Number(s.uploadCount) || 0; });
 
-        knowledgeUploadChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: userNames,
-                datasets: [{
-                    label: '업로드 건수',
-                    data: uploadCounts,
-                    backgroundColor: backgroundColors,
-                    borderColor: borderColors,
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: '업로드 건수',
-                            color: getChartTextColor()
-                        },
-                        ticks: {
-                            color: getChartTextColor()
-                        }
-                    },
-                    x: {
-                        title: {
-                            display: true,
-                            text: '사용자',
-                            color: getChartTextColor()
-                        },
-                        ticks: {
-                            color: getChartTextColor()
-                        }
-                    }
+            if (chartInstance) {
+                chartInstance.destroy();
+                chartInstance = null;
+            }
+
+            chartInstance = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '업로드 건수',
+                        data: values,
+                        backgroundColor: 'rgba(47, 107, 189, .55)',
+                        hoverBackgroundColor: 'rgba(47, 107, 189, .8)',
+                        borderColor: 'rgba(47, 107, 189, 1)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        maxBarThickness: 46
+                    }]
                 },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: '사용자별 지식 업로드 통계',
-                        color: getChartTextColor()
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 350 },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: textColor(),
+                                precision: 0,
+                                font: { size: 11 }
+                            },
+                            grid: { color: gridColor(), drawBorder: false },
+                            title: { display: false }
+                        },
+                        x: {
+                            ticks: { color: textColor(), font: { size: 11 } },
+                            grid: { display: false }
+                        }
                     },
-                    legend: {
-                        display: false,
-                        labels: {
-                            color: getChartTextColor()
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (ctx) {
+                                    return ' ' + ctx.parsed.y + '건';
+                                }
+                            }
                         }
                     }
                 }
-            }
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', renderChart);
-
-    // Override the setTheme function to also re-render the chart
-    const originalSetTheme = window.setTheme;
-    window.setTheme = function(theme) {
-        originalSetTheme(theme);
-        if (document.getElementById('knowledgeUploadChart')) {
-            renderChart();
+            });
         }
-    }
+
+        renderChart();
+
+        // 다크/라이트 테마 전환 시 차트 색상 재적용
+        const baseSetTheme = window.setTheme;
+        if (typeof baseSetTheme === 'function') {
+            window.setTheme = function (theme) {
+                baseSetTheme(theme);
+                setTimeout(renderChart, 60);
+            };
+        }
+    })();
 </script>
