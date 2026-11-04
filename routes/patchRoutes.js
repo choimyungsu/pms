@@ -13,6 +13,9 @@ router.post('/patch/apply-condition', isAuthenticated, patchController.applyCond
 // 개별 체크 토글 (AJAX)
 router.post('/patch/toggle/:id', isAuthenticated, patchController.togglePatchRequired);
 
+// 품목별 Skill 보유 여부 토글 (AJAX) — 기술본부 인력 스킬 분석의 기준
+router.post('/patch/toggle-skill/:id', isAuthenticated, patchController.toggleSkillChecked);
+
 // 품목 / 제조사 / 버전 복수행 일괄 저장 (AJAX)
 router.post('/patch/save-fields', isAuthenticated, patchController.saveItemFields);
 

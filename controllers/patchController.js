@@ -46,6 +46,7 @@ function normalizeFilters(query) {
         versions: toArray(source.versions),
         customers: toArray(source.customers),
         patch: ['1', '0'].includes(source.patch) ? source.patch : '',
+        skill: ['1', '0'].includes(source.skill) ? source.skill : '',
         activeOnly: source.active_only === '1',
         // 표시 컬럼(순서 포함). 비어 있으면 기본 컬럼 구성이 사용됩니다.
         cols: (cols || '').toString().trim()
@@ -89,6 +90,12 @@ function buildFilter(filters) {
         where.push('COALESCE(i.patch_required, 0) = 0');
     }
 
+    if (filters.skill === '1') {
+        where.push('COALESCE(i.skill_checked, 0) = 1');
+    } else if (filters.skill === '0') {
+        where.push('COALESCE(i.skill_checked, 0) = 0');
+    }
+
     const whereString = where.length ? ` WHERE ${where.join(' AND ')}` : '';
     return { whereString, params };
 }
@@ -129,6 +136,7 @@ function queryFromFilters(filters, extra = {}) {
     filters.versions.forEach((v) => sp.append('versions', v));
     filters.customers.forEach((v) => sp.append('customers', v));
     if (filters.patch) sp.set('patch', filters.patch);
+    if (filters.skill) sp.set('skill', filters.skill);
     if (filters.activeOnly) sp.set('active_only', '1');
     if (filters.cols) sp.set('cols', filters.cols);
     Object.entries(extra).forEach(([k, v]) => {
@@ -392,6 +400,41 @@ exports.togglePatchRequired = async (req, res) => {
         return res.json({ success: true, patch_required: next });
     } catch (error) {
         console.error('[patch] togglePatchRequired error:', error);
+        return res.status(500).json({ success: false, message: '서버 오류' });
+    }
+};
+
+/* Skill 보유 체크 토글 (기술본부 인력 스킬 분석의 기준 데이터) */
+exports.toggleSkillChecked = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const raw = req.body ? req.body.skill_checked : undefined;
+        if (raw === undefined || raw === null) {
+            return res.status(400).json({ success: false, message: 'skill_checked 값이 필요합니다.' });
+        }
+        const next = ['1', 'true', 1, true].includes(raw) ? 1 : 0;
+        const operator = (req.session.user && req.session.user.name) || 'system';
+
+        const [result] = next === 1
+            ? await db.query(
+                `UPDATE tb_maintenance_summary_items
+                    SET skill_checked = 1, skill_checked_at = NOW(), skill_checked_by = ?
+                  WHERE id = ?`,
+                [operator, id]
+            )
+            : await db.query(
+                `UPDATE tb_maintenance_summary_items
+                    SET skill_checked = 0, skill_checked_at = NULL, skill_checked_by = NULL
+                  WHERE id = ?`,
+                [id]
+            );
+
+        if (!result.affectedRows) {
+            return res.status(404).json({ success: false, message: '대상을 찾을 수 없습니다.' });
+        }
+        return res.json({ success: true, skill_checked: next });
+    } catch (error) {
+        console.error('[patch] toggleSkillChecked error:', error);
         return res.status(500).json({ success: false, message: '서버 오류' });
     }
 };

@@ -137,6 +137,19 @@
     .tech-dashboard .es-chip-unmatched { background: #fdf0d8; color: #8a5b00; }
     .tech-dashboard .es-chip-unmatched b { font-weight: 700; }
 
+    /* Skill 보유 체크 기준 안내 */
+    .tech-dashboard .es-basis {
+        border: 1px solid #d6e4f5; background: #f4f9ff; border-radius: 8px;
+        padding: .55rem .8rem; margin-bottom: .85rem; font-size: .79rem; color: #35506e;
+    }
+    .tech-dashboard .es-basis strong { color: #1a4b8c; }
+    .tech-dashboard .es-basis a { color: #1a4b8c; text-decoration: underline; }
+    .tech-dashboard .es-basis-warn {
+        border: 1px solid #f2dfc0; background: #fffaf0; border-radius: 8px;
+        padding: .65rem .85rem; margin-bottom: .85rem; font-size: .79rem; color: #8a5b00;
+    }
+    .tech-dashboard .es-basis-warn a { color: #8a5b00; text-decoration: underline; font-weight: 600; }
+
     /* 다크 모드 */
     .dark-mode .tech-dashboard .es-stat { background: #333; border-color: #474747; }
     .dark-mode .tech-dashboard .es-stat-value { color: #e8ecf2; }
@@ -172,6 +185,11 @@
     .dark-mode .tech-dashboard .es-badge-skill { background: #24493f; color: #8fd8bd; }
     .dark-mode .tech-dashboard .es-badge-none { background: #3a3a3a; color: #9aa5b4; }
     .dark-mode .tech-dashboard .es-unmatched { background: #3a3222; border-color: #5c4a24; }
+    .dark-mode .tech-dashboard .es-basis { background: #26364a; border-color: #33506f; color: #a9c2dc; }
+    .dark-mode .tech-dashboard .es-basis strong { color: #9cc4ef; }
+    .dark-mode .tech-dashboard .es-basis a { color: #9cc4ef; }
+    .dark-mode .tech-dashboard .es-basis-warn { background: #3a3222; border-color: #5c4a24; color: #e0c288; }
+    .dark-mode .tech-dashboard .es-basis-warn a { color: #e0c288; }
 
     /* ---- 회사 전체 제조사 / 품목 / 모델 분석 ---- */
     .tech-dashboard .ca-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .5rem; margin-bottom: .9rem; }
@@ -318,9 +336,27 @@
                 <div class="card mb-4" id="engineer-skills">
                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <h3 class="card-title mb-0"><i class="fa-solid fa-screwdriver-wrench"></i> 엔지니어 스킬 보유 현황</h3>
-                        <span class="text-muted small">유지보수 정/부엔지니어 등록 이력 기준 · 제조사 · 품목 · 모델</span>
+                        <span class="text-muted small">
+                            유지보수 품목 중 <strong>Skill 보유</strong> 체크된 항목 기준 · 제조사 · 품목 · 모델
+                        </span>
                     </div>
                     <div class="card-body">
+
+                        <% if (skillBasis && skillBasis.totalItems > 0 && skillBasis.checkedItems === 0) { %>
+                            <div class="es-basis-warn">
+                                <i class="fa-solid fa-circle-info me-1"></i>
+                                아직 Skill 보유로 체크된 품목이 없습니다.
+                                <a href="/maintenance/patch">유지보수 관리 → 패치관리</a>에서
+                                기술본부가 수행 가능한 품목의 <strong>Skill 보유</strong> 체크박스를 선택하면
+                                아래 분석에 반영됩니다.
+                            </div>
+                        <% } else if (skillBasis && skillBasis.totalItems > 0) { %>
+                            <div class="es-basis">
+                                유지보수 품목 <strong><%= skillBasis.totalItems %></strong>건 중
+                                <strong><%= skillBasis.checkedItems %></strong>건이 Skill 보유로 체크되어 분석에 사용되었습니다.
+                                <a href="/maintenance/patch?skill=1" class="ms-1">대상 품목 보기</a>
+                            </div>
+                        <% } %>
 
                         <div class="es-stats">
                             <div class="es-stat">
@@ -454,14 +490,16 @@
                 <div class="card mb-4" id="company-analysis">
                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <h3 class="card-title mb-0"><i class="fa-solid fa-chart-column"></i> 제조사 · 품목 · 모델 분석 (회사 전체)</h3>
-                        <span class="text-muted small">유지보수 전체 등록 기준 · 모델명 접두어 통합 집계 / 검색 지원</span>
+                        <span class="text-muted small">
+                            패치관리 <strong>Skill 보유</strong> 체크 품목 기준 · 모델명 접두어 통합 집계 / 검색 지원
+                        </span>
                     </div>
                     <div class="card-body">
 
                         <div class="ca-stats">
                             <div class="ca-stat">
-                                <span class="ca-stat-label">전체 유지보수</span>
-                                <span class="ca-stat-value"><%= companyAnalysis.totals.records %><small>건</small></span>
+                                <span class="ca-stat-label">Skill 보유 품목</span>
+                                <span class="ca-stat-value"><%= skillBasis ? skillBasis.checkedItems : 0 %><small>건</small></span>
                             </div>
                             <div class="ca-stat">
                                 <span class="ca-stat-label">유효(계약중)</span>

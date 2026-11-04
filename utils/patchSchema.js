@@ -82,6 +82,18 @@ const REQUIRED_COLUMNS = [
     {
         name: 'patch_condition',
         ddl: "ADD COLUMN `patch_condition` VARCHAR(500) NULL DEFAULT NULL COMMENT '패치필요 판정 조건 요약'"
+    },
+    {
+        name: 'skill_checked',
+        ddl: "ADD COLUMN `skill_checked` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '기술본부 Skill 보유 여부(0:미보유,1:보유)'"
+    },
+    {
+        name: 'skill_checked_at',
+        ddl: "ADD COLUMN `skill_checked_at` DATETIME NULL DEFAULT NULL COMMENT 'Skill 보유 판정 일시'"
+    },
+    {
+        name: 'skill_checked_by',
+        ddl: "ADD COLUMN `skill_checked_by` VARCHAR(255) NULL DEFAULT NULL COMMENT 'Skill 보유 판정자'"
     }
 ];
 

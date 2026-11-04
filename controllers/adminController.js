@@ -204,26 +204,59 @@ exports.getTechStatusPage = async (req, res) => {
         });
         // --- 일정 현황 로직 종료 ---
 
-        // --- 엔지니어 스킬(유지보수 담당 이력) 집계 시작 ---
-        // tb_maintenance 의 정/부 엔지니어는 자유 입력 이름 문자열이므로
-        // 공백·대소문자를 제거해 기술본부 인원(tb_user.name)과 매칭한다.
+        // --- 기술본부 스킬 분석 (패치관리 Skill 보유 체크 기준) 시작 ---
+        // 기준 데이터
+        //   tb_maintenance_summary        : 고객사 / 정엔지니어 / 부엔지니어 / 유지보수 종료일
+        //   tb_maintenance_summary_items  : 제조사 / 품목 / 모델 / skill_checked
+        //
+        //  - 패치관리 화면에서 품목별 "Skill 보유" 체크가 된 행만 집계합니다.
+        //    (체크되지 않은 품목은 기술본부 스킬 분석 대상에서 제외)
+        //  - 정/부엔지니어는 자유 입력 이름이므로 공백·대소문자를 제거한 뒤
+        //    기술본부 인원(tb_user.name)과 매칭합니다.
         let engineerSkills = [];
         let unmatchedEngineers = [];
         let skillTotals = { engineers: 0, records: 0, skills: 0, manufacturers: 0 };
+        let companyAnalysis = {
+            totals: { records: 0, activeRecords: 0, manufacturers: 0, items: 0, models: 0, customers: 0 },
+            manufacturers: [],
+            items: [],
+            models: [],
+            matrix: { items: [], rows: [], max: 0 },
+            modelRecords: []
+        };
+        let skillBasis = { totalItems: 0, checkedItems: 0 };
+
         try {
-            const [maintenanceRows] = await db.query(`
-                SELECT id, customer_company, project_name, manufacturer, item, model,
-                       main_engineer, sub_engineer, maintenance_end_date, closed_at
-                FROM tb_maintenance
+            const [skillRows] = await db.query(`
+                SELECT s.id AS summary_id,
+                       s.customer_company,
+                       s.main_engineer,
+                       s.sub_engineer,
+                       s.maintenance_end_date,
+                       i.id AS item_id,
+                       i.manufacturer,
+                       i.item_name,
+                       i.model_name,
+                       COALESCE(i.skill_checked, 0) AS skill_checked
+                  FROM tb_maintenance_summary s
+                  JOIN tb_maintenance_summary_items i ON i.summary_id = s.id
             `);
 
+            const norm = (value) => String(value == null ? '' : value).trim();
             const nameKey = (value) => String(value == null ? '' : value).replace(/\s+/g, '').toLowerCase();
+            const todayStr = new Date().toISOString().split('T')[0];
 
+            skillBasis.totalItems = skillRows.length;
+            // Skill 보유 체크된 품목만 분석 대상
+            const checkedRows = skillRows.filter((row) => Number(row.skill_checked) === 1);
+            skillBasis.checkedItems = checkedRows.length;
+
+            /* ---------- 1) 엔지니어별 스킬 보유 현황 ---------- */
             const memberByKey = new Map();
-            resourceMembers.forEach(member => memberByKey.set(nameKey(member.name), member));
+            resourceMembers.forEach((member) => memberByKey.set(nameKey(member.name), member));
 
             const skillByMember = new Map();
-            resourceMembers.forEach(member => {
+            resourceMembers.forEach((member) => {
                 skillByMember.set(member.id, {
                     id: member.id,
                     name: member.name,
@@ -245,7 +278,7 @@ exports.getTechStatusPage = async (req, res) => {
                 if (!member) {
                     // 기술본부 소속이 아닌(또는 미등록) 엔지니어 이름
                     if (!unmatched.has(key)) {
-                        unmatched.set(key, { name: String(rawName).trim(), count: 0 });
+                        unmatched.set(key, { name: norm(rawName), count: 0 });
                     }
                     unmatched.get(key).count += 1;
                     return;
@@ -256,16 +289,16 @@ exports.getTechStatusPage = async (req, res) => {
                 if (role === 'main') bucket.mainCount += 1;
                 else bucket.subCount += 1;
 
-                const manufacturer = String(row.manufacturer || '').trim();
-                const item = String(row.item || '').trim();
-                const model = String(row.model || '').trim();
+                const manufacturer = norm(row.manufacturer) || '-';
+                const item = norm(row.item_name) || '-';
+                const model = norm(row.model_name) || '-';
                 const skillKey = [manufacturer, item, model].join('||');
 
                 if (!bucket.skills.has(skillKey)) {
                     bucket.skills.set(skillKey, {
-                        manufacturer: manufacturer || '-',
-                        item: item || '-',
-                        model: model || '-',
+                        manufacturer,
+                        item,
+                        model,
                         count: 0,
                         asMain: 0,
                         asSub: 0,
@@ -278,19 +311,17 @@ exports.getTechStatusPage = async (req, res) => {
                 skill.count += 1;
                 if (role === 'main') skill.asMain += 1;
                 else skill.asSub += 1;
-                if (row.customer_company) skill.customers.add(String(row.customer_company).trim());
-                if (row.maintenance_end_date) skill.endDates.push(String(row.maintenance_end_date));
+                if (row.customer_company) skill.customers.add(norm(row.customer_company));
+                if (row.maintenance_end_date) skill.endDates.push(String(row.maintenance_end_date).slice(0, 10));
             };
 
-            maintenanceRows.forEach(row => {
+            checkedRows.forEach((row) => {
                 addSkill(row.main_engineer, 'main', row);
                 addSkill(row.sub_engineer, 'sub', row);
             });
 
-            const todayStr = new Date().toISOString().split('T')[0];
-
-            engineerSkills = Array.from(skillByMember.values()).map(bucket => {
-                const skills = Array.from(bucket.skills.values()).map(skill => {
+            engineerSkills = Array.from(skillByMember.values()).map((bucket) => {
+                const skills = Array.from(bucket.skills.values()).map((skill) => {
                     const endDates = skill.endDates.slice().sort();
                     const lastEndDate = endDates.length ? endDates[endDates.length - 1] : null;
                     return {
@@ -318,51 +349,27 @@ exports.getTechStatusPage = async (req, res) => {
                     mainCount: bucket.mainCount,
                     subCount: bucket.subCount,
                     skillCount: skills.length,
-                    manufacturers: Array.from(new Set(skills.map(s => s.manufacturer))),
-                    items: Array.from(new Set(skills.map(s => s.item))),
+                    manufacturers: Array.from(new Set(skills.map((s) => s.manufacturer))),
+                    items: Array.from(new Set(skills.map((s) => s.item))),
                     skills
                 };
             }).sort((a, b) => (b.totalCount - a.totalCount) || a.name.localeCompare(b.name, 'ko'));
 
-            unmatchedEngineers = Array.from(unmatched.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ko'));
+            unmatchedEngineers = Array.from(unmatched.values())
+                .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ko'));
 
             skillTotals = {
-                engineers: engineerSkills.filter(eng => eng.skillCount > 0).length,
+                engineers: engineerSkills.filter((eng) => eng.skillCount > 0).length,
                 records: engineerSkills.reduce((sum, eng) => sum + eng.totalCount, 0),
                 skills: engineerSkills.reduce((sum, eng) => sum + eng.skillCount, 0),
                 manufacturers: new Set(
                     engineerSkills.reduce((acc, eng) => acc.concat(eng.manufacturers), [])
                 ).size
             };
-        } catch (err) {
-            console.warn('[tech-status] 엔지니어 스킬 집계 실패:', err.code || err.message);
-            engineerSkills = [];
-            unmatchedEngineers = [];
-        }
-        // --- 엔지니어 스킬 집계 종료 ---
 
-        // --- 회사 전체 제조사/품목/모델 분석 집계 시작 ---
-        // 유지보수 전체 등록 건을 기준(특정 엔지니어 필터 없음)으로
-        // 제조사 / 품목 / 모델별 건수와 제조사×품목 교차표를 만든다.
-        // 모델명 접두어 통합 검색은 화면(클라이언트)에서 modelRecords 로 처리한다.
-        let companyAnalysis = {
-            totals: { records: 0, activeRecords: 0, manufacturers: 0, items: 0, models: 0, customers: 0 },
-            manufacturers: [],
-            items: [],
-            models: [],
-            matrix: { items: [], rows: [], max: 0 },
-            modelRecords: []
-        };
-        try {
-            const [companyRows] = await db.query(`
-                SELECT manufacturer, item, model, customer_company, maintenance_end_date
-                FROM tb_maintenance
-            `);
-
-            const norm = (value) => String(value == null ? '' : value).trim();
-            // 제조사명 표기 차이(대소문자/공백)를 하나로 묶기 위한 키
+            /* ---------- 2) 회사 전체 제조사 / 품목 / 모델 분석 ---------- */
+            // 모델명 접두어 통합 검색은 화면(클라이언트)에서 modelRecords 로 처리한다.
             const mfrKey = (value) => String(value == null ? '' : value).replace(/\s+/g, '').toLowerCase();
-            const todayKey = new Date().toISOString().split('T')[0];
 
             const mfrMap = new Map();
             const itemMap = new Map();
@@ -377,19 +384,21 @@ exports.getTechStatusPage = async (req, res) => {
                 return map.get(key);
             };
 
-            companyRows.forEach(row => {
+            checkedRows.forEach((row) => {
                 const manufacturer = norm(row.manufacturer) || '-';
-                const item = norm(row.item) || '-';
-                const model = norm(row.model) || '-';
+                const item = norm(row.item_name) || '-';
+                const model = norm(row.model_name) || '-';
                 const customer = norm(row.customer_company);
                 const endDate = row.maintenance_end_date ? String(row.maintenance_end_date).slice(0, 10) : '';
-                const isActive = !endDate || endDate >= todayKey;
+                const isActive = !endDate || endDate >= todayStr;
 
                 recordCount += 1;
                 if (isActive) activeRecordCount += 1;
                 if (customer) customerSet.add(customer);
 
-                const mfrEntry = ensure(mfrMap, mfrKey(manufacturer), { name: manufacturer, items: new Set(), models: new Set(), customers: new Set() });
+                const mfrEntry = ensure(mfrMap, mfrKey(manufacturer), {
+                    name: manufacturer, items: new Set(), models: new Set(), customers: new Set()
+                });
                 mfrEntry.count += 1;
                 if (isActive) mfrEntry.active += 1;
                 mfrEntry.items.add(item);
@@ -410,22 +419,21 @@ exports.getTechStatusPage = async (req, res) => {
                 if (isActive) modelEntry.active += 1;
                 if (customer) modelEntry.customers.add(customer);
 
-                const pairKey = `${mfrKey(manufacturer)}||${item}`;
-                const pairEntry = ensure(pairMap, pairKey, { manufacturer, item });
+                const pairEntry = ensure(pairMap, `${mfrKey(manufacturer)}||${item}`, { manufacturer, item });
                 pairEntry.count += 1;
                 if (isActive) pairEntry.active += 1;
             });
 
             const totalForBar = Math.max(recordCount, 1);
-
+            const share = (count) => Math.round((count / totalForBar) * 1000) / 10;
             const sortByCount = (a, b) => (b.count - a.count) || a.name.localeCompare(b.name, 'ko');
 
             companyAnalysis.manufacturers = Array.from(mfrMap.values())
-                .map(entry => ({
+                .map((entry) => ({
                     name: entry.name,
                     count: entry.count,
                     active: entry.active,
-                    share: Math.round((entry.count / totalForBar) * 1000) / 10,
+                    share: share(entry.count),
                     itemCount: entry.items.size,
                     modelCount: entry.models.size,
                     items: Array.from(entry.items).sort((a, b) => a.localeCompare(b, 'ko')),
@@ -434,11 +442,11 @@ exports.getTechStatusPage = async (req, res) => {
                 .sort(sortByCount);
 
             companyAnalysis.items = Array.from(itemMap.values())
-                .map(entry => ({
+                .map((entry) => ({
                     name: entry.name,
                     count: entry.count,
                     active: entry.active,
-                    share: Math.round((entry.count / totalForBar) * 1000) / 10,
+                    share: share(entry.count),
                     manufacturerCount: entry.manufacturers.size,
                     modelCount: entry.models.size,
                     manufacturers: Array.from(entry.manufacturers).sort((a, b) => a.localeCompare(b, 'ko'))
@@ -446,13 +454,13 @@ exports.getTechStatusPage = async (req, res) => {
                 .sort(sortByCount);
 
             companyAnalysis.models = Array.from(modelMap.values())
-                .map(entry => ({
+                .map((entry) => ({
                     name: entry.name,
                     manufacturer: entry.manufacturer,
                     item: entry.item,
                     count: entry.count,
                     active: entry.active,
-                    share: Math.round((entry.count / totalForBar) * 1000) / 10,
+                    share: share(entry.count),
                     customers: Array.from(entry.customers)
                 }))
                 .sort((a, b) => (b.count - a.count)
@@ -461,28 +469,24 @@ exports.getTechStatusPage = async (req, res) => {
 
             const matrixItemNames = Array.from(itemMap.values())
                 .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ko'))
-                .map(entry => entry.name);
+                .map((entry) => entry.name);
 
             let matrixMax = 0;
-            const matrixRows = companyAnalysis.manufacturers.map(mfrEntry => {
-                const cells = matrixItemNames.map(itemName => {
+            const matrixRows = companyAnalysis.manufacturers.map((mfrEntry) => {
+                const cells = matrixItemNames.map((itemName) => {
                     const pairEntry = pairMap.get(`${mfrKey(mfrEntry.name)}||${itemName}`);
                     const count = pairEntry ? pairEntry.count : 0;
                     if (count > matrixMax) matrixMax = count;
                     return count;
                 });
-                return {
-                    name: mfrEntry.name,
-                    total: mfrEntry.count,
-                    cells
-                };
+                return { name: mfrEntry.name, total: mfrEntry.count, cells };
             });
 
             companyAnalysis.matrix = { items: matrixItemNames, rows: matrixRows, max: matrixMax };
 
             // 모델별 원본 레코드 (화면에서 접두어 통합·검색 집계용)
             companyAnalysis.modelRecords = Array.from(modelMap.values())
-                .map(entry => ({
+                .map((entry) => ({
                     mfr: entry.manufacturer,
                     item: entry.item,
                     model: entry.name,
@@ -501,9 +505,11 @@ exports.getTechStatusPage = async (req, res) => {
                 customers: customerSet.size
             };
         } catch (err) {
-            console.warn('[tech-status] 제조사/품목/모델 분석 집계 실패:', err.code || err.message);
+            console.warn('[tech-status] 기술본부 스킬 분석 집계 실패:', err.code || err.message);
+            engineerSkills = [];
+            unmatchedEngineers = [];
         }
-        // --- 회사 전체 제조사/품목/모델 분석 집계 종료 ---
+        // --- 기술본부 스킬 분석 종료 ---
 
         res.render('admin/tech_status', {
             page: 'tech_status',
@@ -524,7 +530,8 @@ exports.getTechStatusPage = async (req, res) => {
             engineerSkills,
             unmatchedEngineers,
             skillTotals,
-            companyAnalysis
+            companyAnalysis,
+            skillBasis
         });
 
     } catch (err) {

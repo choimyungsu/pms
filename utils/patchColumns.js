@@ -135,6 +135,11 @@ const COLUMNS = [
         sql: 'COALESCE(i.patch_required, 0)', width: 110, defaultVisible: true, order: 50,
         required: true, align: 'center'
     },
+    {
+        key: 'skill_checked', label: 'Skill 보유', group: 'patch', type: 'skill',
+        sql: 'COALESCE(i.skill_checked, 0)', width: 110, defaultVisible: true, order: 55,
+        align: 'center'
+    },
 
     /* ---- 선택 표시: 엔지니어 / 점검 정보 --- */
     {

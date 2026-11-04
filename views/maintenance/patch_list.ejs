@@ -9,9 +9,20 @@
     filters.items.forEach(function (v) { baseParams.append('items', v); });
     filters.versions.forEach(function (v) { baseParams.append('versions', v); });
     if (filters.cols) baseParams.set('cols', filters.cols);
+    if (filters.skill) baseParams.set('skill', filters.skill);
     const buildUrl = function (patchVal) {
         const p = new URLSearchParams(baseParams.toString());
         if (patchVal) p.set('patch', patchVal);
+        else p.delete('patch');
+        const s = p.toString();
+        return '/maintenance/patch' + (s ? '?' + s : '');
+    };
+    // Skill 보유 필터 링크 (현재 패치필터 유지)
+    const buildSkillUrl = function (skillVal) {
+        const p = new URLSearchParams(baseParams.toString());
+        if (skillVal) p.set('skill', skillVal);
+        else p.delete('skill');
+        if (filters.patch) p.set('patch', filters.patch);
         const s = p.toString();
         return '/maintenance/patch' + (s ? '?' + s : '');
     };
@@ -278,6 +289,7 @@
                         <% filters.items.forEach(function (v) { %><input type="hidden" name="items" value="<%= v %>"><% }) %>
                         <% filters.versions.forEach(function (v) { %><input type="hidden" name="versions" value="<%= v %>"><% }) %>
                         <% if (filters.patch) { %><input type="hidden" name="patch" value="<%= filters.patch %>"><% } %>
+                        <% if (filters.skill) { %><input type="hidden" name="skill" value="<%= filters.skill %>"><% } %>
                         <input type="hidden" name="cols" id="searchColsInput" value="<%= columns.map(function (c) { return c.key; }).join(',') %>">
                         <button type="submit" class="btn btn-default btn-sm"><i class="fas fa-search"></i></button>
                     </form>
@@ -347,6 +359,15 @@
                             <a href="<%= buildUrl('1') %>" class="btn btn-<%= filters.patch === '1' ? 'danger' : 'outline-danger' %>">패치필요만</a>
                             <a href="<%= buildUrl('0') %>" class="btn btn-<%= filters.patch === '0' ? 'success' : 'outline-success' %>">패치불필요만</a>
                             <a href="<%= buildUrl('') %>" class="btn btn-<%= !filters.patch ? 'secondary' : 'outline-secondary' %>">전체</a>
+                        </div>
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Skill 보유 필터">
+                            <a href="<%= buildSkillUrl('1') %>" class="btn btn-<%= filters.skill === '1' ? 'primary' : 'outline-primary' %>"
+                               title="Skill 보유 체크된 품목만 표시합니다">
+                                <i class="fa-solid fa-user-gear me-1"></i>Skill 보유만
+                            </a>
+                            <a href="<%= buildSkillUrl('0') %>" class="btn btn-<%= filters.skill === '0' ? 'secondary' : 'outline-secondary' %>"
+                               title="Skill 미보유 품목만 표시합니다">Skill 미보유만</a>
+                            <a href="<%= buildSkillUrl('') %>" class="btn btn-<%= !filters.skill ? 'secondary' : 'outline-secondary' %>">전체</a>
                         </div>
                         <a href="/maintenance/patch/download-excel<%= queryString %>" class="btn btn-success btn-sm">
                             <i class="fa-solid fa-file-excel me-1"></i>엑셀 다운로드
@@ -418,6 +439,13 @@
                                         <input type="checkbox" class="form-check-input patch-check"
                                                data-id="<%= r.id %>"
                                                <%= Number(r.patch_required) === 1 ? 'checked' : '' %>>
+                                    </td>
+                                    <% } else if (col.type === 'skill') { %>
+                                    <td data-col-key="<%= col.key %>" class="patch-cell">
+                                        <input type="checkbox" class="form-check-input skill-check"
+                                               data-id="<%= r.id %>"
+                                               title="체크한 품목만 기술본부 스킬 분석에 반영됩니다"
+                                               <%= Number(r.skill_checked) === 1 ? 'checked' : '' %>>
                                     </td>
                                     <% } else { %>
                                     <% var _empty = isEmptyValue(r, col); %>
@@ -860,6 +888,36 @@
                     else tr.classList.remove('patch-needed');
                     if (window.showNotification) {
                         window.showNotification('success', value === 1 ? '패치필요로 설정했습니다.' : '패치필요를 해제했습니다.');
+                    }
+                })
+                .catch(function () {
+                    cb.checked = !cb.checked;
+                    if (window.showNotification) window.showNotification('error', '변경에 실패했습니다.');
+                })
+                .finally(function () { cb.disabled = false; });
+        });
+    });
+
+    // 품목별 Skill 보유 여부 토글 — 체크된 품목만 기술본부 스킬 분석에 반영
+    document.querySelectorAll('.skill-check').forEach(function (cb) {
+        cb.addEventListener('change', function () {
+            const id = cb.getAttribute('data-id');
+            const value = cb.checked ? 1 : 0;
+            cb.disabled = true;
+            fetch('/maintenance/patch/toggle-skill/' + id, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ skill_checked: value })
+            })
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (!data.success) throw new Error(data.message || 'failed');
+                    const tr = cb.closest('tr');
+                    if (tr) tr.classList.toggle('skill-held', value === 1);
+                    if (window.showNotification) {
+                        window.showNotification('success', value === 1
+                            ? 'Skill 보유로 설정했습니다. 기술본부 분석에 반영됩니다.'
+                            : 'Skill 보유를 해제했습니다.');
                     }
                 })
                 .catch(function () {
