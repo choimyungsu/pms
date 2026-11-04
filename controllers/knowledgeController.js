@@ -13,6 +13,30 @@ if (!fs.existsSync(uploadDir)) {
     }
 }
 
+// 지정한 카테고리 + 모든 하위 카테고리 id 목록을 반환한다.
+// (MySQL 5.7 호환을 위해 재귀 CTE 대신 전체 목록 조회 후 JS 확장)
+async function collectCategorySubtree(rootId) {
+    const [rows] = await db.query('SELECT id, parent_id FROM tb_knowledge_categories');
+    const childrenOf = new Map();
+    rows.forEach((r) => {
+        const key = r.parent_id === null ? '#root' : String(r.parent_id);
+        if (!childrenOf.has(key)) childrenOf.set(key, []);
+        childrenOf.get(key).push(String(r.id));
+    });
+
+    const collected = [];
+    const visited = new Set();
+    const walk = (id) => {
+        const key = String(id);
+        if (visited.has(key)) return;
+        visited.add(key);
+        collected.push(id);
+        (childrenOf.get(key) || []).forEach(walk);
+    };
+    walk(rootId);
+    return collected;
+}
+
 // Render knowledge management page
 exports.getKnowledgePage = (req, res) => {
     const user = req.session.user || {};
@@ -20,10 +44,67 @@ exports.getKnowledgePage = (req, res) => {
 };
 
 // Category Management
+// 카테고리 목록 + 문서 수(직접 보유 / 하위 포함) 를 함께 반환한다.
+// 트리 메뉴에서 "문서가 없는 카테고리"를 구분해 표시하기 위해 사용된다.
 exports.getCategories = async (req, res) => {
+    const user = req.session.user || {};
+    const isAdmin = user.role === 'admin';
+
     try {
-        const [rows] = await db.query('SELECT * FROM tb_knowledge_categories ORDER BY name');
-        res.json(rows);
+        const [rows] = await db.query(
+            'SELECT id, name, parent_id FROM tb_knowledge_categories ORDER BY name'
+        );
+
+        let counts = [];
+        let countSql =
+            'SELECT category_id, COUNT(*) AS cnt FROM tb_knowledge k WHERE k.category_id IS NOT NULL';
+        if (!isAdmin) {
+            countSql += ' AND k.id NOT IN (SELECT knowledge_id FROM tb_project_knowledge_links)';
+        }
+        countSql += ' GROUP BY category_id';
+
+        try {
+            [counts] = await db.query(countSql);
+        } catch (countErr) {
+            // tb_project_knowledge_links 가 없는 환경에서도 목록은 보여야 한다.
+            console.error('Category count query failed, fallback:', countErr.message);
+            [counts] = await db.query(
+                'SELECT category_id, COUNT(*) AS cnt FROM tb_knowledge WHERE category_id IS NOT NULL GROUP BY category_id'
+            );
+        }
+
+        const ownMap = new Map();
+        counts.forEach((r) => ownMap.set(String(r.category_id), Number(r.cnt) || 0));
+
+        // 트리 롤업: 부모 카테고리는 하위 카테고리 문서 수도 포함한다.
+        const childrenMap = new Map();
+        rows.forEach((cat) => {
+            const key = cat.parent_id === null ? '#root' : String(cat.parent_id);
+            if (!childrenMap.has(key)) childrenMap.set(key, []);
+            childrenMap.get(key).push(cat);
+        });
+
+        const totalMap = new Map();
+        const resolveTotal = (cat) => {
+            const key = String(cat.id);
+            if (totalMap.has(key)) return totalMap.get(key);
+            let sum = ownMap.get(key) || 0;
+            (childrenMap.get(key) || []).forEach((child) => {
+                sum += resolveTotal(child);
+            });
+            totalMap.set(key, sum);
+            return sum;
+        };
+
+        const result = rows.map((cat) => ({
+            id: cat.id,
+            name: cat.name,
+            parent_id: cat.parent_id,
+            own_count: ownMap.get(String(cat.id)) || 0,
+            doc_count: resolveTotal(cat)
+        }));
+
+        res.json(result);
     } catch (err) {
         console.error('Error fetching categories:', err);
         res.status(500).json({ message: '카테고리를 불러오는 중 오류가 발생했습니다.' });
@@ -71,43 +152,135 @@ exports.deleteCategory = async (req, res) => {
 };
 
 // Knowledge Item Management
+// category_id 가 없으면 "전체" 로 조회한다. (검색/전체보기 지원)
+// search 파라미터가 있으면 제목/구분/상태/담당자/생성자/카테고리/첨부파일명을 LIKE 검색한다.
 exports.getKnowledgeItems = async (req, res) => {
-    const { category_id } = req.query;
+    const { category_id, search, scope, limit, include_sub } = req.query;
     const user = req.session.user || {};
     const isAdmin = user.role === 'admin';
 
     try {
-        if (!category_id) {
-            return res.json([]);
+        const where = [];
+        const params = [];
+
+        const hasCategory = category_id !== undefined && category_id !== null
+            && String(category_id).trim() !== '' && String(category_id) !== 'null'
+            && scope !== 'all';
+
+        // scope='all' 이면 카테고리 지정 없이 전체 조회
+        if (hasCategory) {
+            const wantSub = (String(include_sub) === '1' || String(include_sub) === 'true');
+            if (wantSub) {
+                // 하위 카테고리까지 포함 (재귀 CTE 대신 전체 목록을 읽어 자바스크립트에서 트리 확장)
+                const ids = await collectCategorySubtree(category_id);
+                if (ids.length > 0) {
+                    where.push(`k.category_id IN (${ids.map(() => '?').join(', ')})`);
+                    ids.forEach((cid) => params.push(cid));
+                } else {
+                    where.push('k.category_id = ?');
+                    params.push(category_id);
+                }
+            } else {
+                where.push('k.category_id = ?');
+                params.push(category_id);
+            }
+        }
+
+        if (!isAdmin) {
+            where.push('k.id NOT IN (SELECT knowledge_id FROM tb_project_knowledge_links)');
+        }
+
+        const keyword = (search === undefined || search === null) ? '' : String(search).trim();
+        if (keyword) {
+            const like = `%${keyword}%`;
+            where.push(`(
+                k.title LIKE ?
+                OR IFNULL(k.type, '') LIKE ?
+                OR IFNULL(k.status, '') LIKE ?
+                OR IFNULL(k.assignee, '') LIKE ?
+                OR IFNULL(u.name, '') LIKE ?
+                OR IFNULL(c.name, '') LIKE ?
+                OR EXISTS (
+                    SELECT 1 FROM tb_knowledge_attachments a
+                    WHERE a.knowledge_id = k.id AND IFNULL(a.original_name, '') LIKE ?
+                )
+            )`);
+            for (let i = 0; i < 7; i += 1) params.push(like);
         }
 
         let query = `
-            SELECT 
-                k.id, k.title, k.type, k.status, k.creator_id, u.name as creator_name, 
-                k.assignee, k.start_date, k.end_date, k.planned_date, k.created_at
+            SELECT
+                k.id, k.title, k.type, k.status, k.creator_id, u.name as creator_name,
+                k.assignee, k.start_date, k.end_date, k.planned_date, k.created_at,
+                k.category_id, IFNULL(c.name, '') AS category_name
             FROM tb_knowledge k
             JOIN tb_user u ON k.creator_id = u.id
-            WHERE k.category_id = ?
+            LEFT JOIN tb_knowledge_categories c ON k.category_id = c.id
         `;
-        const params = [category_id];
-
-        if (!isAdmin) {
-            query += `
-                AND k.id NOT IN (
-                    SELECT knowledge_id FROM tb_project_knowledge_links
-                )
-            `;
+        if (where.length > 0) {
+            query += ` WHERE ${where.join(' AND ')}`;
         }
-        query += ` ORDER BY k.created_at DESC`;
+        query += ' ORDER BY k.created_at DESC, k.id DESC';
 
-        const [items] = await db.query(query, params);
+        const maxRows = Number(limit);
+        if (Number.isFinite(maxRows) && maxRows > 0) {
+            query += ' LIMIT ?';
+            params.push(Math.min(maxRows, 1000));
+        }
 
-        for (const item of items) {
-            const [attachments] = await db.query(
-                'SELECT id, file_path, original_name FROM tb_knowledge_attachments WHERE knowledge_id = ?',
-                [item.id]
-            );
-            item.attachments = attachments;
+        let items = [];
+        try {
+            [items] = await db.query(query, params);
+        } catch (queryErr) {
+            // tb_project_knowledge_links 미존재 등 환경 차이 대비: 최소 컬럼으로 재시도
+            console.error('Knowledge list query failed, retrying simplified:', queryErr.message);
+            let simpleQuery = `
+                SELECT k.id, k.title, k.type, k.status, k.creator_id, u.name as creator_name,
+                       k.assignee, k.start_date, k.end_date, k.planned_date, k.created_at,
+                       k.category_id, IFNULL(c.name, '') AS category_name
+                FROM tb_knowledge k
+                JOIN tb_user u ON k.creator_id = u.id
+                LEFT JOIN tb_knowledge_categories c ON k.category_id = c.id
+            `;
+            const simpleWhere = [];
+            const simpleParams = [];
+            if (category_id !== undefined && category_id !== null && String(category_id).trim() !== ''
+                && String(category_id) !== 'null' && scope !== 'all') {
+                simpleWhere.push('k.category_id = ?');
+                simpleParams.push(category_id);
+            }
+            if (keyword) {
+                const like = `%${keyword}%`;
+                simpleWhere.push("(k.title LIKE ? OR IFNULL(k.type,'') LIKE ? OR IFNULL(k.status,'') LIKE ? OR IFNULL(k.assignee,'') LIKE ? OR IFNULL(u.name,'') LIKE ? OR IFNULL(c.name,'') LIKE ?)");
+                for (let i = 0; i < 6; i += 1) simpleParams.push(like);
+            }
+            if (simpleWhere.length > 0) simpleQuery += ` WHERE ${simpleWhere.join(' AND ')}`;
+            simpleQuery += ' ORDER BY k.created_at DESC, k.id DESC';
+            [items] = await db.query(simpleQuery, simpleParams);
+        }
+
+        // 첨부파일을 한 번에 조회해서 매핑 (N+1 제거)
+        if (items.length > 0) {
+            const ids = items.map((it) => it.id);
+            let attachments = [];
+            try {
+                [attachments] = await db.query(
+                    'SELECT id, knowledge_id, file_path, original_name FROM tb_knowledge_attachments WHERE knowledge_id IN (?)',
+                    [ids]
+                );
+            } catch (attErr) {
+                console.error('Attachment batch query failed:', attErr.message);
+                attachments = [];
+            }
+            const byId = new Map();
+            attachments.forEach((att) => {
+                const key = String(att.knowledge_id);
+                if (!byId.has(key)) byId.set(key, []);
+                byId.get(key).push(att);
+            });
+            items.forEach((item) => {
+                item.attachments = byId.get(String(item.id)) || [];
+            });
         }
 
         res.json(items);

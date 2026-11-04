@@ -104,6 +104,246 @@
 #drop-zone.dragover {
   background-color: #e9ecef;
 }
+
+/* ===================== 지식 목록 (업그레이드) ===================== */
+.knowledge-count-badge {
+    background: #e8eefb;
+    color: #3f6bab;
+    font-weight: 600;
+    font-size: .72rem;
+    border-radius: .7rem;
+    padding: .22rem .55rem;
+}
+
+/* 검색 툴바 */
+.knowledge-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    align-items: center;
+    padding: .6rem .85rem;
+    background: #f8f9fc;
+    border-bottom: 1px solid #e6e9ef;
+}
+.knowledge-toolbar .search-wrap {
+    position: relative;
+    flex: 1 1 280px;
+    min-width: 200px;
+    max-width: 460px;
+}
+.knowledge-toolbar .search-wrap > i.fa-search {
+    position: absolute;
+    left: .65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9aa4b2;
+    font-size: .8rem;
+    pointer-events: none;
+}
+.knowledge-toolbar #knowledge-search-input {
+    padding-left: 1.9rem;
+    padding-right: 1.9rem;
+    background: #fff;
+    border-color: #dde2ea;
+}
+.knowledge-toolbar #knowledge-search-input:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 .15rem rgba(13, 110, 253, .1);
+}
+.knowledge-toolbar #knowledge-search-input::-webkit-search-cancel-button {
+    display: none;
+}
+.knowledge-toolbar .search-clear {
+    position: absolute;
+    right: .3rem;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 0;
+    background: transparent;
+    color: #b3bac4;
+    line-height: 1;
+    padding: .15rem .3rem;
+    display: none;
+}
+.knowledge-toolbar .search-clear:hover { color: #6b7684; }
+.knowledge-toolbar .knowledge-type-filter {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 108px;
+    border-color: #dde2ea;
+    background-color: #fff;
+}
+.knowledge-search-scope {
+    font-size: .72rem;
+    color: #8b95a4;
+    background: #fff;
+    border: 1px solid #e3e8ef;
+    border-radius: .7rem;
+    padding: .15rem .55rem;
+    white-space: nowrap;
+}
+.knowledge-search-scope.is-search {
+    background: #fff7e6;
+    border-color: #ffe0a3;
+    color: #a06800;
+}
+
+/* 표 */
+.knowledge-table-wrap { padding: .25rem .5rem .5rem; }
+#knowledge-table { margin-bottom: 0 !important; font-size: .85rem; }
+#knowledge-table thead th {
+    background: #f4f6f9;
+    color: #5b6779;
+    font-weight: 600;
+    font-size: .76rem;
+    letter-spacing: .01em;
+    white-space: nowrap;
+    vertical-align: middle;
+    border-bottom: 1px solid #e3e7ed !important;
+    border-top: 0 !important;
+    padding: .6rem .55rem;
+}
+#knowledge-table tbody td {
+    vertical-align: middle;
+    padding: .5rem .55rem;
+    border-color: #eef1f5;
+    border-top: 1px solid #f1f4f8;
+}
+#knowledge-table tbody tr:hover { background: #f7fbff; }
+#knowledge-table tbody td:first-child,
+#knowledge-table thead th:first-child { padding-left: .8rem; }
+
+.knowledge-title-link {
+    font-weight: 600;
+    color: #1a4b8c;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: flex-start;
+    gap: .35rem;
+    line-height: 1.35;
+    max-width: 100%;
+}
+.knowledge-title-link:hover { color: #0d2f5c; text-decoration: underline; }
+.knowledge-title-link span { overflow-wrap: anywhere; }
+.knowledge-title-att { color: #8fa4bf; font-size: .72rem; margin-top: .12rem; }
+
+.k-none { color: #c3cad3; font-size: .72rem; font-style: italic; }
+
+/* 구분 배지 */
+.k-type {
+    display: inline-block;
+    padding: .16rem .5rem;
+    border-radius: 1rem;
+    font-size: .71rem;
+    font-weight: 600;
+    white-space: nowrap;
+    background: #eef2f7;
+    color: #55637a;
+}
+.k-type-meeting { background: #e7f1ff; color: #2f6bbd; }
+.k-type-report  { background: #e8f6ec; color: #2b7a45; }
+.k-type-req     { background: #f0eaff; color: #6a45c2; }
+.k-type-desc    { background: #eaf6f8; color: #21717f; }
+.k-type-issue   { background: #fdecec; color: #b93a3a; }
+.k-type-data    { background: #fdf3e3; color: #96631a; }
+
+/* 상태 배지 */
+.k-status {
+    display: inline-block;
+    padding: .16rem .5rem;
+    border-radius: .25rem;
+    font-size: .71rem;
+    font-weight: 600;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+.k-status-done { background: #eef8f1; color: #2b7a45; border-color: #cfe9d8; }
+.k-status-ing  { background: #eaf3ff; color: #2f6bbd; border-color: #cfe2fb; }
+.k-status-wait { background: #fff8e6; color: #9a6b00; border-color: #ffe6ae; }
+.k-status-default { background: #f1f3f6; color: #5b6779; border-color: #e2e6ec; }
+
+.k-category-tag {
+    display: inline-block;
+    font-size: .72rem;
+    color: #5b6779;
+    background: #f3f5f9;
+    border: 1px solid #e7ebf1;
+    border-radius: .25rem;
+    padding: .1rem .4rem;
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.k-date { color: #445063; font-size: .8rem; font-variant-numeric: tabular-nums; }
+.k-time { color: #a3acb9; font-size: .7rem; }
+
+/* 첨부파일명 */
+.att-list { display: flex; flex-direction: column; gap: .12rem; }
+.att-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .32rem;
+    font-size: .75rem;
+    color: #3d6fb4;
+    text-decoration: none;
+    max-width: 230px;
+    line-height: 1.3;
+}
+.att-chip i { flex: 0 0 auto; color: #93a7c2; font-size: .72rem; }
+.att-chip .att-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.att-chip:hover { color: #1a4b8c; text-decoration: underline; }
+.att-chip:hover i { color: #3d6fb4; }
+.att-none { color: #c9cfd7; font-size: .72rem; font-style: italic; }
+.att-more { font-size: .7rem; color: #9aa4b2; margin-top: .1rem; }
+
+.kgmt-actions .btn { padding: .18rem .4rem; line-height: 1.2; }
+.kgmt-actions .btn i { font-size: .72rem; }
+
+/* 트리: 문서수 / 문서없음 표시 */
+#category-tree a[data-empty="1"] {
+    color: #a9b1bc !important;
+    font-style: italic;
+}
+#category-tree a[data-empty="1"]::after {
+    content: "문서없음";
+    margin-left: .4rem;
+    font-size: .63rem;
+    font-style: normal;
+    color: #b6bdc7;
+    border: 1px dashed #d9dee6;
+    border-radius: .65rem;
+    padding: 0 .35rem;
+    white-space: nowrap;
+}
+#category-tree a[data-empty="0"]::after {
+    content: attr(data-count);
+    margin-left: .4rem;
+    font-size: .63rem;
+    font-weight: 600;
+    color: #4a6fa5;
+    background: #e8eefb;
+    border-radius: .65rem;
+    padding: 0 .35rem;
+    min-width: 1.05rem;
+    display: inline-block;
+    text-align: center;
+    white-space: nowrap;
+}
+#category-tree .jstree-clicked[data-empty="1"] { color: #8b93a0 !important; }
+#category-tree .tree-legend {
+    font-size: .68rem;
+    color: #9aa4b2;
+    padding: .35rem .5rem 0;
+    border-top: 1px dashed #eceff4;
+    margin-top: .35rem;
+}
+#category-tree .tree-legend .lg-empty {
+    font-style: italic;
+    color: #a9b1bc;
+}
 </style>
 
 <main class="app-main">
@@ -151,31 +391,62 @@
                     <div class="card card-primary card-outline">
                         <div class="card-header">
                             <h3 class="card-title" id="knowledge-list-title">지식 목록</h3>
+                            <span class="knowledge-count-badge ms-2" id="knowledge-count-badge" style="display:none;">0건</span>
                             <div class="card-tools">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="refresh-knowledge-btn" title="새로고침">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
                                 <button type="button" class="btn btn-primary btn-sm" id="add-knowledge-btn" title="지식 등록">
                                     <i class="fas fa-plus"></i> 지식등록
                                 </button>
                             </div>
                         </div>
-                        <div class="card-body">
+
+                        <!-- 검색 툴바 -->
+                        <div class="knowledge-toolbar">
+                            <div class="search-wrap">
+                                <i class="fas fa-search"></i>
+                                <input type="search" id="knowledge-search-input" class="form-control form-control-sm"
+                                       placeholder="제목 · 담당자 · 구분 · 상태 · 첨부파일명 검색"
+                                       autocomplete="off">
+                                <button type="button" class="search-clear" id="knowledge-search-clear" title="검색어 지우기">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <select id="knowledge-type-filter" class="form-select form-select-sm knowledge-type-filter">
+                                <option value="">전체 구분</option>
+                                <option value="회의">회의</option>
+                                <option value="보고">보고</option>
+                                <option value="요구사항">요구사항</option>
+                                <option value="설명">설명</option>
+                                <option value="이슈">이슈</option>
+                                <option value="자료">자료</option>
+                            </select>
+                            <label class="form-check form-check-inline mb-0 ms-1" title="선택한 카테고리와 하위 카테고리 문서를 함께 표시">
+                                <input class="form-check-input" type="checkbox" id="include-sub-category">
+                                <span class="form-check-label" style="font-size:.78rem;">하위 포함</span>
+                            </label>
+                            <span class="knowledge-search-scope" id="knowledge-search-scope">전체 보기</span>
+                        </div>
+
+                        <div class="card-body knowledge-table-wrap">
                             <div class="table-responsive">
-                                <table id="knowledge-table" class="table table-bordered table-striped" style="width:100%">
+                                <table id="knowledge-table" class="table table-hover align-middle" style="width:100%">
                                     <thead>
                                         <tr>
-                                            <th>제목</th>
-                                            <th>구분</th>
-                                            <th>상태</th>
-                                            <th>생성자</th>
-                                            <th>담당자</th>
-                                            <th>시작일</th>
-                                            <th>종료일</th>
-                                            <th>계획일</th>
-                                            <th>첨부파일</th>
-                                            <th>수정/삭제</th>
+                                            <th style="min-width:230px;">제목</th>
+                                            <th style="width:88px;">구분</th>
+                                            <th style="min-width:120px;">분류</th>
+                                            <th style="width:80px">상태</th>
+                                            <th style="width:100px">담당자</th>
+                                            <th style="min-width:120px">첨부파일</th>
+                                            <th style="width:105px">등록일</th>
+                                            <th style="width:80px">작성자</th>
+                                            <th style="width:76px" class="text-center">관리</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <!-- Knowledge items will be loaded here -->
+                                        <!-- 지식 목록은 /knowledge/api/items 에서 로드 -->
                                     </tbody>
                                 </table>
                             </div>
@@ -377,28 +648,159 @@
 
         const currentUser = <%- JSON.stringify(currentUser || {}) %>;
         let currentCategoryId = null;
+        let currentSearch = '';
         let knowledgeTable;
         let uploadedFiles = [];
+        let categoryMap = {};
+        let categoryChildren = {};
 
         const isAdmin = currentUser && currentUser.role === 'admin';
 
+        // ---------- 공통 유틸 ----------
+        function escapeHtml(value) {
+            return String(value === null || value === undefined ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function fileIcon(name) {
+            const ext = String(name || '').split('.').pop().toLowerCase();
+            if (['xls', 'xlsx', 'csv'].indexOf(ext) !== -1) return 'fa-file-excel';
+            if (['doc', 'docx', 'hwp', 'hwpx', 'odt', 'txt', 'md', 'rtf'].indexOf(ext) !== -1) return 'fa-file-word';
+            if (['ppt', 'pptx', 'odp'].indexOf(ext) !== -1) return 'fa-file-powerpoint';
+            if (ext === 'pdf') return 'fa-file-pdf';
+            if (['zip', '7z', 'rar', 'tar', 'gz'].indexOf(ext) !== -1) return 'fa-file-archive';
+            if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'].indexOf(ext) !== -1) return 'fa-file-image';
+            return 'fa-file';
+        }
+
+        function typeClass(type) {
+            const map = {
+                '회의': 'k-type-meeting',
+                '보고': 'k-type-report',
+                '요구사항': 'k-type-req',
+                '설명': 'k-type-desc',
+                '이슈': 'k-type-issue',
+                '자료': 'k-type-data'
+            };
+            return map[type] || '';
+        }
+
+        function statusClass(status) {
+            const s = String(status || '').trim().toLowerCase();
+            if (!s) return 'k-status-default';
+            if (['완료', '종료', 'done', 'closed', 'complete', 'completed'].indexOf(s) !== -1) return 'k-status-done';
+            if (['진행중', '진행', 'inprogress', 'in progress', 'open'].indexOf(s) !== -1) return 'k-status-ing';
+            if (['검토중', '대기', '보류', 'pending', 'waiting', 'hold', 'review'].indexOf(s) !== -1) return 'k-status-wait';
+            return 'k-status-default';
+        }
+
+        function formatDate(value) {
+            const raw = String(value === null || value === undefined ? '' : value).trim();
+            if (!raw) return '';
+            const m = raw.match(/^(\d{4})[-/.](\d{2})[-/.](\d{2})/);
+            if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+            const m2 = raw.match(/^(\d{4})[-/.](\d{2})/);
+            if (m2) return `${m2[1]}-${m2[2]}`;
+            return raw.substring(0, 10);
+        }
+
+        function timeText(value) {
+            const m = String(value === null || value === undefined ? '' : value).match(/(\d{2}:\d{2})/);
+            return m ? m[1] : '';
+        }
+
+        function toTime(value) {
+            const t = Date.parse(String(value || '').replace(' ', 'T'));
+            return Number.isNaN(t) ? 0 : t;
+        }
+
+        // ---------- 렌더 헬퍼 ----------
+        function renderType(type) {
+            if (!type) return '<span class="k-none">없음</span>';
+            return '<span class="k-type ' + typeClass(type) + '">' + escapeHtml(type) + '</span>';
+        }
+
+        function renderStatus(status) {
+            const s = String(status || '').trim();
+            if (!s) return '<span class="k-none">없음</span>';
+            return '<span class="k-status ' + statusClass(s) + '">' + escapeHtml(s) + '</span>';
+        }
+
+        function renderAttachments(row) {
+            const atts = row.attachments || [];
+            if (!atts.length) return '<span class="att-none">없음</span>';
+
+            const maxShow = 2;
+            const clips = atts.slice(0, maxShow).map(function(att) {
+                const name = att.original_name || att.file_path || '첨부파일';
+                return '<a class="att-chip" href="/knowledge/api/attachments/' + att.id + '/download" ' +
+                       'title="' + escapeHtml(name) + '" target="_blank" rel="noopener">' +
+                       '<i class="fas ' + fileIcon(name) + '"></i>' +
+                       '<span class="att-name">' + escapeHtml(name) + '</span></a>';
+            });
+
+            let html = '<div class="att-list">' + clips.join('') + '</div>';
+            if (atts.length > maxShow) {
+                const rest = atts.slice(maxShow).map(function(a) { return a.original_name || '첨부파일'; }).join(' / ');
+                html += '<div class="att-more" title="' + escapeHtml(rest) + '">+' + (atts.length - maxShow) + '건 더보기</div>';
+            }
+            return html;
+        }
+
+        function updateCountBadge(count) {
+            const $badge = $('#knowledge-count-badge');
+            if (!$badge.length) return;
+            $badge.text((currentSearch ? '검색 ' : '') + count + '건').show();
+        }
+
+        function updateScopeLabel() {
+            const $scope = $('#knowledge-search-scope');
+            if (!$scope.length) return;
+            if (currentSearch) {
+                $scope.addClass('is-search').text('검색: ' + currentSearch);
+            } else if (currentCategoryId) {
+                const cat = categoryMap[String(currentCategoryId)];
+                $scope.removeClass('is-search').text(cat ? '분류: ' + cat.name : '분류 선택됨');
+            } else {
+                $scope.removeClass('is-search').text('전체 보기');
+            }
+        }
+
+        // ---------- DataTable ----------
         knowledgeTable = $('#knowledge-table').DataTable({
             "paging": true,
+            "pageLength": 25,
             "lengthChange": false,
-            "searching": true,
+            "searching": false,
             "ordering": true,
             "info": true,
             "autoWidth": false,
             "responsive": true,
+            "order": [[6, 'desc']],
+            "dom": "<'row'<'col-12'tr>>" + "<'row mt-2'<'col-sm-6'i><'col-sm-6'p>>",
             "ajax": {
                 "url": '/knowledge/api/items',
-                "dataSrc": "",
-                "data": function(d) {
-                    console.log('Ajax request data:', { category_id: currentCategoryId, user_id: currentUser.id });
-                    d.category_id = currentCategoryId;
-                    d.user_id = currentUser.id; // Send user_id for backend permission filtering
+                "dataSrc": function(json) {
+                    const rows = Array.isArray(json) ? json : [];
+                    updateCountBadge(rows.length);
+                    return rows;
                 },
-                "error": function(xhr, error, thrown) {
+                "data": function(d) {
+                    if (currentCategoryId) {
+                        d.category_id = currentCategoryId;
+                        const includeSub = $('#include-sub-category').is(':checked');
+                        d.include_sub = includeSub ? '1' : '0';
+                    } else {
+                        d.scope = 'all';
+                    }
+                    if (currentSearch) d.search = currentSearch;
+                    d._ts = Date.now();
+                },
+                "error": function(xhr) {
                     console.error('DataTable Ajax error:', xhr.responseJSON || xhr.statusText);
                     let errorMessage = '지식 목록을 불러오는 중 오류가 발생했습니다.';
                     if (xhr.responseJSON && xhr.responseJSON.message) {
@@ -407,6 +809,7 @@
                         errorMessage = '이 카테고리의 지식을 볼 수 있는 권한이 없습니다.';
                     }
                     showNotification('error', errorMessage);
+                    updateCountBadge(0);
                     knowledgeTable.clear().draw();
                 }
             },
@@ -414,40 +817,89 @@
                 {
                     "data": "title",
                     "render": function(data, type, row) {
-                        return `<a href="/knowledge/detail/${row.id}">${data}</a>`;
+                        const title = escapeHtml(data);
+                        if (type !== 'display') return title;
+                        const atts = row.attachments || [];
+                        const clip = atts.length
+                            ? '<i class="fas fa-paperclip knowledge-title-att" title="첨부 ' + atts.length + '건"></i>'
+                            : '';
+                        return '<a class="knowledge-title-link" href="/knowledge/detail/' + row.id + '" title="' + title + '">' +
+                               '<span>' + title + '</span>' + clip + '</a>';
                     }
                 },
-                { "data": "type" },
-                { "data": "status" },
-                { "data": "creator_name" },
-                { "data": "assignee" },
-                { "data": "start_date" },
-                { "data": "end_date" },
-                { "data": "planned_date" },
+                {
+                    "data": "type",
+                    "render": function(data, type, row) {
+                        return type === 'display' ? renderType(data) : (data || '');
+                    }
+                },
+                {
+                    "data": "category_name",
+                    "render": function(data, type, row) {
+                        const name = data || (categoryMap[String(row.category_id)] && categoryMap[String(row.category_id)].name);
+                        if (!name) return '<span class="k-none">미분류</span>';
+                        if (type !== 'display') return name;
+                        return '<span class="k-category-tag" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>';
+                    }
+                },
+                {
+                    "data": "status",
+                    "render": function(data, type, row) {
+                        return type === 'display' ? renderStatus(data) : (data || '');
+                    }
+                },
+                {
+                    "data": "assignee",
+                    "render": function(data, type) {
+                        if (!data) return type === 'display' ? '<span class="k-none">없음</span>' : '';
+                        return escapeHtml(data);
+                    }
+                },
                 {
                     "data": "attachments",
-                    "render": function(data) {
-                        if (data && data.length > 0) {
-                            return `${data.length}개`;
+                    "render": function(data, type, row) {
+                        if (type !== 'display') {
+                            return String((data || []).length);
                         }
-                        return '없음';
+                        return renderAttachments(row);
                     },
                     "orderable": false
+                },
+                {
+                    "data": "created_at",
+                    "render": function(data, type, row) {
+                        if (!data) return type === 'display' ? '<span class="k-none">-</span>' : '';
+                        const datePart = formatDate(data);
+                        if (type !== 'display') return datePart;
+                        const t = timeText(data);
+                        return '<span class="k-date">' + escapeHtml(datePart) + '</span>' +
+                               (t ? '<div class="k-time">' + t + '</div>' : '');
+                    }
+                },
+                {
+                    "data": "creator_name",
+                    "render": function(data, type) {
+                        if (!data) return type === 'display' ? '<span class="k-none">-</span>' : '';
+                        return escapeHtml(data);
+                    }
                 },
                 {
                     "data": null,
                     "render": function(data, type, row) {
+                        if (type !== 'display') return '';
                         const isCreator = currentUser.id === row.creator_id;
-                        const isAdmin = currentUser.role === 'admin';
-                        console.log(`Row ${row.id}: isCreator=${isCreator}, isAdmin=${isAdmin}, created_by=${row.created_by}, user_id=${currentUser.id}`);
-                        let buttons = '';
-                        if (isCreator || isAdmin) {
-                            buttons += `<a href="/knowledge/edit/${row.id}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-edit"></i></a>`;
-                            buttons += `<button type="button" class="btn btn-sm btn-outline-danger delete-knowledge-btn" data-id="${row.id}"><i class="fas fa-trash"></i></button>`;
+                        const adminUser = currentUser.role === 'admin';
+                        let buttons = '<div class="btn-group kgmt-actions">';
+                        buttons += '<a href="/knowledge/detail/' + row.id + '" class="btn btn-outline-primary" title="상세보기"><i class="fas fa-eye"></i></a>';
+                        if (isCreator || adminUser) {
+                            buttons += '<a href="/knowledge/edit/' + row.id + '" class="btn btn-outline-secondary" title="수정"><i class="fas fa-pen"></i></a>';
+                            buttons += '<button type="button" class="btn btn-outline-danger delete-knowledge-btn" data-id="' + row.id + '" title="삭제"><i class="fas fa-trash"></i></button>';
                         }
+                        buttons += '</div>';
                         return buttons;
                     },
-                    "orderable": false
+                    "orderable": false,
+                    "className": "text-center"
                 }
             ],
             "language": {
@@ -455,17 +907,104 @@
             }
         });
 
+        // ---------- 검색 / 필터 ----------
+        let searchTimer = null;
+
+        function applySearch(keyword) {
+            currentSearch = String(keyword || '').trim();
+            $('#knowledge-search-clear').toggle(currentSearch.length > 0);
+            updateScopeLabel();
+            knowledgeTable.ajax.reload();
+        }
+
+        $('#knowledge-search-input').on('input', function() {
+            const v = $(this).val();
+            if (searchTimer) clearTimeout(searchTimer);
+            searchTimer = setTimeout(function() { applySearch(v); }, 320);
+        });
+
+        $('#knowledge-search-input').on('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (searchTimer) clearTimeout(searchTimer);
+                applySearch($(this).val());
+            }
+        });
+
+        $('#knowledge-search-clear').on('click', function() {
+            $('#knowledge-search-input').val('').focus();
+            applySearch('');
+        });
+
+        $('#refresh-knowledge-btn').on('click', function() {
+            loadCategoriesForJSTree();
+            knowledgeTable.ajax.reload();
+        });
+
+        $('#include-sub-category').on('change', function() {
+            knowledgeTable.ajax.reload();
+        });
+
+        // 구분(회의/보고/...) 필터 - DataTables 컬럼 필터
+        $.fn.dataTable.ext.search.push(function(settings, data, dataIndex, rowData) {
+            if (settings.nTable && settings.nTable.id === 'knowledge-table') {
+                const selected = $('#knowledge-type-filter').val();
+                if (!selected) return true;
+                return String((rowData && rowData.type) || data[1] || '') === selected;
+            }
+            return true;
+        });
+
+        $('#knowledge-type-filter').on('change', function() {
+            knowledgeTable.draw();
+            const total = knowledgeTable.page.info().recordsDisplay;
+            updateCountBadge(total);
+        });
+
+        // 키보드 단축키: / 또는 Ctrl+K 로 검색창 포커스
+        $(document).on('keydown', function(e) {
+            const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+            const typing = ['input', 'textarea', 'select'].indexOf(tag) !== -1 || (e.target && e.target.isContentEditable);
+            if (typing) return;
+            if (e.key === '/' || (e.key === 'k' && (e.ctrlKey || e.metaKey))) {
+                e.preventDefault();
+                $('#knowledge-search-input').focus().select();
+            }
+        });
+
         function loadCategoriesForJSTree() {
             $.get('/knowledge/api/categories', function(categories) {
-                const jstreeData = categories.map(cat => ({
-                    id: cat.id,
-                    parent: cat.parent_id === null ? '#' : cat.parent_id,
-                    text: cat.name,
-                    data: {
+                // 카테고리 맵 구성 (문서 수 / 문서없음 표시에 사용)
+                categoryMap = {};
+                categoryChildren = {};
+                (categories || []).forEach(function(cat) {
+                    categoryMap[String(cat.id)] = {
                         name: cat.name,
-                        parent_id: cat.parent_id
-                    }
-                }));
+                        parent_id: cat.parent_id,
+                        own_count: Number(cat.own_count) || 0,
+                        doc_count: Number(cat.doc_count) || 0
+                    };
+                    const key = cat.parent_id === null ? '#root' : String(cat.parent_id);
+                    if (!categoryChildren[key]) categoryChildren[key] = [];
+                    categoryChildren[key].push(String(cat.id));
+                });
+
+                const jstreeData = (categories || []).map(function(cat) {
+                    const info = categoryMap[String(cat.id)];
+                    const isEmpty = (info.doc_count === 0);
+                    return {
+                        id: String(cat.id),
+                        parent: cat.parent_id === null ? '#' : String(cat.parent_id),
+                        text: cat.name,
+                        li_attr: { 'data-empty': isEmpty ? '1' : '0', 'data-count': String(info.doc_count) },
+                        a_attr: { 'data-empty': isEmpty ? '1' : '0', 'data-count': String(info.doc_count) },
+                        data: {
+                            name: cat.name,
+                            parent_id: cat.parent_id,
+                            doc_count: info.doc_count
+                        }
+                    };
+                });
 
                 $('#category-tree').jstree('destroy').empty();
                 $('#category-tree').jstree({
@@ -543,20 +1082,33 @@
                 $('#category-tree').on('ready.jstree', function() {
                     const tree = $(this).jstree(true);
                     tree.open_all();
+                    // 문서 없는 카테고리 범례
+                    if (!$('#category-tree .tree-legend').length) {
+                        $('#category-tree').append(
+                            '<div class="tree-legend">숫자 = 문서 수 · ' +
+                            '<span class="lg-empty">문서없음</span> = 연결된 문서가 없는 분류</div>'
+                        );
+                    }
                     const categoryIdFromUrl = new URLSearchParams(window.location.search).get('category_id');
                     if (categoryIdFromUrl) {
                         tree.select_node(categoryIdFromUrl);
-                    } else if (jstreeData.length > 0) {
-                        const firstRootNode = jstreeData.find(n => n.parent === '#');
-                        if (firstRootNode) {
-                            tree.select_node(firstRootNode.id);
-                        }
+                    } else {
+                        // 기본은 '전체 보기' : 모든 분류의 문서를 한 번에 보여준다.
+                        currentCategoryId = null;
+                        updateScopeLabel();
+                        knowledgeTable.ajax.reload();
                     }
                 });
 
                 $('#category-tree').on('select_node.jstree', function(e, data) {
                     currentCategoryId = data.node.id;
-                    $('#knowledge-list-title').text(`지식 목록 (${data.node.text})`);
+                    const info = categoryMap[String(data.node.id)] || {};
+                    const isEmpty = (Number(info.doc_count) === 0);
+                    $('#knowledge-list-title').html(
+                        '지식 목록 (' + escapeHtml(data.node.text) + ')' +
+                        (isEmpty ? ' <span class="k-none ms-1" style="font-size:.75rem;">문서 없음</span>' : '')
+                    );
+                    updateScopeLabel();
                     knowledgeTable.ajax.reload();
                 });
 
