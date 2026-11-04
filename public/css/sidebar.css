@@ -1,0 +1,264 @@
+/* ==========================================================================
+   사이드바 디자인 (제이원아이티 업무지원)
+   --------------------------------------------------------------------------
+   - 메뉴 순서 / 링크 / 권한 조건 / 마크업 구조는 그대로 유지합니다.
+   - AdminLTE 4 의 treeview 동작(.menu-open / .nav-treeview)을 그대로 사용합니다.
+     → JS 토글 로직은 손대지 않습니다.
+   - 사이드바는 라이트/다크 모드 모두 어두운 톤으로 유지되어
+     한 벌의 스타일로 두 테마를 모두 커버합니다.
+   ========================================================================== */
+
+.app-sidebar {
+    /* 팔레트 */
+    --sb-bg-1: #0f1b2b;
+    --sb-bg-2: #16263c;
+    --sb-line: rgba(255, 255, 255, .07);
+    --sb-text: #a7b6ca;
+    --sb-text-dim: #7f92aa;
+    --sb-accent: #5c9fe8;
+    --sb-active-1: rgba(72, 133, 212, .34);
+    --sb-active-2: rgba(72, 133, 212, .08);
+
+    background: linear-gradient(180deg, var(--sb-bg-1) 0%, var(--sb-bg-2) 60%, var(--sb-bg-1) 100%) !important;
+    border-right: 1px solid rgba(255, 255, 255, .05);
+    box-shadow: 2px 0 14px rgba(8, 16, 28, .22) !important;
+}
+
+/* ---------- 브랜드 ---------- */
+.app-sidebar .sidebar-brand {
+    height: 3.6rem;
+    padding: .6rem .8rem;
+    background: transparent;
+    border-bottom: 1px solid var(--sb-line);
+}
+
+.app-sidebar .sidebar-brand .brand-link {
+    width: 100%;
+    gap: .55rem;
+}
+
+.app-sidebar .sidebar-brand .brand-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.85rem;
+    height: 1.85rem;
+    max-height: none;
+    margin: 0;
+    float: none;
+    line-height: 1;
+    font-size: .8rem;
+    color: #fff;
+    border-radius: .5rem;
+    background: linear-gradient(135deg, #4d94e6 0%, #2560a8 100%);
+    box-shadow: 0 2px 8px rgba(46, 108, 190, .45);
+    opacity: 1 !important;
+}
+
+.app-sidebar .sidebar-brand .brand-text {
+    margin-left: 0;
+    font-size: .95rem;
+    font-weight: 600 !important;
+    letter-spacing: -.01em;
+    color: #f2f7fd !important;
+}
+
+.app-sidebar .sidebar-brand .brand-link:hover .brand-text {
+    color: #fff !important;
+}
+
+/* ---------- 스크롤 영역 ---------- */
+.app-sidebar .sidebar-wrapper {
+    padding: .6rem .5rem .9rem;
+    background-color: transparent !important;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, .16) transparent;
+    overscroll-behavior: contain;
+}
+
+.app-sidebar .sidebar-wrapper::-webkit-scrollbar { width: .35rem; }
+.app-sidebar .sidebar-wrapper::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, .16);
+    border-radius: 1rem;
+}
+.app-sidebar .sidebar-wrapper::-webkit-scrollbar-track { background: transparent; }
+
+.app-sidebar .sidebar-menu { background-color: transparent !important; }
+
+/* ---------- 최상위 메뉴 ---------- */
+.app-sidebar .sidebar-menu > .nav-item > .nav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: .56rem .62rem;
+    margin-bottom: .1rem;
+    border-radius: .5rem;
+    font-size: .84rem;
+    font-weight: 500;
+    color: var(--sb-text) !important;
+    background-color: transparent !important;
+    transition: background-color .16s ease, color .16s ease;
+}
+
+.app-sidebar .sidebar-menu > .nav-item > .nav-link p {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    width: 100%;
+    margin: 0;
+}
+
+.app-sidebar .sidebar-menu > .nav-item > .nav-link .nav-icon {
+    color: var(--sb-text-dim);
+    font-size: .84rem;
+    transition: color .16s ease;
+}
+
+/* 하위 메뉴 보유 항목의 화살표 (기존 마크업의 .right) */
+.app-sidebar .sidebar-menu > .nav-item > .nav-link .right {
+    margin-left: auto;
+    font-size: .6rem;
+    color: #64788f;
+    transition: transform .26s ease, color .16s ease;
+}
+
+.app-sidebar .sidebar-menu > .nav-item.menu-open > .nav-link .right {
+    transform: rotate(-90deg);
+    color: var(--sb-accent);
+}
+
+/* 호버 */
+.app-sidebar .sidebar-menu > .nav-item > .nav-link:hover {
+    color: #eaf2fb !important;
+    background-color: rgba(255, 255, 255, .06) !important;
+}
+.app-sidebar .sidebar-menu > .nav-item > .nav-link:hover .nav-icon { color: #a9c9ee; }
+.app-sidebar .sidebar-menu > .nav-item > .nav-link:hover .right { color: #9ab4d1; }
+
+/* 하위 메뉴가 열린 상태 */
+.app-sidebar .sidebar-menu > .nav-item.menu-open > .nav-link {
+    color: #e6eff9 !important;
+    background-color: rgba(255, 255, 255, .045) !important;
+}
+
+/* 현재 페이지 (active) — menu-open 규칙보다 뒤에 두어 우선 적용 */
+.app-sidebar .sidebar-menu > .nav-item > .nav-link.active {
+    color: #fff !important;
+    background: linear-gradient(90deg, var(--sb-active-1) 0%, var(--sb-active-2) 100%) !important;
+    box-shadow: inset 0 0 0 1px rgba(126, 176, 236, .18);
+}
+
+.app-sidebar .sidebar-menu > .nav-item > .nav-link.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 58%;
+    border-radius: 0 3px 3px 0;
+    background: linear-gradient(180deg, #6fb0f2, #2f6bbd);
+}
+
+.app-sidebar .sidebar-menu > .nav-item > .nav-link.active .nav-icon { color: #82b8f2; }
+.app-sidebar .sidebar-menu > .nav-item > .nav-link.active .right { color: #a6cbef; }
+
+/* ---------- 하위 메뉴 ---------- */
+.app-sidebar .sidebar-menu .nav-treeview {
+    margin: .15rem 0 .3rem .72rem;
+    padding-left: .78rem !important;
+    border-left: 1px solid var(--sb-line);
+    background-color: transparent !important;
+}
+
+.app-sidebar .sidebar-menu .nav-treeview > .nav-item > .nav-link {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .36rem .5rem;
+    margin-bottom: .06rem;
+    border-radius: .38rem;
+    font-size: .78rem;
+    color: #93a4ba !important;
+    background-color: transparent !important;
+    transition: background-color .16s ease, color .16s ease;
+}
+
+.app-sidebar .sidebar-menu .nav-treeview > .nav-item > .nav-link p { margin: 0; }
+
+.app-sidebar .sidebar-menu .nav-treeview > .nav-item > .nav-link .nav-icon {
+    min-width: .85rem;
+    max-width: .85rem;
+    font-size: .7rem;
+    color: #5f7389;
+    transition: color .16s ease, transform .16s ease;
+}
+
+/* 하위 목록의 불릿(far fa-circle)은 작은 점으로 */
+.app-sidebar .sidebar-menu .nav-treeview > .nav-item > .nav-link .nav-icon.fa-circle {
+    font-size: .3rem;
+}
+
+.app-sidebar .sidebar-menu .nav-treeview > .nav-item > .nav-link:hover {
+    color: #e8f1fa !important;
+    background-color: rgba(255, 255, 255, .055) !important;
+}
+.app-sidebar .sidebar-menu .nav-treeview > .nav-item > .nav-link:hover .nav-icon { color: #93b6da; }
+
+.app-sidebar .sidebar-menu .nav-treeview > .nav-item > .nav-link.active {
+    color: #fff !important;
+    font-weight: 600;
+    background-color: rgba(94, 150, 216, .18) !important;
+}
+.app-sidebar .sidebar-menu .nav-treeview > .nav-item > .nav-link.active .nav-icon {
+    color: #74b0f0;
+    transform: scale(1.25);
+}
+
+/* ---------- 다크 모드 보정 ----------
+   사이드바 자체가 항상 어두운 톤이므로 색상만 유지되도록 고정합니다. */
+.dark-mode .app-sidebar {
+    background: linear-gradient(180deg, var(--sb-bg-1) 0%, var(--sb-bg-2) 60%, var(--sb-bg-1) 100%) !important;
+}
+
+.dark-mode .app-sidebar .sidebar-wrapper,
+.dark-mode .app-sidebar .sidebar-menu {
+    background-color: transparent !important;
+}
+
+.dark-mode .app-sidebar .sidebar-menu .nav-link {
+    background-color: transparent !important;
+}
+
+.dark-mode .app-sidebar .sidebar-menu > .nav-item > .nav-link {
+    color: var(--sb-text) !important;
+}
+
+.dark-mode .app-sidebar .sidebar-menu .nav-treeview > .nav-item > .nav-link {
+    color: #93a4ba !important;
+}
+
+.dark-mode .app-sidebar .sidebar-menu > .nav-item > .nav-link.active {
+    color: #fff !important;
+    background: linear-gradient(90deg, var(--sb-active-1) 0%, var(--sb-active-2) 100%) !important;
+}
+
+.dark-mode .app-sidebar .sidebar-menu .nav-treeview > .nav-item > .nav-link.active {
+    color: #fff !important;
+    background-color: rgba(94, 150, 216, .18) !important;
+}
+
+.dark-mode .app-sidebar .sidebar-brand .brand-text { color: #f2f7fd !important; }
+
+/* ---------- 접힘(미니) 상태 보정 ---------- */
+.sidebar-mini.sidebar-collapse .app-sidebar .sidebar-brand .brand-image { flex: 0 0 auto; }
+
+/* ---------- 모션 최소화 선호 ---------- */
+@media (prefers-reduced-motion: reduce) {
+    .app-sidebar .sidebar-menu .nav-link,
+    .app-sidebar .sidebar-menu .nav-icon,
+    .app-sidebar .sidebar-menu .right {
+        transition: none;
+    }
+}
