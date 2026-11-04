@@ -172,6 +172,91 @@
     .dark-mode .tech-dashboard .es-badge-skill { background: #24493f; color: #8fd8bd; }
     .dark-mode .tech-dashboard .es-badge-none { background: #3a3a3a; color: #9aa5b4; }
     .dark-mode .tech-dashboard .es-unmatched { background: #3a3222; border-color: #5c4a24; }
+
+    /* ---- 회사 전체 제조사 / 품목 / 모델 분석 ---- */
+    .tech-dashboard .ca-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: .5rem; margin-bottom: .9rem; }
+    .tech-dashboard .ca-stat { border: 1px solid var(--line); border-radius: 8px; padding: .5rem .7rem; background: #fbfcfd; }
+    .tech-dashboard .ca-stat-label { display: block; color: var(--muted); font-size: .72rem; margin-bottom: .12rem; }
+    .tech-dashboard .ca-stat-value { color: var(--ink); font-size: 1.16rem; font-weight: 700; line-height: 1.1; }
+    .tech-dashboard .ca-stat-value small { font-size: .68rem; font-weight: 500; color: var(--muted); margin-left: .1rem; }
+
+    .tech-dashboard .ca-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: .8rem; }
+    .tech-dashboard .ca-toolbar .form-control,
+    .tech-dashboard .ca-toolbar .form-select { font-size: .8rem; height: 2.05rem; padding: .2rem .55rem; }
+    .tech-dashboard .ca-search { flex: 1 1 200px; max-width: 300px; }
+    .tech-dashboard .ca-tool-label { font-size: .76rem; color: var(--muted); margin: 0; white-space: nowrap; }
+
+    .tech-dashboard .ca-seg { display: inline-flex; border: 1px solid var(--line); border-radius: .4rem; overflow: hidden; margin-bottom: .85rem; }
+    .tech-dashboard .ca-seg button { border: 0; background: #fff; color: var(--muted); font-size: .8rem; font-weight: 600; padding: .36rem .78rem; }
+    .tech-dashboard .ca-seg button + button { border-left: 1px solid var(--line); }
+    .tech-dashboard .ca-seg button.active { background: #1a4b8c; color: #fff; }
+
+    .tech-dashboard .ca-table th { background: #f7f9fb; color: var(--muted); font-size: .73rem; font-weight: 600; white-space: nowrap; }
+    .tech-dashboard .ca-table td { font-size: .8rem; vertical-align: middle; }
+    .tech-dashboard .ca-table code { font-size: .76rem; color: #245b7c; background: #eef4fb; padding: .05rem .32rem; border-radius: .25rem; }
+    .tech-dashboard .ca-num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+    .tech-dashboard .ca-bar { display: inline-block; width: 90px; height: 7px; background: #e9edf3; border-radius: 4px; overflow: hidden; vertical-align: middle; margin-right: .45rem; }
+    .tech-dashboard .ca-bar i { display: block; height: 100%; background: linear-gradient(90deg, #6fb0f2, #2f6bbd); border-radius: 4px; }
+    .tech-dashboard .ca-sub { color: var(--muted); font-size: .74rem; }
+    .tech-dashboard .ca-details > summary { cursor: pointer; font-size: .74rem; color: #1a4b8c; list-style: none; }
+    .tech-dashboard .ca-detail-list { margin: .35rem 0 0; padding-left: 1rem; font-size: .74rem; color: var(--muted); }
+    .tech-dashboard .ca-matrix { border-collapse: separate; border-spacing: 0; }
+    .tech-dashboard .ca-table.ca-matrix th,
+    .tech-dashboard .ca-table.ca-matrix td { text-align: center; padding: .28rem .5rem; font-size: .75rem; }
+    .tech-dashboard .ca-table.ca-matrix th:first-child,
+    .tech-dashboard .ca-table.ca-matrix td:first-child { text-align: left; white-space: nowrap; font-weight: 600; }
+    .tech-dashboard .ca-heat { display: inline-block; min-width: 34px; padding: .1rem .3rem; border-radius: .3rem; font-weight: 600; background: rgba(47, 107, 189, var(--ca-heat, .1)); color: #14508a; }
+    .tech-dashboard .ca-heat.zero { background: transparent; color: #c2c9d2; font-weight: 400; }
+    .tech-dashboard .ca-heat-total { font-weight: 700; color: var(--ink); }
+    .tech-dashboard .ca-empty { padding: 1.4rem; text-align: center; color: #a9b1bc; font-size: .82rem; }
+
+    .dark-mode .tech-dashboard .ca-stat { background: #333; border-color: #474747; }
+    .dark-mode .tech-dashboard .ca-stat-value { color: #e8ecf2; }
+    .dark-mode .tech-dashboard .ca-seg { border-color: #474747; }
+    .dark-mode .tech-dashboard .ca-seg button { background: #333; color: #a9b4c2; }
+    .dark-mode .tech-dashboard .ca-seg button + button { border-left-color: #474747; }
+    .dark-mode .tech-dashboard .ca-seg button.active { background: #2f6bbd; color: #fff; }
+    .dark-mode .tech-dashboard .ca-table th { background: #3a3a3a; color: #b3bdcb; }
+    .dark-mode .tech-dashboard .ca-table code { background: #2f4159; color: #a9c9ee; }
+    .dark-mode .tech-dashboard .ca-num { color: #e8ecf2; }
+    .dark-mode .tech-dashboard .ca-bar { background: #42484f; }
+    .dark-mode .tech-dashboard .ca-details > summary { color: #8ab4f8; }
+    .dark-mode .tech-dashboard .ca-heat { color: #a9c9ee; }
+    .dark-mode .tech-dashboard .ca-heat.zero { color: #6b7785; }
+    .dark-mode .tech-dashboard .ca-table {
+        --bs-table-bg: #333;
+        --bs-table-color: #dce2ea;
+        --bs-table-hover-bg: #3b4b5e;
+        --bs-table-hover-color: #fff;
+        --bs-table-border-color: #474747;
+    }
+    .dark-mode .tech-dashboard .ca-table > :not(caption) > * > * {
+        background-color: #333;
+        color: #dce2ea;
+        border-color: #474747;
+    }
+    .dark-mode .tech-dashboard .ca-table tbody tr:hover > * { background-color: #3b4b5e; color: #fff; }
+
+    /* 다크모드 폼 컨트롤 (검색어 입력 / 접두어 선택) */
+    .dark-mode .tech-dashboard .ca-toolbar .form-control,
+    .dark-mode .tech-dashboard .ca-toolbar .form-select {
+        background-color: #3a3a3a;
+        border-color: #474747;
+        color: #dce2ea;
+    }
+    .dark-mode .tech-dashboard .ca-toolbar .form-control::placeholder { color: #8b95a4; }
+    .dark-mode .tech-dashboard .ca-toolbar .form-control:focus,
+    .dark-mode .tech-dashboard .ca-toolbar .form-select:focus {
+        background-color: #3a3a3a;
+        border-color: #5c9fe8;
+        color: #fff;
+        box-shadow: 0 0 0 .15rem rgba(92, 159, 232, .2);
+    }
+    .dark-mode .tech-dashboard .ca-toolbar .form-select option { background-color: #3a3a3a; color: #dce2ea; }
+    .dark-mode .tech-dashboard .ca-toolbar #ca-reset.btn-outline-secondary {
+        border-color: #5a6570;
+        color: #b3bdcb;
+    }
 </style>
 
 <main class="app-main">
@@ -364,6 +449,139 @@
                         <% } %>
                     </div>
                 </div>
+
+                <!-- ===================== 회사 전체 제조사 / 품목 / 모델 분석 ===================== -->
+                <div class="card mb-4" id="company-analysis">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <h3 class="card-title mb-0"><i class="fa-solid fa-chart-column"></i> 제조사 · 품목 · 모델 분석 (회사 전체)</h3>
+                        <span class="text-muted small">유지보수 전체 등록 기준 · 모델명 접두어 통합 집계 / 검색 지원</span>
+                    </div>
+                    <div class="card-body">
+
+                        <div class="ca-stats">
+                            <div class="ca-stat">
+                                <span class="ca-stat-label">전체 유지보수</span>
+                                <span class="ca-stat-value"><%= companyAnalysis.totals.records %><small>건</small></span>
+                            </div>
+                            <div class="ca-stat">
+                                <span class="ca-stat-label">유효(계약중)</span>
+                                <span class="ca-stat-value"><%= companyAnalysis.totals.activeRecords %><small>건</small></span>
+                            </div>
+                            <div class="ca-stat">
+                                <span class="ca-stat-label">제조사</span>
+                                <span class="ca-stat-value"><%= companyAnalysis.totals.manufacturers %><small>개</small></span>
+                            </div>
+                            <div class="ca-stat">
+                                <span class="ca-stat-label">품목</span>
+                                <span class="ca-stat-value"><%= companyAnalysis.totals.items %><small>종</small></span>
+                            </div>
+                            <div class="ca-stat">
+                                <span class="ca-stat-label">모델</span>
+                                <span class="ca-stat-value"><%= companyAnalysis.totals.models %><small>종</small></span>
+                            </div>
+                            <div class="ca-stat">
+                                <span class="ca-stat-label">고객사</span>
+                                <span class="ca-stat-value"><%= companyAnalysis.totals.customers %><small>곳</small></span>
+                            </div>
+                        </div>
+
+                        <div class="ca-toolbar">
+                            <input type="search" id="ca-search" class="form-control ca-search"
+                                   placeholder="제조사 · 품목 · 모델 검색" autocomplete="off">
+                            <label class="ca-tool-label" for="ca-prefix">모델 접두어 통합</label>
+                            <select id="ca-prefix" class="form-select" style="width:auto">
+                                <option value="0">사용 안 함</option>
+                                <option value="1">앞 1자</option>
+                                <option value="2">앞 2자</option>
+                                <option value="3">앞 3자</option>
+                                <option value="4">앞 4자</option>
+                                <option value="5">앞 5자</option>
+                                <option value="6">앞 6자</option>
+                            </select>
+                            <span class="ca-sub" id="ca-result-hint"></span>
+                            <button type="button" id="ca-reset" class="btn btn-sm btn-outline-secondary ms-auto">
+                                <i class="fa-solid fa-rotate-left me-1"></i>초기화
+                            </button>
+                        </div>
+
+                        <div class="ca-seg" id="ca-seg" role="tablist">
+                            <button type="button" data-tab="mfr" class="active">제조사</button>
+                            <button type="button" data-tab="item">품목</button>
+                            <button type="button" data-tab="model">모델</button>
+                            <button type="button" data-tab="matrix">교차표</button>
+                        </div>
+
+                        <!-- 제조사 -->
+                        <div data-pane="mfr">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover ca-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>제조사</th>
+                                            <th class="text-end">건수</th>
+                                            <th>비중</th>
+                                            <th class="text-center">품목 수</th>
+                                            <th class="text-center">모델 수</th>
+                                            <th>취급 품목</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ca-mfr-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 품목 -->
+                        <div data-pane="item" style="display:none">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover ca-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>품목</th>
+                                            <th class="text-end">건수</th>
+                                            <th>비중</th>
+                                            <th class="text-center">제조사 수</th>
+                                            <th class="text-center">모델 수</th>
+                                            <th>제조사</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ca-item-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 모델 -->
+                        <div data-pane="model" style="display:none">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover ca-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>제조사</th>
+                                            <th>품목</th>
+                                            <th>모델</th>
+                                            <th class="text-end">건수</th>
+                                            <th>구성 모델</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ca-model-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 교차표 -->
+                        <div data-pane="matrix" style="display:none">
+                            <div class="table-responsive">
+                                <table class="table table-sm ca-table ca-matrix mb-0" id="ca-matrix-table">
+                                    <thead id="ca-matrix-head"></thead>
+                                    <tbody id="ca-matrix-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="ca-empty" id="ca-empty" style="display:none">
+                            <i class="fa-regular fa-face-frown me-1"></i>조건에 맞는 데이터가 없습니다.
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <div class="row">
@@ -503,6 +721,282 @@
         </div>
     </div>
 </main>
+
+<script>
+    // ===== 회사 전체 제조사 / 품목 / 모델 분석 =====
+    // 서버가 내려준 모델 단위 원본 레코드(modelRecords)를 기준으로
+    // 검색어 필터와 모델명 접두어 통합을 브라우저에서 즉시 재집계한다.
+    window.__CA_DATA__ = <%- JSON.stringify(companyAnalysis).replace(/</g, '\\u003c') %>;
+</script>
+<script>
+    (function () {
+        const CA = window.__CA_DATA__;
+        if (!CA || !document.getElementById('company-analysis')) return;
+
+        const records = Array.isArray(CA.modelRecords) ? CA.modelRecords : [];
+
+        const els = {
+            search: document.getElementById('ca-search'),
+            prefix: document.getElementById('ca-prefix'),
+            hint: document.getElementById('ca-result-hint'),
+            reset: document.getElementById('ca-reset'),
+            seg: document.getElementById('ca-seg'),
+            empty: document.getElementById('ca-empty'),
+            mfrBody: document.getElementById('ca-mfr-body'),
+            itemBody: document.getElementById('ca-item-body'),
+            modelBody: document.getElementById('ca-model-body'),
+            matrixHead: document.getElementById('ca-matrix-head'),
+            matrixBody: document.getElementById('ca-matrix-body')
+        };
+
+        const state = { tab: 'mfr', query: '', prefix: 0 };
+
+        const esc = (value) => String(value == null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+        const num = (value) => Number(value || 0).toLocaleString('ko-KR');
+
+        // 접두어 길이 적용 시 모델명을 합칠 키로 변환
+        const modelLabel = (record) => {
+            if (!state.prefix) return record.model;
+            return record.model.slice(0, state.prefix);
+        };
+
+        const filteredRecords = () => {
+            const q = state.query.trim().toLowerCase();
+            if (!q) return records;
+            return records.filter(record =>
+                `${record.mfr} ${record.item} ${record.model}`.toLowerCase().includes(q)
+            );
+        };
+
+        const bump = (map, key, seed) => {
+            if (!map.has(key)) map.set(key, Object.assign({ count: 0, active: 0 }, seed));
+            return map.get(key);
+        };
+
+        const barHtml = (count, max) => {
+            const width = max > 0 ? Math.max(3, Math.round((count / max) * 100)) : 0;
+            return `<span class="ca-bar"><i style="width:${width}%"></i></span>`;
+        };
+
+        const detailHtml = (label, values) => {
+            if (!values.length) return '<span class="ca-sub">-</span>';
+            return `<details class="ca-details"><summary>${esc(label)} (${values.length})</summary>` +
+                `<div class="ca-detail-list">${values.map(value => esc(value)).join(', ')}</div></details>`;
+        };
+
+        function renderManufacturers(list) {
+            if (!list.length) { els.mfrBody.innerHTML = ''; return false; }
+            const max = Math.max.apply(null, list.map(row => row.count));
+            els.mfrBody.innerHTML = list.map(row => `
+                <tr>
+                    <td><span class="es-chip es-chip-mfr">${esc(row.name)}</span></td>
+                    <td class="ca-num">${num(row.count)}</td>
+                    <td style="white-space:nowrap">${barHtml(row.count, max)}<span class="ca-sub">${row.share}%</span></td>
+                    <td class="text-center">${num(row.itemCount)}</td>
+                    <td class="text-center">${num(row.modelCount)}</td>
+                    <td>${detailHtml('품목 보기', row.items)}</td>
+                </tr>
+            `).join('');
+            return true;
+        }
+
+        function renderItems(list) {
+            if (!list.length) { els.itemBody.innerHTML = ''; return false; }
+            const max = Math.max.apply(null, list.map(row => row.count));
+            els.itemBody.innerHTML = list.map(row => `
+                <tr>
+                    <td><strong>${esc(row.name)}</strong></td>
+                    <td class="ca-num">${num(row.count)}</td>
+                    <td style="white-space:nowrap">${barHtml(row.count, max)}<span class="ca-sub">${row.share}%</span></td>
+                    <td class="text-center">${num(row.manufacturerCount)}</td>
+                    <td class="text-center">${num(row.modelCount)}</td>
+                    <td>${detailHtml('제조사 보기', row.manufacturers)}</td>
+                </tr>
+            `).join('');
+            return true;
+        }
+
+        function renderModels(list) {
+            if (!list.length) { els.modelBody.innerHTML = ''; return false; }
+            els.modelBody.innerHTML = list.map(row => {
+                const variants = row.variants && row.variants.length > 1
+                    ? `<details class="ca-details"><summary>${row.variants.length}개 모델</summary>` +
+                      `<div class="ca-detail-list">${row.variants.map(value => esc(value)).join(', ')}</div></details>`
+                    : '<span class="ca-sub">-</span>';
+                return `
+                    <tr>
+                        <td><span class="es-chip es-chip-mfr">${esc(row.mfr)}</span></td>
+                        <td>${esc(row.item)}</td>
+                        <td><code>${esc(row.label)}</code></td>
+                        <td class="ca-num">${num(row.count)}</td>
+                        <td>${variants}</td>
+                    </tr>
+                `;
+            }).join('');
+            return true;
+        }
+
+        function renderMatrix(itemNames, rows, max) {
+            if (!rows.length || !itemNames.length) {
+                els.matrixHead.innerHTML = '';
+                els.matrixBody.innerHTML = '';
+                return false;
+            }
+            els.matrixHead.innerHTML = `<tr><th>제조사 \\ 품목</th>` +
+                itemNames.map(name => `<th>${esc(name)}</th>`).join('') +
+                `<th>합계</th></tr>`;
+            els.matrixBody.innerHTML = rows.map(row => {
+                const cells = row.cells.map(count => {
+                    if (!count) return '<td><span class="ca-heat zero">·</span></td>';
+                    const ratio = max > 0 ? count / max : 0;
+                    const alpha = (0.12 + ratio * 0.72).toFixed(2);
+                    const color = ratio > 0.55 ? '#fff' : '#14508a';
+                    return `<td><span class="ca-heat" style="--ca-heat:${alpha};background:rgba(47,107,189,${alpha});color:${color}">${count}</span></td>`;
+                }).join('');
+                return `<tr><td>${esc(row.name)}</td>${cells}<td class="ca-heat-total">${num(row.total)}</td></tr>`;
+            }).join('');
+            return true;
+        }
+
+        function compute() {
+            const selected = filteredRecords();
+
+            // 제조사 집계
+            const mfrMap = new Map();
+            // 품목 집계
+            const itemMap = new Map();
+            // 모델 집계(접두어 통합 반영)
+            const modelMap = new Map();
+            // 교차표용 제조사 × 품목
+            const pairMap = new Map();
+
+            let totalCount = 0;
+
+            selected.forEach(record => {
+                totalCount += record.count;
+                const label = modelLabel(record);
+
+                const mfr = bump(mfrMap, record.mfr, { name: record.mfr, items: new Set(), models: new Set() });
+                mfr.count += record.count;
+                mfr.active += record.active || 0;
+                mfr.items.add(record.item);
+                mfr.models.add(label);
+
+                const item = bump(itemMap, record.item, { name: record.item, manufacturers: new Set(), models: new Set() });
+                item.count += record.count;
+                item.active += record.active || 0;
+                item.manufacturers.add(record.mfr);
+                item.models.add(label);
+
+                const modelKey = `${record.mfr}||${record.item}||${label}`;
+                const model = bump(modelMap, modelKey, {
+                    mfr: record.mfr, item: record.item, label, variants: new Set()
+                });
+                model.count += record.count;
+                model.active += record.active || 0;
+                model.variants.add(record.model);
+
+                const pairKey = `${record.mfr}||${record.item}`;
+                const pair = bump(pairMap, pairKey, {});
+                pair.count += record.count;
+            });
+
+            const share = (count) => totalCount > 0 ? Math.round((count / totalCount) * 1000) / 10 : 0;
+
+            const manufacturers = Array.from(mfrMap.values()).map(entry => ({
+                name: entry.name,
+                count: entry.count,
+                share: share(entry.count),
+                itemCount: entry.items.size,
+                modelCount: entry.models.size,
+                items: Array.from(entry.items).sort((a, b) => a.localeCompare(b, 'ko'))
+            })).sort((a, b) => (b.count - a.count) || a.name.localeCompare(b.name, 'ko'));
+
+            const items = Array.from(itemMap.values()).map(entry => ({
+                name: entry.name,
+                count: entry.count,
+                share: share(entry.count),
+                manufacturerCount: entry.manufacturers.size,
+                modelCount: entry.models.size,
+                manufacturers: Array.from(entry.manufacturers).sort((a, b) => a.localeCompare(b, 'ko'))
+            })).sort((a, b) => (b.count - a.count) || a.name.localeCompare(b.name, 'ko'));
+
+            const models = Array.from(modelMap.values()).map(entry => ({
+                mfr: entry.mfr,
+                item: entry.item,
+                label: entry.label,
+                count: entry.count,
+                variants: Array.from(entry.variants).sort((a, b) => a.localeCompare(b, 'ko'))
+            })).sort((a, b) => (b.count - a.count)
+                || a.mfr.localeCompare(b.mfr, 'ko')
+                || a.label.localeCompare(b.label, 'ko'));
+
+            const matrixItems = items.map(entry => entry.name);
+            let matrixMax = 0;
+            const matrixRows = manufacturers.map(mfrRow => {
+                const cells = matrixItems.map(itemName => {
+                    const pair = pairMap.get(`${mfrRow.name}||${itemName}`);
+                    const count = pair ? pair.count : 0;
+                    if (count > matrixMax) matrixMax = count;
+                    return count;
+                });
+                return { name: mfrRow.name, total: mfrRow.count, cells };
+            });
+
+            const visible = {
+                mfr: renderManufacturers(manufacturers),
+                item: renderItems(items),
+                model: renderModels(models),
+                matrix: renderMatrix(matrixItems, matrixRows, matrixMax)
+            };
+
+            // 선택된 탭 기준으로 빈 상태 표시
+            els.empty.style.display = visible[state.tab] ? 'none' : '';
+            els.hint.textContent = selected.length
+                ? `조회 ${num(totalCount)}건 · 제조사 ${manufacturers.length}개 · 품목 ${items.length}종 · 모델 ${models.length}종`
+                : '';
+        }
+
+        function selectTab(tab) {
+            state.tab = tab;
+            Array.from(els.seg.querySelectorAll('button')).forEach(button => {
+                button.classList.toggle('active', button.dataset.tab === tab);
+            });
+            document.querySelectorAll('#company-analysis [data-pane]').forEach(pane => {
+                pane.style.display = pane.dataset.pane === tab ? '' : 'none';
+            });
+            compute();
+        }
+
+        els.seg.addEventListener('click', event => {
+            const button = event.target.closest('button[data-tab]');
+            if (button) selectTab(button.dataset.tab);
+        });
+
+        els.search.addEventListener('input', function () {
+            state.query = this.value;
+            compute();
+        });
+
+        els.prefix.addEventListener('change', function () {
+            state.prefix = parseInt(this.value, 10) || 0;
+            compute();
+        });
+
+        els.reset.addEventListener('click', function () {
+            state.query = '';
+            state.prefix = 0;
+            els.search.value = '';
+            els.prefix.value = '0';
+            selectTab('mfr');
+        });
+
+        compute();
+    })();
+</script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {

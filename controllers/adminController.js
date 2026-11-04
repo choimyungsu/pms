@@ -341,6 +341,170 @@ exports.getTechStatusPage = async (req, res) => {
         }
         // --- 엔지니어 스킬 집계 종료 ---
 
+        // --- 회사 전체 제조사/품목/모델 분석 집계 시작 ---
+        // 유지보수 전체 등록 건을 기준(특정 엔지니어 필터 없음)으로
+        // 제조사 / 품목 / 모델별 건수와 제조사×품목 교차표를 만든다.
+        // 모델명 접두어 통합 검색은 화면(클라이언트)에서 modelRecords 로 처리한다.
+        let companyAnalysis = {
+            totals: { records: 0, activeRecords: 0, manufacturers: 0, items: 0, models: 0, customers: 0 },
+            manufacturers: [],
+            items: [],
+            models: [],
+            matrix: { items: [], rows: [], max: 0 },
+            modelRecords: []
+        };
+        try {
+            const [companyRows] = await db.query(`
+                SELECT manufacturer, item, model, customer_company, maintenance_end_date
+                FROM tb_maintenance
+            `);
+
+            const norm = (value) => String(value == null ? '' : value).trim();
+            // 제조사명 표기 차이(대소문자/공백)를 하나로 묶기 위한 키
+            const mfrKey = (value) => String(value == null ? '' : value).replace(/\s+/g, '').toLowerCase();
+            const todayKey = new Date().toISOString().split('T')[0];
+
+            const mfrMap = new Map();
+            const itemMap = new Map();
+            const modelMap = new Map();
+            const pairMap = new Map();
+            const customerSet = new Set();
+            let recordCount = 0;
+            let activeRecordCount = 0;
+
+            const ensure = (map, key, seed) => {
+                if (!map.has(key)) map.set(key, Object.assign({ count: 0, active: 0 }, seed));
+                return map.get(key);
+            };
+
+            companyRows.forEach(row => {
+                const manufacturer = norm(row.manufacturer) || '-';
+                const item = norm(row.item) || '-';
+                const model = norm(row.model) || '-';
+                const customer = norm(row.customer_company);
+                const endDate = row.maintenance_end_date ? String(row.maintenance_end_date).slice(0, 10) : '';
+                const isActive = !endDate || endDate >= todayKey;
+
+                recordCount += 1;
+                if (isActive) activeRecordCount += 1;
+                if (customer) customerSet.add(customer);
+
+                const mfrEntry = ensure(mfrMap, mfrKey(manufacturer), { name: manufacturer, items: new Set(), models: new Set(), customers: new Set() });
+                mfrEntry.count += 1;
+                if (isActive) mfrEntry.active += 1;
+                mfrEntry.items.add(item);
+                mfrEntry.models.add(model);
+                if (customer) mfrEntry.customers.add(customer);
+
+                const itemEntry = ensure(itemMap, item, { name: item, manufacturers: new Set(), models: new Set() });
+                itemEntry.count += 1;
+                if (isActive) itemEntry.active += 1;
+                itemEntry.manufacturers.add(manufacturer);
+                itemEntry.models.add(model);
+
+                const tripleKey = [manufacturer, item, model].join('||');
+                const modelEntry = ensure(modelMap, tripleKey, {
+                    manufacturer, item, name: model, customers: new Set()
+                });
+                modelEntry.count += 1;
+                if (isActive) modelEntry.active += 1;
+                if (customer) modelEntry.customers.add(customer);
+
+                const pairKey = `${mfrKey(manufacturer)}||${item}`;
+                const pairEntry = ensure(pairMap, pairKey, { manufacturer, item });
+                pairEntry.count += 1;
+                if (isActive) pairEntry.active += 1;
+            });
+
+            const totalForBar = Math.max(recordCount, 1);
+
+            const sortByCount = (a, b) => (b.count - a.count) || a.name.localeCompare(b.name, 'ko');
+
+            companyAnalysis.manufacturers = Array.from(mfrMap.values())
+                .map(entry => ({
+                    name: entry.name,
+                    count: entry.count,
+                    active: entry.active,
+                    share: Math.round((entry.count / totalForBar) * 1000) / 10,
+                    itemCount: entry.items.size,
+                    modelCount: entry.models.size,
+                    items: Array.from(entry.items).sort((a, b) => a.localeCompare(b, 'ko')),
+                    customers: Array.from(entry.customers)
+                }))
+                .sort(sortByCount);
+
+            companyAnalysis.items = Array.from(itemMap.values())
+                .map(entry => ({
+                    name: entry.name,
+                    count: entry.count,
+                    active: entry.active,
+                    share: Math.round((entry.count / totalForBar) * 1000) / 10,
+                    manufacturerCount: entry.manufacturers.size,
+                    modelCount: entry.models.size,
+                    manufacturers: Array.from(entry.manufacturers).sort((a, b) => a.localeCompare(b, 'ko'))
+                }))
+                .sort(sortByCount);
+
+            companyAnalysis.models = Array.from(modelMap.values())
+                .map(entry => ({
+                    name: entry.name,
+                    manufacturer: entry.manufacturer,
+                    item: entry.item,
+                    count: entry.count,
+                    active: entry.active,
+                    share: Math.round((entry.count / totalForBar) * 1000) / 10,
+                    customers: Array.from(entry.customers)
+                }))
+                .sort((a, b) => (b.count - a.count)
+                    || a.manufacturer.localeCompare(b.manufacturer, 'ko')
+                    || a.name.localeCompare(b.name, 'ko'));
+
+            const matrixItemNames = Array.from(itemMap.values())
+                .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ko'))
+                .map(entry => entry.name);
+
+            let matrixMax = 0;
+            const matrixRows = companyAnalysis.manufacturers.map(mfrEntry => {
+                const cells = matrixItemNames.map(itemName => {
+                    const pairEntry = pairMap.get(`${mfrKey(mfrEntry.name)}||${itemName}`);
+                    const count = pairEntry ? pairEntry.count : 0;
+                    if (count > matrixMax) matrixMax = count;
+                    return count;
+                });
+                return {
+                    name: mfrEntry.name,
+                    total: mfrEntry.count,
+                    cells
+                };
+            });
+
+            companyAnalysis.matrix = { items: matrixItemNames, rows: matrixRows, max: matrixMax };
+
+            // 모델별 원본 레코드 (화면에서 접두어 통합·검색 집계용)
+            companyAnalysis.modelRecords = Array.from(modelMap.values())
+                .map(entry => ({
+                    mfr: entry.manufacturer,
+                    item: entry.item,
+                    model: entry.name,
+                    count: entry.count,
+                    active: entry.active,
+                    customers: Array.from(entry.customers)
+                }))
+                .sort((a, b) => (b.count - a.count) || a.model.localeCompare(b.model, 'ko'));
+
+            companyAnalysis.totals = {
+                records: recordCount,
+                activeRecords: activeRecordCount,
+                manufacturers: companyAnalysis.manufacturers.length,
+                items: companyAnalysis.items.length,
+                models: companyAnalysis.models.length,
+                customers: customerSet.size
+            };
+        } catch (err) {
+            console.warn('[tech-status] 제조사/품목/모델 분석 집계 실패:', err.code || err.message);
+        }
+        // --- 회사 전체 제조사/품목/모델 분석 집계 종료 ---
+
         res.render('admin/tech_status', {
             page: 'tech_status',
             currentUser: req.session.user,
@@ -359,7 +523,8 @@ exports.getTechStatusPage = async (req, res) => {
             teamSummary: Object.values(teamSummary),
             engineerSkills,
             unmatchedEngineers,
-            skillTotals
+            skillTotals,
+            companyAnalysis
         });
 
     } catch (err) {
