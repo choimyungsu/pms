@@ -99,11 +99,48 @@
 
 /* Drop zone styles */
 #drop-zone {
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  user-select: none;
 }
 #drop-zone.dragover {
   background-color: #e9ecef;
+  border-color: #1a4b8c !important;
 }
+#drop-zone:focus-visible {
+  outline: none;
+  border-color: #1a4b8c !important;
+  box-shadow: 0 0 0 .16rem rgba(26, 75, 140, .15);
+}
+#drop-zone.paste-flash {
+  animation: kPastePulse .55s ease;
+  border-color: #2b7a45 !important;
+  background-color: #eef8f1;
+}
+@keyframes kPastePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(43, 122, 69, .35); }
+  70%  { box-shadow: 0 0 0 10px rgba(43, 122, 69, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(43, 122, 69, 0); }
+}
+.kz-drop-icon { font-size: 1.5rem; color: #9db4d1; display: block; margin-bottom: .4rem; }
+.kz-drop-main { font-size: .86rem; font-weight: 600; color: #4a5666; margin-bottom: .2rem; }
+.kz-drop-sub { font-size: .76rem; color: #96a1b0; }
+.kz-drop-sub kbd {
+  background: #fff;
+  color: #4a5666;
+  border: 1px solid #d7dfe9;
+  border-bottom-width: 2px;
+  border-radius: .25rem;
+  padding: .05rem .35rem;
+  font-size: .72rem;
+  font-family: inherit;
+  font-weight: 600;
+}
+.dark-mode #drop-zone { background: #2f2f2f; border-color: #4f5a68 !important; }
+.dark-mode #drop-zone.dragover { background: #364a63; border-color: #8ab4f8 !important; }
+.dark-mode .kz-drop-main { color: #dce2ea; }
+.dark-mode .kz-drop-sub { color: #96a1b0; }
+.dark-mode .kz-drop-sub kbd { background: #3a3a3a; color: #dce2ea; border-color: #555; }
 
 /* ===================== 지식 목록 (업그레이드) ===================== */
 .knowledge-count-badge {
@@ -549,8 +586,12 @@
                         </div>
                         <div class="mb-3">
                             <label for="knowledge-attachments" class="form-label">첨부파일</label>
-                            <div id="drop-zone" class="border rounded p-5 text-center" style="border-style: dashed !important;">
-                                <p>여기로 파일을 드래그하거나 클릭하여 업로드하세요.</p>
+                            <div id="drop-zone" class="border rounded p-4 text-center" role="button" tabindex="0"
+                                 style="border-style: dashed !important;"
+                                 aria-label="파일을 끌어다 놓거나 클릭하여 선택">
+                                <i class="fas fa-cloud-arrow-up kz-drop-icon"></i>
+                                <div class="kz-drop-main">파일을 여기로 끌어다 놓으세요</div>
+                                <div class="kz-drop-sub">클릭해서 선택 · <kbd>Ctrl</kbd> + <kbd>V</kbd> 로 붙여넣기</div>
                                 <input type="file" class="form-control" id="knowledge-attachments" name="attachments" multiple style="display: none;">
                             </div>
                             <div id="file-list" class="mt-2"></div>
@@ -605,6 +646,7 @@
     </div>
 </main>
 
+<script src="/js/knowledge-attach.js"></script>
 <script>
     function showNotification(type, message) {
         const colors = {
@@ -1388,35 +1430,87 @@
             const fileList = $('#file-list');
             fileList.empty();
             uploadedFiles.forEach((file, index) => {
+                const icon = iconOf(file.name);
+                const size = sizeOf(file.size);
+                const isPaste = file.__source === 'paste';
                 fileList.append(`
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span>${file.name}</span>
-                        <button type="button" class="btn btn-sm btn-danger remove-file-btn" data-index="${index}">삭제</button>
+                    <div class="d-flex justify-content-between align-items-center mb-1 px-2 py-1"
+                         style="border:1px solid #e6ebf2;border-radius:.35rem;background:#f4f8ff;gap:.5rem;">
+                        <span class="d-flex align-items-center" style="gap:.5rem;min-width:0;">
+                            <i class="fas ${icon}" style="color:${iconColor(icon)}"></i>
+                            <span style="font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                                  title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+                            ${isPaste ? '<span style="font-size:.64rem;font-weight:700;color:#2f6bbd;background:#e2eeff;border-radius:.6rem;padding:.04rem .38rem;">붙여넣기</span>' : ''}
+                            ${size ? `<span style="font-size:.72rem;color:#93a0b1;flex:0 0 auto;">${size}</span>` : ''}
+                        </span>
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-file-btn" data-index="${index}" title="목록에서 제거">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
                 `);
             });
         }
 
-        function updateFileList(files) {
+        // 첨부파일 공통 헬퍼 (없으면 기본값으로 동작)
+        const AttachHelper = window.KnowledgeAttach || null;
+        const MAX_FILES = (AttachHelper && AttachHelper.MAX_FILES) || 10;
+
+        function iconOf(name) {
+            return AttachHelper ? AttachHelper.fileIcon(name) : 'fa-file';
+        }
+        function iconColor(icon) {
+            return AttachHelper ? AttachHelper.iconColor(icon) : '#7a93b5';
+        }
+        function sizeOf(bytes) {
+            return AttachHelper ? AttachHelper.formatSize(bytes) : '';
+        }
+
+        function updateFileList(files, source) {
+            let added = 0;
             for (let file of files) {
+                if (uploadedFiles.length >= MAX_FILES) {
+                    showNotification('warning', '첨부파일은 최대 ' + MAX_FILES + '개까지 추가할 수 있습니다.');
+                    break;
+                }
                 if (!uploadedFiles.some(f => f.name === file.name && f.size === file.size)) {
+                    try { file.__source = source || 'pick'; } catch (e) { /* 무시 */ }
                     uploadedFiles.push(file);
+                    added += 1;
                 }
             }
             renderFileList();
-            console.log('Uploaded files:', uploadedFiles.map(f => f.name));
+
+            if (source === 'paste') {
+                if (added > 0) {
+                    dropZone.addClass('paste-flash');
+                    setTimeout(() => dropZone.removeClass('paste-flash'), 600);
+                    showNotification('success', '붙여넣은 파일 ' + added + '개가 첨부 목록에 추가되었습니다.');
+                } else {
+                    showNotification('warning', '이미 추가된 파일입니다.');
+                }
+            }
+            return added;
         }
 
         fileInput.on('change', function(e) {
             const files = e.target.files;
             if (files.length > 0) {
-                updateFileList(files);
+                updateFileList(files, 'pick');
                 fileInput.val('');
             }
         });
 
-        dropZone.on('click', function() {
+        dropZone.on('click', function(e) {
+            // 내부 파일 input 클릭이 다시 드롭존으로 버블링되어 재귀 호출되는 것을 방지
+            if (e.target === fileInput[0]) return;
             fileInput.trigger('click');
+        });
+
+        dropZone.on('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                fileInput.trigger('click');
+            }
         });
 
         dropZone.on('dragover', function(e) {
@@ -1443,9 +1537,22 @@
             dropZone.removeClass('dragover');
             const files = e.originalEvent.dataTransfer.files;
             if (files.length > 0) {
-                updateFileList(files);
+                updateFileList(files, 'drop');
             }
         });
+
+        // ---- 클립보드 붙여넣기 (Ctrl+V) 로 첨부 ----
+        // 등록/수정 모달이 열려 있을 때만 동작하도록 가드한다.
+        if (window.KnowledgeAttach && typeof window.KnowledgeAttach.bindPaste === 'function') {
+            window.KnowledgeAttach.bindPaste(function (files) {
+                updateFileList(files, 'paste');
+            }, {
+                shouldHandle: function () {
+                    const $modal = $('#knowledge-modal');
+                    return $modal.length > 0 && $modal.hasClass('show');
+                }
+            });
+        }
 
         $(document).on('click', '.remove-file-btn', function() {
             const index = $(this).data('index');

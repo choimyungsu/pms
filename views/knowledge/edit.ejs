@@ -1,195 +1,639 @@
-<%- include('../partials/header') %>
-<%- include('../partials/sidebar') %>
+<%- include('../partials/header', { page: 'knowledge' }) %>
+<%- include('../partials/sidebar', { page: 'knowledge' }) %>
+
+<%
+  // ---------- 화면 표시용 헬퍼 (기능 변경 없음, 표현만 개선) ----------
+  const isBlank = (v) => (v === null || v === undefined || String(v).trim() === '');
+  const dateVal = (v) => (isBlank(v) ? '' : String(v).substring(0, 10));
+  const fileIconOf = (name) => {
+    const ext = String(name || '').split('.').pop().toLowerCase();
+    if (['xls', 'xlsx', 'csv'].indexOf(ext) !== -1) return 'fa-file-excel';
+    if (['doc', 'docx', 'hwp', 'hwpx', 'odt', 'txt', 'md', 'rtf'].indexOf(ext) !== -1) return 'fa-file-word';
+    if (['ppt', 'pptx', 'odp'].indexOf(ext) !== -1) return 'fa-file-powerpoint';
+    if (ext === 'pdf') return 'fa-file-pdf';
+    if (['zip', '7z', 'rar', 'tar', 'gz'].indexOf(ext) !== -1) return 'fa-file-archive';
+    if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'].indexOf(ext) !== -1) return 'fa-file-image';
+    return 'fa-file';
+  };
+  const hasItem = !!item;
+  const attCount = (attachments && attachments.length) ? attachments.length : 0;
+%>
 
 <style>
-/* Drop zone styles */
-#drop-zone {
-  transition: background-color 0.2s ease;
+/* =================== 지식 수정 (개편) =================== */
+.ke-wrap { padding-bottom: 1.5rem; }
+
+.ke-card { border: 1px solid #e9edf3; box-shadow: 0 1px 2px rgba(24, 40, 72, .04); }
+.ke-card > .card-header {
+    background: #fff;
+    border-bottom: 1px solid #eef1f5;
+    padding: .85rem 1.1rem;
 }
-#drop-zone.dragover {
-  background-color: #e9ecef;
+.ke-card > .card-body { padding: 0; }
+
+/* ---- 상단 요약 헤더 ---- */
+.ke-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
+.ke-head-main { min-width: 0; flex: 1 1 auto; }
+.ke-head-title {
+    font-size: 1.06rem;
+    font-weight: 700;
+    color: #1f2a3a;
+    margin: 0 0 .35rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+.ke-head-meta { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.ke-head-actions { display: flex; gap: .35rem; flex-wrap: wrap; flex-shrink: 0; }
+.ke-head-actions .btn { white-space: nowrap; }
+
+/* ---- 배지 ---- */
+.ke-badge {
+    display: inline-block;
+    padding: .16rem .55rem;
+    border-radius: 1rem;
+    font-size: .73rem;
+    font-weight: 600;
+    white-space: nowrap;
+    background: #eef2f7;
+    color: #55637a;
+}
+.ke-badge-count { background: #e8eefb; color: #3f6bab; }
+.ke-badge-edit { background: #fff4e5; color: #96631a; }
+
+/* ---- 섹션 ---- */
+.ke-section { padding: 1.05rem 1.15rem; }
+.ke-section + .ke-section { border-top: 1px solid #eef1f5; }
+.ke-section-title {
+    font-size: .78rem;
+    font-weight: 700;
+    color: #6b7788;
+    letter-spacing: .02em;
+    margin: 0 0 .75rem;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+}
+.ke-section-title i { color: #9aa8ba; font-size: .78rem; }
+.ke-section-title .ke-req { color: #c0503f; font-size: .68rem; font-weight: 600; }
+.ke-section-hint {
+    margin-left: auto;
+    font-size: .7rem;
+    font-weight: 500;
+    color: #9aa4b2;
+}
+
+/* ---- 폼 컨트롤 ---- */
+.ke-wrap .form-label {
+    font-size: .78rem;
+    font-weight: 600;
+    color: #6b7788;
+    margin-bottom: .3rem;
+}
+.ke-wrap .form-control,
+.ke-wrap .form-select {
+    border-color: #e2e8f0;
+    font-size: .86rem;
+    color: #2b3648;
+}
+.ke-wrap .form-control:focus,
+.ke-wrap .form-select:focus {
+    border-color: #9dbdea;
+    box-shadow: 0 0 0 .16rem rgba(26, 75, 140, .1);
+}
+.ke-wrap textarea.form-control { line-height: 1.6; }
+.ke-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: .85rem;
+}
+.ke-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: .85rem;
+}
+
+/* ---- 분류 트리 ---- */
+.ke-tree-box {
+    border: 1px solid #e6ebf2;
+    border-radius: .45rem;
+    padding: .5rem .6rem;
+    background: #fbfcfd;
+    max-height: 320px;
+    overflow-y: auto;
+}
+.ke-tree-box .jstree-default .jstree-anchor { font-size: .84rem; color: #2b3648; }
+.ke-tree-box .jstree-default .jstree-clicked {
+    background: #e8eefb !important;
+    color: #1a4b8c !important;
+    font-weight: 600;
+    box-shadow: none;
+    border-radius: .25rem;
+}
+.ke-tree-box .jstree-default .jstree-hovered { background: #f1f5fb; box-shadow: none; border-radius: .25rem; }
+.ke-tree-legend {
+    font-size: .68rem;
+    color: #9aa4b2;
+    margin-top: .4rem;
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+}
+.ke-selected-cat {
+    font-size: .74rem;
+    color: #4a6fa5;
+    background: #eef4fd;
+    border-radius: .7rem;
+    padding: .1rem .5rem;
+    display: inline-block;
+    margin-left: auto;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---- 첨부파일 ---- */
+.ke-att-list { display: flex; flex-direction: column; gap: .35rem; margin-bottom: .7rem; }
+.ke-att-item {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .5rem .65rem;
+    border: 1px solid #eaeef4;
+    border-radius: .4rem;
+    background: #fbfcfd;
+    color: #2b3648;
+}
+.ke-att-item > i { color: #7a93b5; font-size: .95rem; flex: 0 0 auto; width: 1.1rem; text-align: center; }
+.ke-att-item .ke-att-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: .84rem;
+    overflow-wrap: anywhere;
+}
+.ke-att-item .ke-att-name a { color: #1a4b8c; text-decoration: none; }
+.ke-att-item .ke-att-name a:hover { text-decoration: underline; }
+.ke-att-item .ke-att-size { font-size: .72rem; color: #a3acb9; flex: 0 0 auto; }
+.ke-att-item .btn { flex: 0 0 auto; }
+.ke-att-empty {
+    color: #a9b1bc;
+    font-size: .82rem;
+    font-style: italic;
+    padding: .35rem .1rem;
+}
+
+/* ---- 드롭존 ---- */
+.ke-drop {
+    border: 1.5px dashed #cdd8e6;
+    border-radius: .5rem;
+    background: #fbfcfe;
+    padding: 1.4rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+    user-select: none;
+}
+.ke-drop:hover { border-color: #9dbdea; background: #f5f9ff; }
+.ke-drop.is-dragover {
+    border-color: #1a4b8c;
+    background: #eaf2fd;
+    box-shadow: inset 0 0 0 1px rgba(26, 75, 140, .15);
+}
+.ke-drop.is-pulse { animation: kePulse .55s ease; }
+@keyframes kePulse {
+    0%   { box-shadow: 0 0 0 0 rgba(26, 75, 140, .35); }
+    70%  { box-shadow: 0 0 0 10px rgba(26, 75, 140, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(26, 75, 140, 0); }
+}
+.ke-drop-icon { font-size: 1.55rem; color: #9db4d1; margin-bottom: .45rem; display: block; }
+.ke-drop-main { font-size: .86rem; color: #4a5666; font-weight: 600; margin-bottom: .25rem; }
+.ke-drop-sub { font-size: .76rem; color: #96a1b0; }
+.ke-drop kbd {
+    background: #fff;
+    color: #4a5666;
+    border: 1px solid #d7dfe9;
+    border-bottom-width: 2px;
+    border-radius: .25rem;
+    padding: .05rem .35rem;
+    font-size: .72rem;
+    font-family: inherit;
+    font-weight: 600;
+}
+.ke-drop-types {
+    margin-top: .55rem;
+    display: flex;
+    gap: .3rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.ke-drop-types .ke-type-chip {
+    font-size: .68rem;
+    color: #7b8798;
+    background: #fff;
+    border: 1px solid #e6ebf2;
+    border-radius: .7rem;
+    padding: .05rem .45rem;
+}
+
+.ke-file-list { display: flex; flex-direction: column; gap: .3rem; margin-top: .6rem; }
+.ke-file-row {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    padding: .42rem .6rem;
+    border: 1px solid #e6ebf2;
+    border-radius: .4rem;
+    background: #f4f8ff;
+}
+.ke-file-row > i { color: #4a6fa5; font-size: .9rem; flex: 0 0 auto; width: 1rem; text-align: center; }
+.ke-file-row .ke-file-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: .82rem;
+    color: #2b3648;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ke-file-row .ke-file-size { font-size: .72rem; color: #93a0b1; flex: 0 0 auto; }
+.ke-file-row .ke-file-src {
+    font-size: .64rem;
+    font-weight: 700;
+    color: #2f6bbd;
+    background: #e2eeff;
+    border-radius: .6rem;
+    padding: .04rem .38rem;
+    flex: 0 0 auto;
+}
+.ke-file-empty { font-size: .76rem; color: #a9b1bc; font-style: italic; margin-top: .55rem; }
+
+/* ---- 하단 액션 ---- */
+.ke-foot {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    flex-wrap: wrap;
+    padding: .85rem 1.15rem;
+    border-top: 1px solid #eef1f5;
+    background: #fbfcfd;
+    border-radius: 0 0 .5rem .5rem;
+}
+.ke-foot .ke-foot-note { font-size: .73rem; color: #9aa4b2; margin-right: auto; }
+
+/* ---- 사이드 카드 ---- */
+.ke-side-sticky { position: sticky; top: .75rem; }
+.ke-side-note {
+    font-size: .74rem;
+    color: #8b95a4;
+    line-height: 1.6;
+    background: #f8fafc;
+    border: 1px solid #eef1f5;
+    border-radius: .4rem;
+    padding: .55rem .7rem;
+}
+.ke-side-note strong { color: #4a5666; }
+
+/* ---- 다크모드 ---- */
+.dark-mode .ke-card { background: #333; border-color: #444; }
+.dark-mode .ke-card > .card-header { background: #3a3a3a; border-bottom-color: #444; }
+.dark-mode .ke-head-title { color: #e8ecf2; }
+.dark-mode .ke-badge { background: #3a3a3a; color: #cfd6e0; }
+.dark-mode .ke-badge-count { background: #3a4a60; color: #cfe2ff; }
+.dark-mode .ke-badge-edit { background: #4a3f2a; color: #e8c88a; }
+.dark-mode .ke-section + .ke-section { border-top-color: #444; }
+.dark-mode .ke-section-title { color: #b3bdcb; }
+.dark-mode .ke-wrap .form-label { color: #9aa5b4; }
+.dark-mode .ke-wrap .form-control,
+.dark-mode .ke-wrap .form-select {
+    background: #2f2f2f;
+    border-color: #4a4a4a;
+    color: #e0e0e0;
+}
+.dark-mode .ke-tree-box { background: #2f2f2f; border-color: #474747; }
+.dark-mode .ke-tree-box .jstree-default .jstree-anchor { color: #dce2ea; }
+.dark-mode .ke-tree-box .jstree-default .jstree-clicked { background: #364a63 !important; color: #cfe2ff !important; }
+.dark-mode .ke-tree-box .jstree-default .jstree-hovered { background: #3a3a3a; }
+.dark-mode .ke-selected-cat { background: #364a63; color: #cfe2ff; }
+.dark-mode .ke-att-item { background: #2f2f2f; border-color: #474747; color: #dce2ea; }
+.dark-mode .ke-att-item .ke-att-name a { color: #8ab4f8; }
+.dark-mode .ke-att-empty,
+.dark-mode .ke-file-empty { color: #7b8595; }
+.dark-mode .ke-drop { background: #2f2f2f; border-color: #4f5a68; }
+.dark-mode .ke-drop:hover { background: #364a63; border-color: #6b8ab8; }
+.dark-mode .ke-drop.is-dragover { background: #364a63; border-color: #8ab4f8; }
+.dark-mode .ke-drop-main { color: #dce2ea; }
+.dark-mode .ke-drop-sub { color: #96a1b0; }
+.dark-mode .ke-drop kbd { background: #3a3a3a; color: #dce2ea; border-color: #555; }
+.dark-mode .ke-drop-types .ke-type-chip { background: #333; border-color: #4a4a4a; color: #9aa5b4; }
+.dark-mode .ke-file-row { background: #364a63; border-color: #4a5b72; }
+.dark-mode .ke-file-row .ke-file-name { color: #dce2ea; }
+.dark-mode .ke-file-row .ke-file-src { background: #2a3d55; color: #9dc2f5; }
+.dark-mode .ke-foot { background: #3a3a3a; border-top-color: #444; }
+.dark-mode .ke-side-note { background: #2f2f2f; border-color: #474747; color: #9aa5b4; }
+.dark-mode .ke-side-note strong { color: #cfd6e0; }
 </style>
 
 <main class="app-main">
     <div class="app-content-header">
         <div class="container-fluid">
-            <div class="row">
+            <div class="row align-items-center">
                 <div class="col-sm-6">
-                    <h3 class="mb-0"><%= page_title %></h3>
+                    <h3 class="mb-0"><i class="fas fa-pen-to-square me-2"></i>지식 자료 수정</h3>
                 </div>
-            </div>
-        </div>
-    </div>
-    <div class="app-content">
-        <div class="container-fluid">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title">지식 자료 수정</h5>
-                </div>
-                <div class="card-body">
-                    <% if (error) { %>
-                        <div class="alert alert-danger"><%= error %></div>
-                    <% } else { %>
-                        <form id="editKnowledgeForm" enctype="multipart/form-data">
-                            <div class="mb-3">
-                                <label for="title" class="form-label">제목</label>
-                                <input type="text" class="form-control" id="title" name="title" value="<%= item.title %>" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="selected_category_id" class="form-label">카테고리</label>
-                                <div id="category_tree"></div>
-                                <input type="hidden" id="selected_category_id" name="category_id" value="<%= item.category_id %>" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="type" class="form-label">구분</label>
-                                <select class="form-select" id="type" name="type">
-                                    <% types.forEach(t => { %>
-                                        <option value="<%= t %>" <%= item.type === t ? 'selected' : '' %>><%= t %></option>
-                                    <% }) %>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label for="description1" class="form-label">설명1</label>
-                                <textarea class="form-control" id="description1" name="description1" rows="3"><%= item.description1 %></textarea>
-                            </div>
-                            <div class="mb-3">
-                                <label for="description2" class="form-label">설명2</label>
-                                <textarea class="form-control" id="description2" name="description2" rows="3"><%= item.description2 %></textarea>
-                            </div>
-                            <div class="mb-3">
-                                <label for="status" class="form-label">상태</label>
-                                <input type="text" class="form-control" id="status" name="status" value="<%= item.status %>">
-                            </div>
-                            <div class="mb-3">
-                                <label for="assignee" class="form-label">담당자</label>
-                                <select class="form-select" id="assignee" name="assignee">
-                                    <option value="">선택</option>
-                                    <% allUsers.forEach(user => { %>
-                                        <option value="<%= user.id %>" <%= item.assignee == user.id ? 'selected' : '' %>><%= user.name %></option>
-                                    <% }) %>
-                                </select>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label for="start_date" class="form-label">시작일</label>
-                                    <input type="date" class="form-control" id="start_date" name="start_date" value="<%= item.start_date ? new Date(item.start_date).toISOString().slice(0,10) : '' %>">
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="end_date" class="form-label">종료일</label>
-                                    <input type="date" class="form-control" id="end_date" name="end_date" value="<%= item.end_date ? new Date(item.end_date).toISOString().slice(0,10) : '' %>">
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="planned_date" class="form-label">예정일</label>
-                                    <input type="date" class="form-control" id="planned_date" name="planned_date" value="<%= item.planned_date ? new Date(item.planned_date).toISOString().slice(0,10) : '' %>">
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <label>기존 첨부파일</label>
-                                <div id="existing-attachments">
-                                    <% if (attachments && attachments.length > 0) { %>
-                                        <% attachments.forEach(function(attachment) { %>
-                                            <div class="d-flex justify-content-between align-items-center mb-1 attachment-item" data-attachment-id="<%= attachment.id %>">
-                                                <a href="<%= attachment.file_path %>" target="_blank"><%= attachment.original_name %></a>
-                                                <button type="button" class="btn btn-sm btn-danger delete-attachment-btn" data-attachment-id="<%= attachment.id %>">삭제</button>
-                                            </div>
-                                        <% }) %>
-                                    <% } else { %>
-                                        <p>첨부된 파일이 없습니다.</p>
-                                    <% } %>
-                                </div>
-                                <input type="hidden" id="attachmentsToDelete" name="attachments_to_delete" value="[]">
-                            </div>
-                            <div class="mb-3">
-                                <label for="attachments" class="form-label">새 첨부파일</label>
-                                <div id="drop-zone" class="border rounded p-5 text-center" style="border-style: dashed !important;">
-                                    <p>여기로 파일을 드래그하거나 클릭하여 업로드하세요.</p>
-                                    <input type="file" class="form-control" id="attachments" name="attachments" multiple style="display: none;">
-                                </div>
-                                <div id="file-list" class="mt-2"></div>
-                            </div>
-                            <button type="submit" class="btn btn-primary">저장</button>
-                            <button type="button" class="btn btn-danger" onclick="deleteKnowledgeItem(<%= item.id %>)">삭제</button>
-                        </form>
+                <div class="col-sm-6 text-sm-end mt-2 mt-sm-0">
+                    <a href="/knowledge" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>목록
+                    </a>
+                    <% if (hasItem) { %>
+                        <a href="/knowledge/detail/<%= item.id %>" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-file-lines me-1"></i>상세보기
+                        </a>
                     <% } %>
                 </div>
             </div>
         </div>
     </div>
-</main>
 
-<script src="https://code.jquery.com/jquery-3.7.0.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/themes/default/style.min.css" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+    <div class="app-content">
+        <div class="container-fluid ke-wrap">
+            <% if (error) { %>
+                <div class="alert alert-danger">
+                    <i class="fas fa-circle-exclamation me-2"></i><%= error %>
+                </div>
+                <a href="/knowledge" class="btn btn-secondary">목록으로</a>
+            <% } else { %>
+            <form id="editKnowledgeForm" enctype="multipart/form-data" autocomplete="off">
+                <input type="hidden" id="selected_category_id" name="category_id" value="<%= item.category_id %>" required>
 
-<script>
-    $(document).ready(function() {
-        let uploadedFiles = [];
-        let attachmentsToDelete = [];
-
-        // Fallback showNotification function
-        window.showNotification = window.showNotification || function(type, message) {
-            const color = type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#ffc107';
-            const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-exclamation-triangle';
-            const modalHtml = `
-                <div class="modal fade" id="notificationModal" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered">
-                        <div class="modal-content">
-                            <div class="modal-header border-0 pb-0">
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body text-center pb-4">
-                                <div class="mb-3">
-                                    <i class="fas ${icon}" style="font-size: 4rem; color: ${color};"></i>
+                <div class="row g-3">
+                    <!-- ===================== 좌측: 입력 영역 ===================== -->
+                    <div class="col-lg-8">
+                        <div class="card ke-card">
+                            <div class="card-header">
+                                <div class="ke-head">
+                                    <div class="ke-head-main">
+                                        <h2 class="ke-head-title"><%= item.title %></h2>
+                                        <div class="ke-head-meta">
+                                            <span class="ke-badge ke-badge-edit"><i class="fas fa-pen me-1"></i>수정 중</span>
+                                            <span class="ke-badge ke-badge-count">
+                                                <i class="fas fa-paperclip me-1"></i>첨부 <%= attCount %>건
+                                            </span>
+                                            <% if (!isBlank(item.updated_at || item.created_at)) { %>
+                                                <span class="ke-badge">
+                                                    <i class="fas fa-clock me-1"></i><%= String(item.updated_at || item.created_at).substring(0, 16) %>
+                                                </span>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                    <div class="ke-head-actions">
+                                        <button type="submit" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-floppy-disk me-1"></i>저장
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                onclick="deleteKnowledgeItem(<%= item.id %>)">
+                                            <i class="fas fa-trash-can me-1"></i>삭제
+                                        </button>
+                                    </div>
                                 </div>
-                                <h5 class="modal-title">${type === 'success' ? '성공' : type === 'error' ? '오류' : '경고'}</h5>
-                                <p class="text-muted">${message}</p>
+                            </div>
+
+                            <div class="card-body">
+                                <!-- 문서 정보 -->
+                                <section class="ke-section">
+                                    <h3 class="ke-section-title">
+                                        <i class="fas fa-circle-info"></i>문서 정보
+                                    </h3>
+                                    <div class="mb-3">
+                                        <label for="title" class="form-label">제목 <span class="ke-req">*</span></label>
+                                        <input type="text" class="form-control" id="title" name="title"
+                                               value="<%= item.title %>" required>
+                                    </div>
+                                    <div class="ke-grid-3">
+                                        <div>
+                                            <label for="type" class="form-label">구분</label>
+                                            <select class="form-select" id="type" name="type">
+                                                <% types.forEach(t => { %>
+                                                    <option value="<%= t %>" <%= item.type === t ? 'selected' : '' %>><%= t %></option>
+                                                <% }) %>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="status" class="form-label">상태</label>
+                                            <input type="text" class="form-control" id="status" name="status"
+                                                   value="<%= item.status || '' %>" placeholder="예: 진행중">
+                                        </div>
+                                        <div>
+                                            <label for="assignee" class="form-label">담당자</label>
+                                            <select class="form-select" id="assignee" name="assignee">
+                                                <option value="">선택</option>
+                                                <% allUsers.forEach(user => { %>
+                                                    <option value="<%= user.id %>" <%= item.assignee == user.id ? 'selected' : '' %>><%= user.name %></option>
+                                                <% }) %>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <!-- 일정 정보 -->
+                                <section class="ke-section">
+                                    <h3 class="ke-section-title">
+                                        <i class="fas fa-calendar-days"></i>일정 정보
+                                        <span class="ke-section-hint">회의·보고·이슈는 시작일과 계획일이 필수입니다</span>
+                                    </h3>
+                                    <div class="ke-grid-3">
+                                        <div>
+                                            <label for="start_date" class="form-label">시작일</label>
+                                            <input type="date" class="form-control" id="start_date" name="start_date"
+                                                   value="<%= dateVal(item.start_date) %>">
+                                        </div>
+                                        <div>
+                                            <label for="end_date" class="form-label">종료일</label>
+                                            <input type="date" class="form-control" id="end_date" name="end_date"
+                                                   value="<%= dateVal(item.end_date) %>">
+                                        </div>
+                                        <div>
+                                            <label for="planned_date" class="form-label">계획일</label>
+                                            <input type="date" class="form-control" id="planned_date" name="planned_date"
+                                                   value="<%= dateVal(item.planned_date) %>">
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <!-- 내용 -->
+                                <section class="ke-section">
+                                    <h3 class="ke-section-title">
+                                        <i class="fas fa-align-left"></i>내용
+                                    </h3>
+                                    <div class="mb-3">
+                                        <label for="description1" class="form-label">설명1</label>
+                                        <textarea class="form-control" id="description1" name="description1" rows="4"
+                                                  placeholder="요약 또는 개요를 입력하세요"><%= item.description1 || '' %></textarea>
+                                    </div>
+                                    <div class="mb-0">
+                                        <label for="description2" class="form-label">설명2</label>
+                                        <textarea class="form-control" id="description2" name="description2" rows="5"
+                                                  placeholder="상세 내용을 입력하세요"><%= item.description2 || '' %></textarea>
+                                    </div>
+                                </section>
+
+                                <!-- 첨부파일 -->
+                                <section class="ke-section">
+                                    <h3 class="ke-section-title">
+                                        <i class="fas fa-paperclip"></i>첨부파일
+                                        <span class="ke-section-hint">최대 10개</span>
+                                    </h3>
+
+                                    <div class="form-label">기존 첨부파일</div>
+                                    <div id="existing-attachments">
+                                        <% if (attachments && attachments.length > 0) { %>
+                                            <div class="ke-att-list">
+                                                <% attachments.forEach(function(attachment) { %>
+                                                    <div class="ke-att-item attachment-item" data-attachment-id="<%= attachment.id %>">
+                                                        <i class="fas <%= fileIconOf(attachment.original_name) %>"></i>
+                                                        <span class="ke-att-name">
+                                                            <a href="<%= attachment.file_path %>" target="_blank" rel="noopener"><%= attachment.original_name %></a>
+                                                        </span>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger delete-attachment-btn"
+                                                                data-attachment-id="<%= attachment.id %>" title="삭제">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    </div>
+                                                <% }) %>
+                                            </div>
+                                        <% } else { %>
+                                            <p class="ke-att-empty">첨부된 파일이 없습니다.</p>
+                                        <% } %>
+                                    </div>
+                                    <input type="hidden" id="attachmentsToDelete" name="attachments_to_delete" value="[]">
+
+                                    <div class="form-label mt-2">새 첨부파일 추가</div>
+                                    <div id="drop-zone" class="ke-drop" role="button" tabindex="0"
+                                         aria-label="파일을 끌어다 놓거나 클릭하여 선택">
+                                        <i class="fas fa-cloud-arrow-up ke-drop-icon"></i>
+                                        <div class="ke-drop-main">파일을 여기로 끌어다 놓으세요</div>
+                                        <div class="ke-drop-sub">
+                                            클릭해서 선택 · <kbd>Ctrl</kbd> + <kbd>V</kbd> 로 붙여넣기
+                                        </div>
+                                        <div class="ke-drop-types">
+                                            <span class="ke-type-chip"><i class="fas fa-file-image me-1"></i>스크린샷</span>
+                                            <span class="ke-type-chip"><i class="fas fa-file-pdf me-1"></i>PDF</span>
+                                            <span class="ke-type-chip"><i class="fas fa-file-excel me-1"></i>Excel</span>
+                                            <span class="ke-type-chip"><i class="fas fa-file-word me-1"></i>문서</span>
+                                        </div>
+                                        <input type="file" id="attachments" name="attachments" multiple style="display: none;">
+                                    </div>
+                                    <div id="file-list" class="ke-file-list"></div>
+                                </section>
+                            </div>
+
+                            <div class="ke-foot">
+                                <span class="ke-foot-note">
+                                    <i class="fas fa-circle-info me-1"></i>첨부파일은 저장 시 함께 업로드됩니다.
+                                </span>
+                                <a href="/knowledge/detail/<%= item.id %>" class="btn btn-sm btn-outline-secondary">취소</a>
+                                <button type="submit" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-floppy-disk me-1"></i>저장
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===================== 우측: 분류 트리 ===================== -->
+                    <div class="col-lg-4">
+                        <div class="card ke-card ke-side-sticky">
+                            <div class="card-header">
+                                <h3 class="ke-section-title mb-0">
+                                    <i class="fas fa-folder-tree"></i>분류
+                                    <span class="ke-selected-cat" id="selected-cat-label">선택 없음</span>
+                                </h3>
+                            </div>
+                            <div class="card-body p-3">
+                                <div id="category_tree" class="ke-tree-box"></div>
+                                <div class="ke-tree-legend">
+                                    <i class="fas fa-hand-pointer"></i>분류를 클릭하면 선택됩니다
+                                </div>
+                                <div class="ke-side-note mt-3">
+                                    <strong>안내</strong><br>
+                                    분류를 선택하지 않으면 저장할 수 없습니다.<br>
+                                    첨부파일은 끌어다 놓기, 클릭 선택, <kbd>Ctrl</kbd>+<kbd>V</kbd> 붙여넣기를 모두 지원합니다.
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            `;
-            $('body').append(modalHtml);
-            $('#notificationModal').modal('show');
-            setTimeout(() => {
-                $('#notificationModal').modal('hide').remove();
-            }, 2000);
-        };
+            </form>
+            <% } %>
+        </div>
+    </div>
+</main>
 
-        // Initialize jstree for category selection
+<%- include('../partials/footer') %>
+<script src="/js/knowledge-attach.js"></script>
+<script>
+    $(document).ready(function () {
+        const Attach = window.KnowledgeAttach || null;
+
+        let uploadedFiles = [];
+        let attachmentsToDelete = [];
+
+        // ===================== 분류 트리 =====================
         const categoryTreeContainer = document.getElementById('category_tree');
         const selectedCategoryIdInput = document.getElementById('selected_category_id');
+        const selectedCatLabel = document.getElementById('selected-cat-label');
+
+        function updateSelectedLabel(name) {
+            if (!selectedCatLabel) return;
+            selectedCatLabel.textContent = name || '선택 없음';
+            selectedCatLabel.title = name || '';
+        }
 
         async function initJstree() {
             try {
                 const response = await fetch('/knowledge/api/categories');
                 const categories = await response.json();
 
-                const jstreeData = categories.map(cat => ({
-                    id: cat.id,
-                    parent: cat.parent_id ? cat.parent_id : '#',
-                    text: cat.name
-                }));
-
-                $(categoryTreeContainer).jstree({
-                    'core': {
-                        'data': jstreeData,
-                        'check_callback': true
-                    },
-                    'plugins': ["wholerow"]
+                const jstreeData = (categories || []).map(function (cat) {
+                    const total = Number(cat.doc_count) || 0;
+                    return {
+                        id: String(cat.id),
+                        parent: cat.parent_id ? String(cat.parent_id) : '#',
+                        text: cat.name,
+                        a_attr: { 'data-count': String(total) }
+                    };
                 });
 
-                $(categoryTreeContainer).on('ready.jstree', function () {
-                    if (selectedCategoryIdInput.value) {
-                        $(categoryTreeContainer).jstree(true).select_node(selectedCategoryIdInput.value);
+                const $tree = $(categoryTreeContainer);
+
+                // init 전에 이벤트를 먼저 등록해 ready 누락을 방지한다.
+                $tree.on('select_node.jstree', function (e, data) {
+                    if (!data || !data.node) return;
+                    selectedCategoryIdInput.value = data.node.id;
+                    updateSelectedLabel(data.node.text);
+                });
+
+                $tree.on('ready.jstree', function () {
+                    $tree.jstree(true).open_all();
+                    const current = selectedCategoryIdInput.value;
+                    if (current) {
+                        $tree.jstree(true).select_node(current);
+                    } else {
+                        updateSelectedLabel('');
                     }
                 });
 
-                $(categoryTreeContainer).on('select_node.jstree', function (e, data) {
-                    selectedCategoryIdInput.value = data.instance.get_node(data.selected[0]).id;
+                $tree.jstree({
+                    core: {
+                        data: jstreeData,
+                        check_callback: true,
+                        themes: { name: 'default', dots: true, icons: true }
+                    },
+                    plugins: ['wholerow']
                 });
             } catch (error) {
                 console.error('Error loading categories for jstree:', error);
@@ -198,99 +642,184 @@
         }
         initJstree();
 
-        // File handling
+        // ===================== 첨부파일 =====================
         const fileInput = $('#attachments');
         const dropZone = $('#drop-zone');
         const fileList = $('#file-list');
         const attachmentsToDeleteInput = $('#attachmentsToDelete');
+        const MAX_FILES = (Attach && Attach.MAX_FILES) || 10;
+
+        function iconOf(name) {
+            return (Attach ? Attach.fileIcon(name) : 'fa-file');
+        }
+        function iconColor(icon) {
+            return (Attach ? Attach.iconColor(icon) : '#7a93b5');
+        }
+        function sizeOf(bytes) {
+            return (Attach ? Attach.formatSize(bytes) : '');
+        }
+
+        function escapeText(value) {
+            return String(value === null || value === undefined ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
 
         function renderFileList() {
             fileList.empty();
-            uploadedFiles.forEach((file, index) => {
-                fileList.append(`
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span>${file.name}</span>
-                        <button type="button" class="btn btn-sm btn-danger remove-file-btn" data-index="${index}">삭제</button>
-                    </div>
-                `);
+            if (!uploadedFiles.length) {
+                fileList.append('<div class="ke-file-empty">추가할 파일이 없습니다.</div>');
+                return;
+            }
+            uploadedFiles.forEach(function (file, index) {
+                const icon = iconOf(file.name);
+                const size = sizeOf(file.size);
+                const isPaste = file.__source === 'paste';
+                const safeName = escapeText(file.name);
+                fileList.append(
+                    '<div class="ke-file-row" data-index="' + index + '">' +
+                        '<i class="fas ' + icon + '" style="color:' + iconColor(icon) + '"></i>' +
+                        '<span class="ke-file-name" title="' + safeName + '">' +
+                            safeName +
+                        '</span>' +
+                        (isPaste ? '<span class="ke-file-src">붙여넣기</span>' : '') +
+                        (size ? '<span class="ke-file-size">' + size + '</span>' : '') +
+                        '<button type="button" class="btn btn-sm btn-outline-danger remove-file-btn" ' +
+                                'data-index="' + index + '" title="목록에서 제거">' +
+                            '<i class="fas fa-times"></i>' +
+                        '</button>' +
+                    '</div>'
+                );
             });
         }
 
-        function updateFileList(files) {
+        function updateFileList(files, source) {
+            let added = 0;
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
-                if (!uploadedFiles.some(f => f.name === file.name && f.size === file.size)) {
+                if (uploadedFiles.length >= MAX_FILES) {
+                    showNotification('warning', '첨부파일은 최대 ' + MAX_FILES + '개까지 추가할 수 있습니다.');
+                    break;
+                }
+                const dup = uploadedFiles.some(function (f) {
+                    return f.name === file.name && f.size === file.size;
+                });
+                if (!dup) {
+                    try {
+                        file.__source = source || 'pick';
+                    } catch (e) { /* File 확장 불가 환경 무시 */ }
                     uploadedFiles.push(file);
+                    added += 1;
                 }
             }
             renderFileList();
+
+            if (source === 'paste' && added > 0) {
+                dropZone.addClass('is-pulse');
+                setTimeout(function () { dropZone.removeClass('is-pulse'); }, 600);
+                showNotification('success', '붙여넣은 파일 ' + added + '개가 첨부 목록에 추가되었습니다.');
+            } else if (source === 'paste' && added === 0) {
+                showNotification('warning', '이미 추가된 파일입니다.');
+            }
+            return added;
         }
 
-        fileInput.on('change', function(e) {
+        renderFileList();
+
+        // 클릭 선택
+        fileInput.on('change', function (e) {
             const files = e.target.files;
-            if (files.length > 0) {
-                updateFileList(files);
-                fileInput.val(''); // Clear input to allow re-uploading same file
+            if (files && files.length > 0) {
+                updateFileList(files, 'pick');
+                fileInput.val('');
             }
         });
 
-        dropZone.on('click', function() {
+        dropZone.on('click', function (e) {
+            if ($(e.target).is('input')) return;
             fileInput.trigger('click');
         });
-
-        dropZone.on('dragover', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            dropZone.addClass('dragover');
-        });
-
-        dropZone.on('dragenter', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            dropZone.addClass('dragover');
-        });
-
-        dropZone.on('dragleave', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            dropZone.removeClass('dragover');
-        });
-
-        dropZone.on('drop', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            dropZone.removeClass('dragover');
-            const files = e.originalEvent.dataTransfer.files;
-            if (files.length > 0) {
-                updateFileList(files);
+        dropZone.on('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                fileInput.trigger('click');
             }
         });
 
-        $(document).on('click', '.remove-file-btn', function() {
-            const index = $(this).data('index');
+        // 드래그 앤 드롭
+        ['dragenter', 'dragover'].forEach(function (evt) {
+            dropZone.on(evt, function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.addClass('is-dragover');
+            });
+        });
+        dropZone.on('dragleave', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.originalEvent && e.originalEvent.relatedTarget &&
+                dropZone[0].contains(e.originalEvent.relatedTarget)) {
+                return;
+            }
+            dropZone.removeClass('is-dragover');
+        });
+        dropZone.on('drop', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.removeClass('is-dragover');
+            const files = e.originalEvent.dataTransfer.files;
+            if (files && files.length > 0) {
+                updateFileList(files, 'drop');
+            }
+        });
+
+        // 페이지 어디서든 Ctrl+V 붙여넣기
+        if (Attach && typeof Attach.bindPaste === 'function') {
+            Attach.bindPaste(function (files) {
+                updateFileList(files, 'paste');
+            });
+        }
+
+        $(document).on('click', '.remove-file-btn', function () {
+            const index = Number($(this).data('index'));
             uploadedFiles.splice(index, 1);
             renderFileList();
         });
 
-        $(document).on('click', '.delete-attachment-btn', function() {
+        // 기존 첨부 삭제 표시
+        $(document).on('click', '.delete-attachment-btn', function () {
             const attachmentId = $(this).data('attachment-id');
-            console.log('Adding attachment to delete:', attachmentId);
-            attachmentsToDelete.push(attachmentId);
+            if (attachmentId === undefined) return;
+            if (attachmentsToDelete.indexOf(attachmentId) === -1) {
+                attachmentsToDelete.push(attachmentId);
+            }
             attachmentsToDeleteInput.val(JSON.stringify(attachmentsToDelete));
-            console.log('Updated attachmentsToDelete:', attachmentsToDelete);
             $(this).closest('.attachment-item').remove();
+
+            if ($('#existing-attachments .attachment-item').length === 0) {
+                $('#existing-attachments').html('<p class="ke-att-empty">첨부된 파일이 없습니다.</p>');
+            }
         });
 
-        // Handle form submission
-        $('#editKnowledgeForm').on('submit', async function(e) {
+        // ===================== 저장 =====================
+        $('#editKnowledgeForm').on('submit', async function (e) {
             e.preventDefault();
 
+            const submitButtons = $(this).find('button[type="submit"]');
             const type = $('#type').val();
             const startDate = $('#start_date').val();
             const plannedDate = $('#planned_date').val();
             const requiredTypes = ['회의', '보고', '이슈'];
 
-            if (requiredTypes.includes(type)) {
+            if (!selectedCategoryIdInput.value) {
+                showNotification('warning', '분류를 선택해 주세요.');
+                return;
+            }
+
+            if (requiredTypes.indexOf(type) !== -1) {
                 if (!startDate) {
                     showNotification('warning', '시작일은 필수 입력 항목입니다.');
                     $('#start_date').focus();
@@ -304,66 +833,56 @@
             }
 
             const formData = new FormData(this);
-            uploadedFiles.forEach(file => {
+            uploadedFiles.forEach(function (file) {
                 formData.append('attachments', file);
             });
 
-            // Explicitly set attachments_to_delete
-            if (attachmentsToDelete.length > 0) {
-                const attachmentsToDeleteJson = JSON.stringify(attachmentsToDelete);
-                console.log('FormData attachments_to_delete:', attachmentsToDeleteJson);
-                formData.set('attachments_to_delete', attachmentsToDeleteJson);
-                attachmentsToDeleteInput.val(attachmentsToDeleteJson); // Ensure input is updated
-            } else {
-                formData.set('attachments_to_delete', '[]');
-                attachmentsToDeleteInput.val('[]');
-            }
+            formData.set('attachments_to_delete', JSON.stringify(attachmentsToDelete));
+            attachmentsToDeleteInput.val(JSON.stringify(attachmentsToDelete));
 
-            // Debug FormData contents
-            for (let [key, value] of formData.entries()) {
-                console.log(`FormData: ${key} =`, value);
-            }
+            submitButtons.prop('disabled', true);
 
             try {
-                const response = await fetch(`/knowledge/api/items/<%= item.id %>`, {
+                const response = await fetch('/knowledge/api/items/<%= item.id %>', {
                     method: 'PUT',
                     body: formData
                 });
 
-                const result = await response.json();
+                let result = {};
+                try { result = await response.json(); } catch (err) { result = {}; }
 
                 if (response.ok) {
                     showNotification('success', result.message || '지식 자료가 성공적으로 업데이트되었습니다.');
-                    setTimeout(() => {
-                        window.location.href = `/knowledge/detail/<%= item.id %>`;
-                    }, 1500);
+                    setTimeout(function () {
+                        window.location.href = '/knowledge/detail/<%= item.id %>';
+                    }, 1200);
                 } else {
+                    submitButtons.prop('disabled', false);
                     showNotification('error', result.message || '업데이트 중 오류가 발생했습니다.');
                 }
             } catch (error) {
+                submitButtons.prop('disabled', false);
                 console.error('Update error:', error);
                 showNotification('error', '지식 자료 업데이트 중 오류가 발생했습니다.');
             }
         });
 
-        // Handle delete knowledge item
-        window.deleteKnowledgeItem = async function(id) {
+        // ===================== 삭제 =====================
+        window.deleteKnowledgeItem = async function (id) {
             if (!confirm('이 지식 자료를 삭제하시겠습니까? 삭제된 데이터는 복구할 수 없습니다.')) {
                 return;
             }
 
             try {
-                const response = await fetch(`/knowledge/api/items/${id}`, {
-                    method: 'DELETE'
-                });
-
-                const result = await response.json();
+                const response = await fetch('/knowledge/api/items/' + id, { method: 'DELETE' });
+                let result = {};
+                try { result = await response.json(); } catch (err) { result = {}; }
 
                 if (response.ok) {
                     showNotification('success', result.message || '지식 자료가 성공적으로 삭제되었습니다.');
-                    setTimeout(() => {
+                    setTimeout(function () {
                         window.location.href = '/knowledge';
-                    }, 1500);
+                    }, 1200);
                 } else {
                     showNotification('error', result.message || '삭제 중 오류가 발생했습니다.');
                 }
