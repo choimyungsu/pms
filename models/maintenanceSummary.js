@@ -2,10 +2,106 @@ const pool = require('../config/db');
 const fs = require('fs');
 const path = require('path');
 
+/* ------------------------------------------------------------------ */
+/* tb_maintenance_summary 컬럼 정보 (1회 캐시)                          */
+/* ------------------------------------------------------------------ */
+
+const SUMMARY_COLUMN_CACHE = { meta: null };
+
+async function getSummaryColumnMeta() {
+    if (SUMMARY_COLUMN_CACHE.meta) return SUMMARY_COLUMN_CACHE.meta;
+    const [rows] = await pool.query(
+        `SELECT LOWER(COLUMN_NAME) AS name, LOWER(DATA_TYPE) AS type
+           FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'tb_maintenance_summary'`
+    );
+    const meta = new Map();
+    rows.forEach((r) => meta.set(r.name, r.type));
+    SUMMARY_COLUMN_CACHE.meta = meta;
+    return meta;
+}
+
+// 날짜/숫자 컬럼에 빈 문자열을 넣으면 오류가 나므로 NULL 로 바꿔야 하는 타입
+const EMPTY_TO_NULL_TYPES = new Set([
+    'date', 'datetime', 'timestamp',
+    'int', 'bigint', 'smallint', 'tinyint', 'mediumint',
+    'decimal', 'float', 'double'
+]);
+
+// 폼으로 넘어와도 절대 갱신하면 안 되는 컬럼
+const PROTECTED_COLUMNS = new Set(['id', 'created_at', 'updated_at']);
+
+function isNonScalar(value) {
+    return value !== null && typeof value === 'object' && !(value instanceof Date);
+}
+
+/**
+ * `SET ?` 로 넘길 데이터 정리
+ *
+ *  - 테이블에 실제로 존재하는 컬럼만 남깁니다. (DB 버전에 따라 cost 등이 없을 수 있음)
+ *  - **배열 / 객체 값은 제외합니다.**
+ *    폼의 `item_names[]`, `manufacturers[]`, `item_versions[]`, `item_details[]` 는
+ *    qs 파서(extended: true)에서 각각 `item_names`, `manufacturers`, `item_versions`,
+ *    `item_details` 라는 **배열**이 됩니다.
+ *    이 값을 `SET ?` 에 그대로 넘기면 mysql2 가
+ *      `manufacturers` = 'a', 'b', 'c'
+ *    처럼 콤마로 전개하여 SQL 문법 오류(ER_PARSE_ERROR)가 발생합니다.
+ *  - 날짜/숫자 컬럼의 빈 문자열은 NULL 로 변환합니다.
+ */
+async function sanitizeSummaryData(data) {
+    const meta = await getSummaryColumnMeta();
+    const clean = {};
+    const skipped = [];
+
+    Object.keys(data || {}).forEach((rawKey) => {
+        const key = String(rawKey).toLowerCase();
+        const type = meta.get(key);
+
+        // 테이블에 없는 컬럼 (예: item_names, manufacturers, item_versions) → 제외
+        if (!type) {
+            skipped.push(rawKey);
+            return;
+        }
+
+        // PK / 생성·수정 시각은 폼 값으로 덮어쓰지 않음
+        if (PROTECTED_COLUMNS.has(key)) {
+            skipped.push(rawKey);
+            return;
+        }
+
+        let value = data[rawKey];
+
+        // 배열 / 객체 → 제외 (SQL 전개 방지)
+        if (isNonScalar(value)) {
+            skipped.push(rawKey);
+            return;
+        }
+
+        if (value === undefined) value = null;
+        if (value === '' && EMPTY_TO_NULL_TYPES.has(type)) value = null;
+
+        clean[key] = value;
+    });
+
+    if (skipped.length > 0) {
+        console.warn('[maintenanceSummary] 저장 대상에서 제외된 필드:', skipped.join(', '));
+    }
+
+    return clean;
+}
+
 const MaintenanceSummary = {
     pool: pool,
+    getSummaryColumnMeta: getSummaryColumnMeta,
+    sanitizeSummaryData: sanitizeSummaryData,
+
     async create(data) {
-        const [result] = await pool.query('INSERT INTO tb_maintenance_summary SET ?', data);
+        const clean = await sanitizeSummaryData(data);
+        if (Object.keys(clean).length === 0) {
+            throw new Error('저장할 수 있는 항목이 없습니다.');
+        }
+        const [result] = await pool.query('INSERT INTO tb_maintenance_summary SET ?', clean);
         return result.insertId;
     },
 
@@ -131,7 +227,12 @@ const MaintenanceSummary = {
     },
 
     async update(id, data) {
-        const [result] = await pool.query('UPDATE tb_maintenance_summary SET ? WHERE id = ?', [data, id]);
+        const clean = await sanitizeSummaryData(data);
+        if (Object.keys(clean).length === 0) {
+            // 변경할 항목이 없으면 아무 것도 하지 않음 (SQL 문법 오류 방지)
+            return 0;
+        }
+        const [result] = await pool.query('UPDATE tb_maintenance_summary SET ? WHERE id = ?', [clean, id]);
         return result.affectedRows;
     },
 
@@ -147,5 +248,29 @@ const MaintenanceSummary = {
         return result.affectedRows;
     }
 };
+
+// 폼 배열 필드명 (qs 파서에서 배열이 되는 키들)
+//  - item_names[] / manufacturers[] / item_versions[] / item_details[]
+//  - extended: true 파서는 대괄호를 제거해 item_names, manufacturers ... 가 됩니다.
+const ITEM_FORM_KEYS = new Set([
+    'item_names', 'manufacturers', 'item_versions', 'item_details',
+    'item_names[]', 'manufacturers[]', 'item_versions[]', 'item_details[]'
+]);
+
+/**
+ * 요청 본문에서 tb_maintenance_summary 로 저장하면 안 되는 키를 제거합니다.
+ * (품목 정보는 tb_maintenance_summary_items 에 별도 저장)
+ */
+function stripItemFields(body) {
+    const out = {};
+    Object.keys(body || {}).forEach((key) => {
+        if (ITEM_FORM_KEYS.has(key)) return;
+        out[key] = body[key];
+    });
+    return out;
+}
+
+MaintenanceSummary.ITEM_FORM_KEYS = ITEM_FORM_KEYS;
+MaintenanceSummary.stripItemFields = stripItemFields;
 
 module.exports = MaintenanceSummary;

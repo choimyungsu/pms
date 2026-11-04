@@ -47,12 +47,17 @@ exports.getCreateSummaryPage = (req, res) => {
 // 요약 정보 생성
 exports.createSummary = async (req, res) => {
     try {
-        const { cost, items, item_names, item_details, ...otherData } = req.body;
+        // 품목 관련 폼 필드(item_names[], manufacturers[], item_versions[], item_details[])는
+        // tb_maintenance_summary_items 에 따로 저장하므로 요약 테이블 데이터에서 제거합니다.
+        // (배열 그대로 UPDATE/INSERT ... SET ? 에 넘기면 mysql2 가 콤마로 전개해 SQL 문법 오류 발생)
+        const body = MaintenanceSummary.stripItemFields(req.body);
+        const { cost, items, ...otherData } = body;
+
         const summaryData = {
             ...otherData,
             creator_id: req.session.user.id
         };
-        
+
         // Only admin can set cost
         if (req.session.user.role === 'admin' && cost) {
             summaryData.cost = cost;
@@ -162,7 +167,11 @@ exports.getEditSummaryPage = async (req, res) => {
 exports.updateSummary = async (req, res) => {
     try {
         const { id } = req.params;
-        const { attachments_to_delete, cost, items, item_names, item_details, remarks, ...otherData } = req.body;
+        // 품목 폼 필드(item_names[], manufacturers[], item_versions[], item_details[])는
+        // 배열로 파싱되므로 요약 테이블 UPDATE 대상에서 반드시 제거해야 합니다.
+        // (배열을 SET ? 에 넘기면 mysql2 가 콤마로 전개 → ER_PARSE_ERROR)
+        const body = MaintenanceSummary.stripItemFields(req.body);
+        const { attachments_to_delete, cost, items, remarks, ...otherData } = body;
         const summary = await MaintenanceSummary.findById(id);
 
         if (!summary) {
@@ -178,10 +187,6 @@ exports.updateSummary = async (req, res) => {
         if (isAdmin || isOpsManager || isCreator) {
             // Full update allowed for these roles
             summaryData = { ...otherData, remarks };
-            
-            // Remove item_names and item_details if they leaked into otherData
-            delete summaryData['item_names[]'];
-            delete summaryData['item_details[]'];
 
             // Only admin can set cost
             if (isAdmin) {
