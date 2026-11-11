@@ -1,6 +1,31 @@
 const bcrypt = require('bcryptjs');
 const db = require('../config/db');
 
+/**
+ * tb_user.team 컬럼 존재 여부 확인 (DB 스키마 버전 차이 대응)
+ *  - 운영/개발 DB 중에는 team 컬럼이 없는 경우가 있으므로
+ *    컬럼이 있을 때만 조회하고, 없으면 부서명 기준으로 팀을 구성한다.
+ *  - information_schema 조회는 1회만 수행하고 결과를 캐시한다.
+ */
+let userTeamColumnCache = null;
+const hasUserTeamColumn = async () => {
+    if (userTeamColumnCache !== null) return userTeamColumnCache;
+    try {
+        const [rows] = await db.query(
+            `SELECT COUNT(*) AS cnt
+               FROM information_schema.COLUMNS
+              WHERE TABLE_SCHEMA = DATABASE()
+                AND TABLE_NAME = 'tb_user'
+                AND COLUMN_NAME = 'team'`
+        );
+        userTeamColumnCache = Number(rows[0] && rows[0].cnt) > 0;
+    } catch (err) {
+        console.warn('[tech-status] tb_user.team 컬럼 확인 실패:', err.code || err.message);
+        userTeamColumnCache = false;
+    }
+    return userTeamColumnCache;
+};
+
 // 기술본부 현황 페이지 렌더링
 exports.getTechStatusPage = async (req, res) => {
     try {
@@ -80,12 +105,29 @@ exports.getTechStatusPage = async (req, res) => {
         }
 
                 const [users] = await db.query(`
-                    SELECT u.id, u.name, u.team, u.department_id, d.text AS department_name
+                    SELECT u.id, u.name, u.department_id, d.text AS department_name
                     FROM tb_user u
                     LEFT JOIN tb_dept d ON u.department_id = d.id
                     WHERE d.text LIKE '%기술%' AND u.is_resigned = 0
                     ORDER BY u.name
                 `);
+
+                // tb_user.team 컬럼은 DB 버전에 따라 없을 수 있으므로
+                // 존재할 때만 추가 조회한다. (없으면 부서명 기준으로 팀을 구성)
+                if (await hasUserTeamColumn()) {
+                    try {
+                        const [teamRows] = await db.query(
+                            'SELECT id, team FROM tb_user WHERE is_resigned = 0'
+                        );
+                        const teamById = new Map(teamRows.map((row) => [row.id, row.team]));
+                        users.forEach((user) => {
+                            user.team = teamById.has(user.id) ? teamById.get(user.id) : null;
+                        });
+                    } catch (teamErr) {
+                        console.warn('[tech-status] tb_user.team 조회 실패(무시):', teamErr.code || teamErr.message);
+                    }
+                }
+
                 const techUserIds = users.map(u => u.id);
         
                 let schedules = [];
