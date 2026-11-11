@@ -80,7 +80,7 @@ exports.getTechStatusPage = async (req, res) => {
         }
 
                 const [users] = await db.query(`
-                    SELECT u.id, u.name, u.department_id, d.text AS department_name
+                    SELECT u.id, u.name, u.team, u.department_id, d.text AS department_name
                     FROM tb_user u
                     LEFT JOIN tb_dept d ON u.department_id = d.id
                     WHERE d.text LIKE '%기술%' AND u.is_resigned = 0
@@ -215,6 +215,7 @@ exports.getTechStatusPage = async (req, res) => {
         //    기술본부 인원(tb_user.name)과 매칭합니다.
         let engineerSkills = [];
         let unmatchedEngineers = [];
+        let teamSkillCards = [];
         let skillTotals = { engineers: 0, records: 0, skills: 0, manufacturers: 0 };
         let companyAnalysis = {
             totals: { records: 0, activeRecords: 0, manufacturers: 0, items: 0, models: 0, customers: 0 },
@@ -255,11 +256,21 @@ exports.getTechStatusPage = async (req, res) => {
             const memberByKey = new Map();
             resourceMembers.forEach((member) => memberByKey.set(nameKey(member.name), member));
 
+            // 팀 구분: tb_user.team(직접 지정) → 소속 부서명 → '기술본부'
+            const resolveTeam = (member) => {
+                const byTeam = norm(member.team);
+                if (byTeam) return byTeam;
+                const byDept = norm(member.department_name);
+                if (byDept) return byDept;
+                return '기술본부';
+            };
+
             const skillByMember = new Map();
             resourceMembers.forEach((member) => {
                 skillByMember.set(member.id, {
                     id: member.id,
                     name: member.name,
+                    team: resolveTeam(member),
                     departmentName: member.department_name || '기술본부',
                     totalCount: 0,
                     mainCount: 0,
@@ -344,6 +355,7 @@ exports.getTechStatusPage = async (req, res) => {
                 return {
                     id: bucket.id,
                     name: bucket.name,
+                    team: bucket.team,
                     departmentName: bucket.departmentName,
                     totalCount: bucket.totalCount,
                     mainCount: bucket.mainCount,
@@ -354,6 +366,57 @@ exports.getTechStatusPage = async (req, res) => {
                     skills
                 };
             }).sort((a, b) => (b.totalCount - a.totalCount) || a.name.localeCompare(b.name, 'ko'));
+
+            /* ---------- 1-2) 팀별 스킬 보유 카드 ---------- */
+            // 기술본부 인원을 팀 단위로 묶어, 팀 카드 안에서
+            // "누가 어떤 제조사/품목/모델 스킬을 보유하는지" 를 한눈에 보여준다.
+            const teamMap = new Map();
+            engineerSkills.forEach((engineer) => {
+                const teamName = engineer.team || '기술본부';
+                if (!teamMap.has(teamName)) {
+                    teamMap.set(teamName, {
+                        team: teamName,
+                        members: [],
+                        memberCount: 0,
+                        skillMemberCount: 0,
+                        totalCount: 0,
+                        mainCount: 0,
+                        subCount: 0,
+                        skillCount: 0,
+                        manufacturers: new Set(),
+                        items: new Set(),
+                        models: new Set()
+                    });
+                }
+                const teamEntry = teamMap.get(teamName);
+                teamEntry.members.push(engineer);
+                teamEntry.memberCount += 1;
+                if (engineer.skillCount > 0) teamEntry.skillMemberCount += 1;
+                teamEntry.totalCount += engineer.totalCount;
+                teamEntry.mainCount += engineer.mainCount;
+                teamEntry.subCount += engineer.subCount;
+                teamEntry.skillCount += engineer.skillCount;
+                engineer.manufacturers.forEach((m) => teamEntry.manufacturers.add(m));
+                engineer.items.forEach((i) => teamEntry.items.add(i));
+                engineer.skills.forEach((s) => teamEntry.models.add(s.model));
+            });
+
+            teamSkillCards = Array.from(teamMap.values())
+                .map((entry) => ({
+                    team: entry.team,
+                    memberCount: entry.memberCount,
+                    skillMemberCount: entry.skillMemberCount,
+                    totalCount: entry.totalCount,
+                    mainCount: entry.mainCount,
+                    subCount: entry.subCount,
+                    skillCount: entry.skillCount,
+                    manufacturers: Array.from(entry.manufacturers).sort((a, b) => a.localeCompare(b, 'ko')),
+                    items: Array.from(entry.items).sort((a, b) => a.localeCompare(b, 'ko')),
+                    models: Array.from(entry.models).sort((a, b) => a.localeCompare(b, 'ko')),
+                    members: entry.members.slice().sort((a, b) =>
+                        (b.skillCount - a.skillCount) || a.name.localeCompare(b.name, 'ko'))
+                }))
+                .sort((a, b) => (b.skillCount - a.skillCount) || a.team.localeCompare(b.team, 'ko'));
 
             unmatchedEngineers = Array.from(unmatched.values())
                 .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ko'));
@@ -528,6 +591,7 @@ exports.getTechStatusPage = async (req, res) => {
             resourceProjects: Object.values(projectMap),
             teamSummary: Object.values(teamSummary),
             engineerSkills,
+            teamSkillCards,
             unmatchedEngineers,
             skillTotals,
             companyAnalysis,
