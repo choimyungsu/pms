@@ -443,6 +443,13 @@ exports.getTechStatusPage = async (req, res) => {
                 engineer.skills.forEach((s) => teamEntry.models.add(s.model));
             });
 
+            /* 팀 카드 정렬 기준: 기술1팀 → 기술2팀 → 기술3팀 → 기타(가나다순) */
+            const TEAM_RANK = { '기술1팀': 1, '기술2팀': 2, '기술3팀': 3 };
+            const teamRank = (name) => {
+                const key = String(name == null ? '' : name).replace(/\s+/g, '');
+                return TEAM_RANK[key] || 99;
+            };
+
             teamSkillCards = Array.from(teamMap.values())
                 .map((entry) => ({
                     team: entry.team,
@@ -458,7 +465,7 @@ exports.getTechStatusPage = async (req, res) => {
                     members: entry.members.slice().sort((a, b) =>
                         (b.skillCount - a.skillCount) || a.name.localeCompare(b.name, 'ko'))
                 }))
-                .sort((a, b) => (b.skillCount - a.skillCount) || a.team.localeCompare(b.team, 'ko'));
+                .sort((a, b) => (teamRank(a.team) - teamRank(b.team)) || a.team.localeCompare(b.team, 'ko'));
 
             unmatchedEngineers = Array.from(unmatched.values())
                 .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ko'));
