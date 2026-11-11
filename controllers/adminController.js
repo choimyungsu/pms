@@ -259,6 +259,8 @@ exports.getTechStatusPage = async (req, res) => {
         let unmatchedEngineers = [];
         let teamSkillCards = [];
         let skillTotals = { engineers: 0, records: 0, skills: 0, manufacturers: 0 };
+        // 부서(tb_dept.text)와 지정팀(tb_user.team)이 서로 다른 인원 목록
+        let teamConflicts = [];
         let companyAnalysis = {
             totals: { records: 0, activeRecords: 0, manufacturers: 0, items: 0, models: 0, customers: 0 },
             manufacturers: [],
@@ -298,21 +300,74 @@ exports.getTechStatusPage = async (req, res) => {
             const memberByKey = new Map();
             resourceMembers.forEach((member) => memberByKey.set(nameKey(member.name), member));
 
-            // 팀 구분: tb_user.team(직접 지정) → 소속 부서명 → '기술본부'
+            /* ---------- 팀 판정 ---------- */
+            // 팀명 표기 흔들림('기술 2팀', ' 기술2팀 ')을 하나로 합친다.
+            //  - 이 정규화를 하지 않으면 같은 rank 의 카드가 2개로 쪼개지거나
+            //    엉뚱한 카드에 인원이 섞여 보인다.
+            const KNOWN_TEAMS = { '기술1팀': '기술1팀', '기술2팀': '기술2팀', '기술3팀': '기술3팀' };
+            const canonicalTeam = (value) => {
+                const raw = norm(value);
+                if (!raw) return '';
+                const compact = raw.replace(/\s+/g, '');
+                if (KNOWN_TEAMS[compact]) return KNOWN_TEAMS[compact];
+                return raw.replace(/\s+/g, ' ');
+            };
+            const isSpecificTeam = (name) => /^기술[123]팀$/.test(name);
+
+            // 팀 판정 우선순위
+            //   1) 부서(tb_dept.text)가 '기술N팀' 이면 → 부서를 신뢰 (다른 화면/엑셀과 기준 일치)
+            //   2) 부서가 '기술본부' 같은 상위 조직이면 → tb_user.team 지정값 사용
+            //   3) 둘 다 없으면 → 부서명 → '기술본부'
+            //  기존에는 tb_user.team 을 무조건 우선해서, team 값이 낡아 있거나
+            //  부서와 다르면 다른 팀 카드에 섞여 들어가는 문제가 있었다.
             const resolveTeam = (member) => {
-                const byTeam = norm(member.team);
-                if (byTeam) return byTeam;
-                const byDept = norm(member.department_name);
-                if (byDept) return byDept;
-                return '기술본부';
+                const byDept = canonicalTeam(member.department_name);
+                const byTeam = canonicalTeam(member.team);
+
+                if (isSpecificTeam(byDept)) {
+                    return {
+                        team: byDept,
+                        source: 'dept',
+                        conflict: byTeam && byTeam !== byDept ? byTeam : null
+                    };
+                }
+                if (byTeam) {
+                    // 부서가 '기술본부' 같은 상위 조직이고 하위 팀을 team 컬럼으로
+                    // 지정한 경우는 정상 설정이므로 충돌로 보지 않는다.
+                    return {
+                        team: byTeam,
+                        source: 'team',
+                        conflict: null
+                    };
+                }
+                return {
+                    team: byDept || '기술본부',
+                    source: byDept ? 'dept' : 'default',
+                    conflict: null
+                };
             };
 
             const skillByMember = new Map();
             resourceMembers.forEach((member) => {
+                const resolved = resolveTeam(member);
+                const rawDept = norm(member.department_name);
+                const rawTeam = norm(member.team);
+                if (resolved.conflict) {
+                    teamConflicts.push({
+                        id: member.id,
+                        name: member.name,
+                        dept: rawDept || '-',
+                        team: rawTeam || '-',
+                        resolved: resolved.team,
+                        source: resolved.source
+                    });
+                }
                 skillByMember.set(member.id, {
                     id: member.id,
                     name: member.name,
-                    team: resolveTeam(member),
+                    team: resolved.team,
+                    teamSource: resolved.source,
+                    teamConflict: resolved.conflict,
                     departmentName: member.department_name || '기술본부',
                     totalCount: 0,
                     mainCount: 0,
@@ -420,6 +475,8 @@ exports.getTechStatusPage = async (req, res) => {
                     id: bucket.id,
                     name: bucket.name,
                     team: bucket.team,
+                    teamSource: bucket.teamSource,
+                    teamConflict: bucket.teamConflict,
                     departmentName: bucket.departmentName,
                     totalCount: bucket.totalCount,
                     mainCount: bucket.mainCount,
@@ -440,7 +497,9 @@ exports.getTechStatusPage = async (req, res) => {
             //   - 모델 단위 상세는 위의 "엔지니어 스킬 보유 현황"에서 확인한다.
             const teamMap = new Map();
             engineerSkills.forEach((engineer) => {
-                const teamName = engineer.team || '기술본부';
+                // 카드 묶음 키도 정규화된 팀명을 사용한다.
+                //  ('기술 2팀' / '기술2팀' 이 서로 다른 카드로 쪼개지지 않도록)
+                const teamName = canonicalTeam(engineer.team) || '기술본부';
                 if (!teamMap.has(teamName)) {
                     teamMap.set(teamName, {
                         team: teamName,
@@ -451,12 +510,20 @@ exports.getTechStatusPage = async (req, res) => {
                         mainCount: 0,
                         subCount: 0,
                         skillCount: 0,
+                        conflicts: [],
                         manufacturers: new Set(),
                         items: new Set(),
                         pairs: new Map()
                     });
                 }
                 const teamEntry = teamMap.get(teamName);
+                if (engineer.teamConflict) {
+                    teamEntry.conflicts.push({
+                        name: engineer.name,
+                        dept: engineer.departmentName || '-',
+                        team: engineer.teamConflict
+                    });
+                }
                 teamEntry.members.push(engineer);
                 teamEntry.memberCount += 1;
                 if (engineer.skillCount > 0) teamEntry.skillMemberCount += 1;
@@ -521,6 +588,8 @@ exports.getTechStatusPage = async (req, res) => {
                         subCount: entry.subCount,
                         // 카드에서는 모델 단위를 쓰지 않고 제조사·품목 조합 수만 노출한다.
                         pairCount: pairs.length,
+                        // 부서 ≠ 지정팀 인원 (카드에서 경고로 표시)
+                        conflicts: entry.conflicts || [],
                         manufacturers: Array.from(entry.manufacturers).sort((a, b) => a.localeCompare(b, 'ko')),
                         items: Array.from(entry.items).sort((a, b) => a.localeCompare(b, 'ko')),
                         pairs,
@@ -683,6 +752,8 @@ exports.getTechStatusPage = async (req, res) => {
             console.warn('[tech-status] 기술본부 스킬 분석 집계 실패:', err.code || err.message);
             engineerSkills = [];
             unmatchedEngineers = [];
+            teamSkillCards = [];
+            teamConflicts = [];
         }
         // --- 기술본부 스킬 분석 종료 ---
 
@@ -704,6 +775,7 @@ exports.getTechStatusPage = async (req, res) => {
             teamSummary: Object.values(teamSummary),
             engineerSkills,
             teamSkillCards,
+            teamConflicts,
             unmatchedEngineers,
             skillTotals,
             companyAnalysis,
