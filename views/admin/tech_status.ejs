@@ -276,7 +276,7 @@
         color: #b3bdcb;
     }
 
-    /* ---- 팀별 스킬 보유 카드 ---- */
+    /* ---- 팀별 스킬 보유 카드 (사람 기준) ---- */
     /* Bootstrap 5.3 의 .text-muted 는 --bs-secondary-color 를 사용하므로
        다크모드에서 대시보드 범위만 밝은 회색으로 재정의한다. */
     .dark-mode .tech-dashboard { --bs-secondary-color: #a9b4c2; }
@@ -284,104 +284,142 @@
 
     .tech-dashboard .tm-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
         gap: .85rem;
     }
     .tech-dashboard .tm-card {
+        --tm-accent: #7a8494; --tm-soft: #f1f3f6; --tm-soft-ink: #5d6673;
         border: 1px solid var(--line);
-        border-top: 3px solid #2a9d8f;
+        border-top: 4px solid var(--tm-accent);
         border-radius: 8px;
         background: #fff;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
+        display: flex; flex-direction: column; overflow: hidden;
     }
+    /* 팀 구분 색상: 기술1팀(파랑) / 기술2팀(청록) / 기술3팀(주황) / 기타(회색) */
+    .tech-dashboard .tm-card.r1 { --tm-accent: #2f6bbd; --tm-soft: #eaf1fb; --tm-soft-ink: #2c5687; }
+    .tech-dashboard .tm-card.r2 { --tm-accent: #2a9d8f; --tm-soft: #e3f2ec; --tm-soft-ink: #1c6b55; }
+    .tech-dashboard .tm-card.r3 { --tm-accent: #b87333; --tm-soft: #fdf0df; --tm-soft-ink: #8a5b00; }
+    .tech-dashboard .tm-card.r0 { --tm-accent: #7a8494; --tm-soft: #f1f3f6; --tm-soft-ink: #5d6673; }
+
     .tech-dashboard .tm-card-head {
-        padding: .7rem .85rem .55rem;
+        padding: .7rem .85rem .6rem;
         border-bottom: 1px solid var(--line);
         background: #fbfcfd;
     }
-    .tech-dashboard .tm-team-row {
-        display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
+    .tech-dashboard .tm-team-row { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
+    .tech-dashboard .tm-team-rank {
+        width: 1.4rem; height: 1.4rem; border-radius: 50%;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: .72rem; font-weight: 800; color: #fff; line-height: 1;
+        background: var(--tm-accent); flex: 0 0 auto;
     }
     .tech-dashboard .tm-team-name {
-        font-size: .95rem; font-weight: 700; color: var(--ink); margin: 0;
+        font-size: .98rem; font-weight: 800; color: var(--ink); margin: 0;
+        letter-spacing: -.01em;
     }
     .tech-dashboard .tm-team-count {
         font-size: .7rem; font-weight: 700; border-radius: 1rem;
-        padding: .1rem .45rem; background: #e3f2ec; color: #1c6b55;
+        padding: .1rem .45rem; background: var(--tm-soft); color: var(--tm-soft-ink);
+        border: 1px solid var(--tm-soft);
     }
     .tech-dashboard .tm-team-kpi {
-        display: flex; gap: .75rem; margin-top: .3rem;
+        display: flex; gap: .7rem; margin-top: .32rem;
         font-size: .74rem; color: var(--muted); flex-wrap: wrap;
     }
     .tech-dashboard .tm-team-kpi b { color: var(--ink); }
 
-    .tech-dashboard .tm-chip-row {
-        display: flex; flex-wrap: wrap; gap: .3rem;
-        padding: .5rem .85rem; border-bottom: 1px solid var(--line);
-        background: #f8fafc;
-    }
-    .tech-dashboard .tm-chip {
-        font-size: .69rem; font-weight: 600; border-radius: .3rem;
-        padding: .1rem .4rem; background: #eaf1fb; color: #2c5687; white-space: nowrap;
-    }
-    .tech-dashboard .tm-chip-more { background: #f1f3f6; color: #7a8494; }
-
-    .tech-dashboard .tm-member-badge {
+    .tech-dashboard .tm-person-badge {
         font-size: .66rem; font-weight: 700; border-radius: 1rem; padding: .08rem .42rem;
+        white-space: nowrap;
     }
-    .tech-dashboard .tm-member-badge.has { background: #e3f2ec; color: #1c6b55; }
-    .tech-dashboard .tm-member-badge.none { background: #f1f3f6; color: #7a8494; }
+    .tech-dashboard .tm-person-badge.has { background: var(--tm-soft); color: var(--tm-soft-ink); }
+    .tech-dashboard .tm-person-badge.none { background: #f1f3f6; color: #7a8494; }
 
-    .tech-dashboard .tm-pairs {
-        padding: .5rem .85rem .7rem;
-        display: flex; flex-direction: column; gap: .1rem;
-        flex: 1 1 auto;
+    .tech-dashboard .tm-people {
+        padding: .3rem .85rem .7rem;
+        display: flex; flex-direction: column; flex: 1 1 auto;
     }
-    .tech-dashboard .tm-pair {
-        display: flex; align-items: baseline; gap: .4rem; flex-wrap: wrap;
-        font-size: .76rem; line-height: 1.4;
-        padding: .26rem 0; border-bottom: 1px dashed #eceff4;
+    .tech-dashboard .tm-person { padding: .5rem 0; border-bottom: 1px dashed #eceff4; }
+    .tech-dashboard .tm-person:last-child { border-bottom: 0; padding-bottom: .1rem; }
+    .tech-dashboard .tm-person-top {
+        display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
     }
-    .tech-dashboard .tm-pair:last-child { border-bottom: 0; }
-    .tech-dashboard .tm-skill-mfr { font-weight: 700; color: #2c5687; }
-    .tech-dashboard .tm-pair-item { color: #35506e; font-weight: 600; }
-    .tech-dashboard .tm-pair-meta {
-        margin-left: auto; display: flex; align-items: baseline; gap: .4rem;
-        font-size: .71rem; color: var(--muted); white-space: nowrap;
+    .tech-dashboard .tm-person-name { font-size: .85rem; font-weight: 700; color: var(--ink); }
+    .tech-dashboard .tm-person-meta {
+        margin-left: auto; font-size: .72rem; color: var(--muted); white-space: nowrap;
     }
-    .tech-dashboard .tm-pair-count { font-weight: 700; color: var(--ink); }
-    .tech-dashboard .tm-pair-role { font-size: .69rem; }
-    .tech-dashboard .tm-pair-role.main { color: #1b5fa8; font-weight: 700; }
-    .tech-dashboard .tm-pair-role.sub { color: #6a55b8; font-weight: 700; }
-    .tech-dashboard .tm-pair-holders {
-        max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        color: #8a94a6;
+    .tech-dashboard .tm-person-meta b { color: var(--ink); }
+
+    .tech-dashboard .tm-person-pairs {
+        display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .3rem;
     }
-    .tech-dashboard .tm-no-skill { font-size: .73rem; color: #a9b1bc; font-style: italic; }
+    .tech-dashboard .tm-skilltag {
+        font-size: .71rem; line-height: 1.35; border-radius: .3rem;
+        padding: .1rem .42rem; background: #eef4fb; color: #35506e;
+        border: 1px solid #e0eaf6; white-space: nowrap;
+    }
+    .tech-dashboard .tm-skilltag b { color: #2c5687; font-weight: 700; }
+    .tech-dashboard .tm-skilltag-more { background: #f1f3f6; color: #7a8494; border-color: #e7eaef; }
+    .tech-dashboard .tm-person-empty {
+        font-size: .73rem; color: #a9b1bc; font-style: italic; margin-top: .2rem;
+    }
     .tech-dashboard .tm-empty { padding: 1.4rem; text-align: center; color: #a9b1bc; font-size: .82rem; }
 
     .dark-mode .tech-dashboard .tm-card { background: #333; border-color: #474747; }
+    .dark-mode .tech-dashboard .tm-card.r1 { --tm-soft: #24344b; --tm-soft-ink: #a9c9ee; }
+    .dark-mode .tech-dashboard .tm-card.r2 { --tm-soft: #24493f; --tm-soft-ink: #8fd8bd; }
+    .dark-mode .tech-dashboard .tm-card.r3 { --tm-soft: #4a3a24; --tm-soft-ink: #e0c288; }
+    .dark-mode .tech-dashboard .tm-card.r0 { --tm-soft: #3a3a3a; --tm-soft-ink: #9aa5b4; }
     .dark-mode .tech-dashboard .tm-card-head { background: #3a3a3a; border-bottom-color: #474747; }
     .dark-mode .tech-dashboard .tm-team-name { color: #e8ecf2; }
-    .dark-mode .tech-dashboard .tm-team-count { background: #24493f; color: #8fd8bd; }
     .dark-mode .tech-dashboard .tm-team-kpi { color: #a9b4c2; }
     .dark-mode .tech-dashboard .tm-team-kpi b { color: #e8ecf2; }
-    .dark-mode .tech-dashboard .tm-chip-row { background: #2e2e2e; border-bottom-color: #474747; }
-    .dark-mode .tech-dashboard .tm-chip { background: #2f4159; color: #a9c9ee; }
-    .dark-mode .tech-dashboard .tm-chip-more { background: #3a3a3a; color: #9aa5b4; }
-    .dark-mode .tech-dashboard .tm-member-badge.has { background: #24493f; color: #8fd8bd; }
-    .dark-mode .tech-dashboard .tm-member-badge.none { background: #3a3a3a; color: #9aa5b4; }
-    .dark-mode .tech-dashboard .tm-pair { border-bottom-color: #454545; }
-    .dark-mode .tech-dashboard .tm-skill-mfr { color: #9cc4ef; }
-    .dark-mode .tech-dashboard .tm-pair-item { color: #b9c8d8; }
-    .dark-mode .tech-dashboard .tm-pair-meta { color: #a9b4c2; }
-    .dark-mode .tech-dashboard .tm-pair-count { color: #e8ecf2; }
-    .dark-mode .tech-dashboard .tm-pair-role.main { color: #7db4f0; }
-    .dark-mode .tech-dashboard .tm-pair-role.sub { color: #a99ae8; }
-    .dark-mode .tech-dashboard .tm-pair-holders { color: #8b95a4; }
-    .dark-mode .tech-dashboard .tm-no-skill { color: #6b7785; }
+    .dark-mode .tech-dashboard .tm-person { border-bottom-color: #454545; }
+    .dark-mode .tech-dashboard .tm-person-name { color: #e8ecf2; }
+    .dark-mode .tech-dashboard .tm-person-meta { color: #a9b4c2; }
+    .dark-mode .tech-dashboard .tm-person-meta b { color: #e8ecf2; }
+    .dark-mode .tech-dashboard .tm-person-badge.none { background: #3a3a3a; color: #9aa5b4; }
+    .dark-mode .tech-dashboard .tm-skilltag { background: #2f4159; color: #b9c8d8; border-color: #3a5070; }
+    .dark-mode .tech-dashboard .tm-skilltag b { color: #9cc4ef; }
+    .dark-mode .tech-dashboard .tm-skilltag-more { background: #3a3a3a; color: #9aa5b4; border-color: #474747; }
+    .dark-mode .tech-dashboard .tm-person-empty { color: #6b7785; }
+
+    /* ---- 팀 구분 범례 (팀이 2개 이상일 때 표시) ---- */
+    .tech-dashboard .tm-legend {
+        display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
+        padding: .45rem .6rem; margin-bottom: .8rem;
+        border: 1px solid var(--line); border-radius: 8px; background: #fbfcfd;
+    }
+    .tech-dashboard .tm-legend-label {
+        font-size: .73rem; font-weight: 700; color: var(--muted); margin-right: .15rem;
+    }
+    .tech-dashboard .tm-legend-item {
+        display: inline-flex; align-items: center; gap: .3rem;
+        font-size: .74rem; font-weight: 700; color: #35506e;
+        border-radius: 1rem; padding: .1rem .5rem;
+        background: #f1f3f6; border: 1px solid #e7eaef;
+    }
+    .tech-dashboard .tm-legend-item b {
+        font-weight: 700; color: var(--muted); font-size: .69rem;
+    }
+    .tech-dashboard .tm-legend-dot {
+        width: .5rem; height: .5rem; border-radius: 50%;
+        background: #7a8494; display: inline-block; flex: 0 0 auto;
+    }
+    .tech-dashboard .tm-legend-r1 { background: #eaf1fb; border-color: #d6e4f5; color: #2c5687; }
+    .tech-dashboard .tm-legend-r1 .tm-legend-dot { background: #2f6bbd; }
+    .tech-dashboard .tm-legend-r2 { background: #e3f2ec; border-color: #cbe6db; color: #1c6b55; }
+    .tech-dashboard .tm-legend-r2 .tm-legend-dot { background: #2a9d8f; }
+    .tech-dashboard .tm-legend-r3 { background: #fdf0df; border-color: #f2dfc0; color: #8a5b00; }
+    .tech-dashboard .tm-legend-r3 .tm-legend-dot { background: #b87333; }
+    .tech-dashboard .tm-legend-r0 .tm-legend-dot { background: #7a8494; }
+
+    .dark-mode .tech-dashboard .tm-legend { background: #3a3a3a; border-color: #474747; }
+    .dark-mode .tech-dashboard .tm-legend-item { background: #333; border-color: #474747; color: #b9c8d8; }
+    .dark-mode .tech-dashboard .tm-legend-item b { color: #9aa5b4; }
+    .dark-mode .tech-dashboard .tm-legend-r1 { background: #24344b; border-color: #33506f; color: #a9c9ee; }
+    .dark-mode .tech-dashboard .tm-legend-r2 { background: #24493f; border-color: #2f5c4e; color: #8fd8bd; }
+    .dark-mode .tech-dashboard .tm-legend-r3 { background: #4a3a24; border-color: #5c4a24; color: #e0c288; }
 </style>
 
 <main class="app-main">
@@ -598,21 +636,36 @@
                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <h3 class="card-title mb-0"><i class="fa-solid fa-people-group"></i> 팀별 스킬 보유 현황</h3>
                         <span class="text-muted small">
-                            팀별 기술본부 인력이 보유한 <strong>제조사 · 품목</strong> 통합 현황 (Skill 보유 체크 기준)
+                            팀별 기술본부 <strong>인력 1인 기준</strong> 보유 스킬 (제조사 · 품목) · Skill 보유 체크 기준
                         </span>
                     </div>
                     <div class="card-body">
 
                         <% if (typeof teamSkillCards !== 'undefined' && teamSkillCards && teamSkillCards.length > 0) { %>
+                            <% if (teamSkillCards.length > 1) { %>
+                                <div class="tm-legend">
+                                    <span class="tm-legend-label"><i class="fa-solid fa-layer-group me-1"></i>팀 구분</span>
+                                    <% teamSkillCards.forEach(function (t) { %>
+                                        <span class="tm-legend-item tm-legend-r<%= t.rank === 1 || t.rank === 2 || t.rank === 3 ? t.rank : 0 %>">
+                                            <i class="tm-legend-dot"></i><%= t.team %>
+                                            <b><%= t.memberCount %></b>
+                                        </span>
+                                    <% }); %>
+                                </div>
+                            <% } %>
+
                             <div class="tm-grid">
                                 <% teamSkillCards.forEach(function (team) { %>
-                                    <article class="tm-card">
+                                    <article class="tm-card r<%= team.rank === 1 || team.rank === 2 || team.rank === 3 ? team.rank : 0 %>">
                                         <header class="tm-card-head">
                                             <div class="tm-team-row">
+                                                <span class="tm-team-rank"><%= team.rank === 1 || team.rank === 2 || team.rank === 3 ? team.rank : '·' %></span>
                                                 <h4 class="tm-team-name"><%= team.team %></h4>
                                                 <span class="tm-team-count"><%= team.memberCount %>명</span>
                                                 <% if (team.skillMemberCount > 0) { %>
-                                                    <span class="tm-member-badge has"><%= team.skillMemberCount %>명 스킬 보유</span>
+                                                    <span class="tm-person-badge has"><%= team.skillMemberCount %>명 스킬 보유</span>
+                                                <% } else { %>
+                                                    <span class="tm-person-badge none">스킬 보유자 없음</span>
                                                 <% } %>
                                             </div>
                                             <div class="tm-team-kpi">
@@ -623,49 +676,38 @@
                                             </div>
                                         </header>
 
-                                        <% if (team.manufacturers.length > 0) { %>
-                                            <div class="tm-chip-row">
-                                                <% team.manufacturers.slice(0, 6).forEach(function (mfr) { %>
-                                                    <span class="tm-chip"><%= mfr %></span>
-                                                <% }); %>
-                                                <% if (team.manufacturers.length > 6) { %>
-                                                    <span class="tm-chip tm-chip-more">+<%= team.manufacturers.length - 6 %></span>
-                                                <% } %>
-                                            </div>
-                                        <% } %>
-
-                                        <div class="tm-pairs">
-                                            <% if (team.pairs && team.pairs.length > 0) { %>
-                                                <% team.pairs.slice(0, 12).forEach(function (pair) { %>
-                                                    <div class="tm-pair">
-                                                        <span class="tm-skill-mfr"><%= pair.manufacturer %></span>
-                                                        <span class="tm-pair-item"><%= pair.item %></span>
-                                                        <span class="tm-pair-meta">
-                                                            <% if (pair.asMain > 0) { %>
-                                                                <span class="tm-pair-role main">정<%= pair.asMain %></span>
-                                                            <% } %>
-                                                            <% if (pair.asSub > 0) { %>
-                                                                <span class="tm-pair-role sub">부<%= pair.asSub %></span>
-                                                            <% } %>
-                                                            <span class="tm-pair-count"><%= pair.count %>건</span>
-                                                            <% if (pair.holders && pair.holders.length) { %>
-                                                                <span class="tm-pair-holders" title="<%= pair.holders.join(', ') %>">
-                                                                    <%= pair.holders.join(', ') %>
+                                        <div class="tm-people">
+                                            <% team.members.forEach(function (person) { %>
+                                                <div class="tm-person">
+                                                    <div class="tm-person-top">
+                                                        <span class="tm-person-name"><%= person.name %></span>
+                                                        <% if (person.skillCount > 0) { %>
+                                                            <span class="tm-person-badge has"><%= person.pairCount %>조합</span>
+                                                        <% } else { %>
+                                                            <span class="tm-person-badge none">스킬 없음</span>
+                                                        <% } %>
+                                                        <span class="tm-person-meta">
+                                                            정 <b><%= person.mainCount %></b> · 부 <b><%= person.subCount %></b>
+                                                        </span>
+                                                    </div>
+                                                    <% if (person.pairs && person.pairs.length > 0) { %>
+                                                        <div class="tm-person-pairs">
+                                                            <% person.pairs.slice(0, 4).forEach(function (pair) { %>
+                                                                <span class="tm-skilltag" title="<%= pair.manufacturer %> / <%= pair.item %> (<%= pair.count %>건)">
+                                                                    <b><%= pair.manufacturer %></b> <%= pair.item %>
+                                                                </span>
+                                                            <% }); %>
+                                                            <% if (person.pairs.length > 4) { %>
+                                                                <span class="tm-skilltag tm-skilltag-more" title="<%= person.pairs.slice(4).map(function (p) { return p.manufacturer + ' ' + p.item; }).join(', ') %>">
+                                                                    +<%= person.pairs.length - 4 %>
                                                                 </span>
                                                             <% } %>
-                                                        </span>
-                                                    </div>
-                                                <% }); %>
-                                                <% if (team.pairs.length > 12) { %>
-                                                    <div class="tm-pair">
-                                                        <span class="tm-no-skill">
-                                                            외 <%= team.pairs.length - 12 %>개 조합 · 위 엔지니어별 현황에서 전체 확인
-                                                        </span>
-                                                    </div>
-                                                <% } %>
-                                            <% } else { %>
-                                                <div class="tm-no-skill">유지보수 정/부엔지니어 등록 이력이 없습니다.</div>
-                                            <% } %>
+                                                        </div>
+                                                    <% } else { %>
+                                                        <div class="tm-person-empty">유지보수 정/부엔지니어 등록 이력이 없습니다.</div>
+                                                    <% } %>
+                                                </div>
+                                            <% }); %>
                                         </div>
                                     </article>
                                 <% }); %>

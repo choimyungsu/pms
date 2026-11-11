@@ -427,6 +427,7 @@ exports.getTechStatusPage = async (req, res) => {
                     skillCount: skills.length,
                     manufacturers: Array.from(new Set(skills.map((s) => s.manufacturer))),
                     items: Array.from(new Set(skills.map((s) => s.item))),
+                    pairCount: pairs.length,
                     pairs,
                     skills
                 };
@@ -512,6 +513,7 @@ exports.getTechStatusPage = async (req, res) => {
 
                     return {
                         team: entry.team,
+                        rank: teamRank(entry.team),
                         memberCount: entry.memberCount,
                         skillMemberCount: entry.skillMemberCount,
                         totalCount: entry.totalCount,
