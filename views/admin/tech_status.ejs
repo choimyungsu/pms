@@ -420,31 +420,6 @@
     .dark-mode .tech-dashboard .tm-legend-r1 { background: #24344b; border-color: #33506f; color: #a9c9ee; }
     .dark-mode .tech-dashboard .tm-legend-r2 { background: #24493f; border-color: #2f5c4e; color: #8fd8bd; }
     .dark-mode .tech-dashboard .tm-legend-r3 { background: #4a3a24; border-color: #5c4a24; color: #e0c288; }
-
-    /* ---- 팀 정보 불일치 경고 (부서 ≠ 지정팀) ---- */
-    .tech-dashboard .tm-conflict {
-        display: flex; align-items: flex-start; gap: .45rem; flex-wrap: wrap;
-        padding: .5rem .65rem; margin-bottom: .8rem;
-        border: 1px solid #f3d9a6; border-radius: 8px; background: #fdf7e9;
-        font-size: .75rem; color: #8a5b00;
-    }
-    .tech-dashboard .tm-conflict-title {
-        font-weight: 800; display: inline-flex; align-items: center; gap: .3rem;
-    }
-    .tech-dashboard .tm-conflict-list {
-        display: flex; flex-wrap: wrap; gap: .3rem; margin: 0; padding: 0; list-style: none;
-    }
-    .tech-dashboard .tm-conflict-item {
-        background: #fff; border: 1px solid #eeddb6; border-radius: .3rem;
-        padding: .05rem .4rem; font-weight: 700; color: #7a4f00;
-    }
-    .tech-dashboard .tm-conflict-item em { font-style: normal; font-weight: 500; color: #9a7b3f; }
-    .tech-dashboard .tm-conflict-note { color: #9a7b3f; font-weight: 500; }
-
-    .dark-mode .tech-dashboard .tm-conflict { background: #3d3524; border-color: #5c4a24; color: #e0c288; }
-    .dark-mode .tech-dashboard .tm-conflict-item { background: #333; border-color: #5c4a24; color: #e8c88a; }
-    .dark-mode .tech-dashboard .tm-conflict-item em { color: #b39a6b; }
-    .dark-mode .tech-dashboard .tm-conflict-note { color: #b39a6b; }
 </style>
 
 <main class="app-main">
@@ -679,22 +654,6 @@
                                 </div>
                             <% } %>
 
-                            <% if (typeof teamConflicts !== 'undefined' && teamConflicts && teamConflicts.length > 0) { %>
-                                <div class="tm-conflict">
-                                    <span class="tm-conflict-title">
-                                        <i class="fa-solid fa-triangle-exclamation"></i>팀 정보 불일치 <%= teamConflicts.length %>명
-                                    </span>
-                                    <ul class="tm-conflict-list">
-                                        <% teamConflicts.forEach(function (c) { %>
-                                            <li class="tm-conflict-item">
-                                                <%= c.name %> <em>(부서 <%= c.dept %> / 지정팀 <%= c.team %> → <b><%= c.resolved %></b> 적용)</em>
-                                            </li>
-                                        <% }); %>
-                                    </ul>
-                                    <span class="tm-conflict-note">부서(조직) 기준으로 배치했습니다. 위 인원의 부서 또는 지정팀 값을 확인하세요.</span>
-                                </div>
-                            <% } %>
-
                             <div class="tm-grid">
                                 <% teamSkillCards.forEach(function (team) { %>
                                     <article class="tm-card r<%= team.rank === 1 || team.rank === 2 || team.rank === 3 ? team.rank : 0 %>">
@@ -721,7 +680,7 @@
                                             <% team.members.forEach(function (person) { %>
                                                 <div class="tm-person">
                                                     <div class="tm-person-top">
-                                                        <span class="tm-person-name" title="부서: <%= person.departmentName || '-' %> / 판정: <%= person.teamSource === 'dept' ? '부서 기준' : (person.teamSource === 'team' ? '지정팀 기준' : '기본값') %><% if (person.teamConflict) { %> (지정팀 <%= person.teamConflict %> 무시)<% } %>"><%= person.name %></span>
+                                                        <span class="tm-person-name" title="소속 부서: <%= person.departmentName || '-' %>"><%= person.name %></span>
                                                         <% if (person.skillCount > 0) { %>
                                                             <span class="tm-person-badge has"><%= person.pairCount %>조합</span>
                                                         <% } else { %>
