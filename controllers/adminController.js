@@ -394,6 +394,28 @@ exports.getTechStatusPage = async (req, res) => {
                     return a.model.localeCompare(b.model, 'ko');
                 });
 
+                // 팀별 카드에서 사용할 "제조사 · 품목" 통합 목록 (모델 제외)
+                const pairMap = new Map();
+                skills.forEach((skill) => {
+                    const pairKey = [skill.manufacturer, skill.item].join('||');
+                    if (!pairMap.has(pairKey)) {
+                        pairMap.set(pairKey, {
+                            manufacturer: skill.manufacturer,
+                            item: skill.item,
+                            count: 0,
+                            asMain: 0,
+                            asSub: 0
+                        });
+                    }
+                    const pair = pairMap.get(pairKey);
+                    pair.count += skill.count;
+                    pair.asMain += skill.asMain;
+                    pair.asSub += skill.asSub;
+                });
+                const pairs = Array.from(pairMap.values()).sort((a, b) => (b.count - a.count)
+                    || a.manufacturer.localeCompare(b.manufacturer, 'ko')
+                    || a.item.localeCompare(b.item, 'ko'));
+
                 return {
                     id: bucket.id,
                     name: bucket.name,
@@ -405,13 +427,16 @@ exports.getTechStatusPage = async (req, res) => {
                     skillCount: skills.length,
                     manufacturers: Array.from(new Set(skills.map((s) => s.manufacturer))),
                     items: Array.from(new Set(skills.map((s) => s.item))),
+                    pairs,
                     skills
                 };
             }).sort((a, b) => (b.totalCount - a.totalCount) || a.name.localeCompare(b.name, 'ko'));
 
             /* ---------- 1-2) 팀별 스킬 보유 카드 ---------- */
-            // 기술본부 인원을 팀 단위로 묶어, 팀 카드 안에서
-            // "누가 어떤 제조사/품목/모델 스킬을 보유하는지" 를 한눈에 보여준다.
+            // 팀별 스킬 보유 현황 카드는 "제조사 · 품목" 까지만 통합해서 보여준다.
+            //   - 같은 제조사+품목은 팀 내에서 하나의 항목으로 합치고
+            //     보유 인원(정/부 역할 포함)을 함께 표시한다.
+            //   - 모델 단위 상세는 위의 "엔지니어 스킬 보유 현황"에서 확인한다.
             const teamMap = new Map();
             engineerSkills.forEach((engineer) => {
                 const teamName = engineer.team || '기술본부';
@@ -427,7 +452,7 @@ exports.getTechStatusPage = async (req, res) => {
                         skillCount: 0,
                         manufacturers: new Set(),
                         items: new Set(),
-                        models: new Set()
+                        pairs: new Map()
                     });
                 }
                 const teamEntry = teamMap.get(teamName);
@@ -440,7 +465,26 @@ exports.getTechStatusPage = async (req, res) => {
                 teamEntry.skillCount += engineer.skillCount;
                 engineer.manufacturers.forEach((m) => teamEntry.manufacturers.add(m));
                 engineer.items.forEach((i) => teamEntry.items.add(i));
-                engineer.skills.forEach((s) => teamEntry.models.add(s.model));
+
+                // 제조사 + 품목 단위로 통합 (모델은 합산하지 않음)
+                engineer.skills.forEach((skill) => {
+                    const pairKey = [skill.manufacturer, skill.item].join('||');
+                    if (!teamEntry.pairs.has(pairKey)) {
+                        teamEntry.pairs.set(pairKey, {
+                            manufacturer: skill.manufacturer,
+                            item: skill.item,
+                            count: 0,
+                            asMain: 0,
+                            asSub: 0,
+                            holders: new Set()
+                        });
+                    }
+                    const pair = teamEntry.pairs.get(pairKey);
+                    pair.count += skill.count;
+                    pair.asMain += skill.asMain;
+                    pair.asSub += skill.asSub;
+                    pair.holders.add(engineer.name);
+                });
             });
 
             /* 팀 카드 정렬 기준: 기술1팀 → 기술2팀 → 기술3팀 → 기타(가나다순) */
@@ -451,20 +495,37 @@ exports.getTechStatusPage = async (req, res) => {
             };
 
             teamSkillCards = Array.from(teamMap.values())
-                .map((entry) => ({
-                    team: entry.team,
-                    memberCount: entry.memberCount,
-                    skillMemberCount: entry.skillMemberCount,
-                    totalCount: entry.totalCount,
-                    mainCount: entry.mainCount,
-                    subCount: entry.subCount,
-                    skillCount: entry.skillCount,
-                    manufacturers: Array.from(entry.manufacturers).sort((a, b) => a.localeCompare(b, 'ko')),
-                    items: Array.from(entry.items).sort((a, b) => a.localeCompare(b, 'ko')),
-                    models: Array.from(entry.models).sort((a, b) => a.localeCompare(b, 'ko')),
-                    members: entry.members.slice().sort((a, b) =>
-                        (b.skillCount - a.skillCount) || a.name.localeCompare(b.name, 'ko'))
-                }))
+                .map((entry) => {
+                    // 제조사 · 품목 통합 목록 (보유 건수 → 제조사 → 품목 순)
+                    const pairs = Array.from(entry.pairs.values())
+                        .map((pair) => ({
+                            manufacturer: pair.manufacturer,
+                            item: pair.item,
+                            count: pair.count,
+                            asMain: pair.asMain,
+                            asSub: pair.asSub,
+                            holders: Array.from(pair.holders).sort((a, b) => a.localeCompare(b, 'ko'))
+                        }))
+                        .sort((a, b) => (b.count - a.count)
+                            || a.manufacturer.localeCompare(b.manufacturer, 'ko')
+                            || a.item.localeCompare(b.item, 'ko'));
+
+                    return {
+                        team: entry.team,
+                        memberCount: entry.memberCount,
+                        skillMemberCount: entry.skillMemberCount,
+                        totalCount: entry.totalCount,
+                        mainCount: entry.mainCount,
+                        subCount: entry.subCount,
+                        // 카드에서는 모델 단위를 쓰지 않고 제조사·품목 조합 수만 노출한다.
+                        pairCount: pairs.length,
+                        manufacturers: Array.from(entry.manufacturers).sort((a, b) => a.localeCompare(b, 'ko')),
+                        items: Array.from(entry.items).sort((a, b) => a.localeCompare(b, 'ko')),
+                        pairs,
+                        members: entry.members.slice().sort((a, b) =>
+                            (b.skillCount - a.skillCount) || a.name.localeCompare(b.name, 'ko'))
+                    };
+                })
                 .sort((a, b) => (teamRank(a.team) - teamRank(b.team)) || a.team.localeCompare(b.team, 'ko'));
 
             unmatchedEngineers = Array.from(unmatched.values())

@@ -328,34 +328,37 @@
     }
     .tech-dashboard .tm-chip-more { background: #f1f3f6; color: #7a8494; }
 
-    .tech-dashboard .tm-body { padding: .55rem .85rem .75rem; flex: 1 1 auto; }
-    .tech-dashboard .tm-member { padding: .45rem 0; border-bottom: 1px dashed #eceff4; }
-    .tech-dashboard .tm-member:last-child { border-bottom: 0; padding-bottom: 0; }
-    .tech-dashboard .tm-member-top {
-        display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin-bottom: .25rem;
-    }
-    .tech-dashboard .tm-member-name { font-size: .84rem; font-weight: 700; color: var(--ink); }
     .tech-dashboard .tm-member-badge {
         font-size: .66rem; font-weight: 700; border-radius: 1rem; padding: .08rem .42rem;
     }
     .tech-dashboard .tm-member-badge.has { background: #e3f2ec; color: #1c6b55; }
     .tech-dashboard .tm-member-badge.none { background: #f1f3f6; color: #7a8494; }
-    .tech-dashboard .tm-member-meta { margin-left: auto; font-size: .72rem; color: var(--muted); }
-    .tech-dashboard .tm-member-meta b { color: var(--ink); }
 
-    .tech-dashboard .tm-skill-list { display: flex; flex-direction: column; gap: .18rem; }
-    .tech-dashboard .tm-skill {
-        font-size: .74rem; color: #35506e; line-height: 1.35;
-        padding-left: .55rem; position: relative;
+    .tech-dashboard .tm-pairs {
+        padding: .5rem .85rem .7rem;
+        display: flex; flex-direction: column; gap: .1rem;
+        flex: 1 1 auto;
     }
-    .tech-dashboard .tm-skill::before {
-        content: '·'; position: absolute; left: .1rem; color: #9aabbd; font-weight: 700;
+    .tech-dashboard .tm-pair {
+        display: flex; align-items: baseline; gap: .4rem; flex-wrap: wrap;
+        font-size: .76rem; line-height: 1.4;
+        padding: .26rem 0; border-bottom: 1px dashed #eceff4;
     }
-    .tech-dashboard .tm-skill code { font-size: .72rem; color: #245b7c; background: #eef4fb; padding: .02rem .28rem; border-radius: .22rem; }
+    .tech-dashboard .tm-pair:last-child { border-bottom: 0; }
     .tech-dashboard .tm-skill-mfr { font-weight: 700; color: #2c5687; }
-    .tech-dashboard .tm-skill-role { font-size: .66rem; font-weight: 700; margin-left: .2rem; }
-    .tech-dashboard .tm-skill-role.main { color: #1b5fa8; }
-    .tech-dashboard .tm-skill-role.sub { color: #6a55b8; }
+    .tech-dashboard .tm-pair-item { color: #35506e; font-weight: 600; }
+    .tech-dashboard .tm-pair-meta {
+        margin-left: auto; display: flex; align-items: baseline; gap: .4rem;
+        font-size: .71rem; color: var(--muted); white-space: nowrap;
+    }
+    .tech-dashboard .tm-pair-count { font-weight: 700; color: var(--ink); }
+    .tech-dashboard .tm-pair-role { font-size: .69rem; }
+    .tech-dashboard .tm-pair-role.main { color: #1b5fa8; font-weight: 700; }
+    .tech-dashboard .tm-pair-role.sub { color: #6a55b8; font-weight: 700; }
+    .tech-dashboard .tm-pair-holders {
+        max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        color: #8a94a6;
+    }
     .tech-dashboard .tm-no-skill { font-size: .73rem; color: #a9b1bc; font-style: italic; }
     .tech-dashboard .tm-empty { padding: 1.4rem; text-align: center; color: #a9b1bc; font-size: .82rem; }
 
@@ -368,18 +371,16 @@
     .dark-mode .tech-dashboard .tm-chip-row { background: #2e2e2e; border-bottom-color: #474747; }
     .dark-mode .tech-dashboard .tm-chip { background: #2f4159; color: #a9c9ee; }
     .dark-mode .tech-dashboard .tm-chip-more { background: #3a3a3a; color: #9aa5b4; }
-    .dark-mode .tech-dashboard .tm-member { border-bottom-color: #454545; }
-    .dark-mode .tech-dashboard .tm-member-name { color: #e8ecf2; }
     .dark-mode .tech-dashboard .tm-member-badge.has { background: #24493f; color: #8fd8bd; }
     .dark-mode .tech-dashboard .tm-member-badge.none { background: #3a3a3a; color: #9aa5b4; }
-    .dark-mode .tech-dashboard .tm-member-meta { color: #a9b4c2; }
-    .dark-mode .tech-dashboard .tm-member-meta b { color: #e8ecf2; }
-    .dark-mode .tech-dashboard .tm-skill { color: #b9c8d8; }
-    .dark-mode .tech-dashboard .tm-skill::before { color: #63748a; }
-    .dark-mode .tech-dashboard .tm-skill code { background: #2f4159; color: #a9c9ee; }
+    .dark-mode .tech-dashboard .tm-pair { border-bottom-color: #454545; }
     .dark-mode .tech-dashboard .tm-skill-mfr { color: #9cc4ef; }
-    .dark-mode .tech-dashboard .tm-skill-role.main { color: #7db4f0; }
-    .dark-mode .tech-dashboard .tm-skill-role.sub { color: #a99ae8; }
+    .dark-mode .tech-dashboard .tm-pair-item { color: #b9c8d8; }
+    .dark-mode .tech-dashboard .tm-pair-meta { color: #a9b4c2; }
+    .dark-mode .tech-dashboard .tm-pair-count { color: #e8ecf2; }
+    .dark-mode .tech-dashboard .tm-pair-role.main { color: #7db4f0; }
+    .dark-mode .tech-dashboard .tm-pair-role.sub { color: #a99ae8; }
+    .dark-mode .tech-dashboard .tm-pair-holders { color: #8b95a4; }
     .dark-mode .tech-dashboard .tm-no-skill { color: #6b7785; }
 </style>
 
@@ -597,7 +598,7 @@
                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <h3 class="card-title mb-0"><i class="fa-solid fa-people-group"></i> 팀별 스킬 보유 현황</h3>
                         <span class="text-muted small">
-                            팀별 기술본부 인력이 보유한 <strong>제조사 · 품목 · 모델</strong> 스킬 (Skill 보유 체크 기준)
+                            팀별 기술본부 인력이 보유한 <strong>제조사 · 품목</strong> 통합 현황 (Skill 보유 체크 기준)
                         </span>
                     </div>
                     <div class="card-body">
@@ -618,7 +619,7 @@
                                                 <span>담당 이력 <b><%= team.totalCount %></b>건</span>
                                                 <span>정 <b><%= team.mainCount %></b></span>
                                                 <span>부 <b><%= team.subCount %></b></span>
-                                                <span>보유 스킬 <b><%= team.skillCount %></b>종</span>
+                                                <span>제조사·품목 <b><%= team.pairCount %></b>조합</span>
                                             </div>
                                         </header>
 
@@ -633,44 +634,38 @@
                                             </div>
                                         <% } %>
 
-                                        <div class="tm-body">
-                                            <% team.members.forEach(function (member) { %>
-                                                <div class="tm-member">
-                                                    <div class="tm-member-top">
-                                                        <span class="tm-member-name"><%= member.name %></span>
-                                                        <% if (member.skillCount > 0) { %>
-                                                            <span class="tm-member-badge has"><%= member.skillCount %>종</span>
-                                                        <% } else { %>
-                                                            <span class="tm-member-badge none">스킬 없음</span>
-                                                        <% } %>
-                                                        <span class="tm-member-meta">
-                                                            정 <b><%= member.mainCount %></b> · 부 <b><%= member.subCount %></b>
+                                        <div class="tm-pairs">
+                                            <% if (team.pairs && team.pairs.length > 0) { %>
+                                                <% team.pairs.slice(0, 12).forEach(function (pair) { %>
+                                                    <div class="tm-pair">
+                                                        <span class="tm-skill-mfr"><%= pair.manufacturer %></span>
+                                                        <span class="tm-pair-item"><%= pair.item %></span>
+                                                        <span class="tm-pair-meta">
+                                                            <% if (pair.asMain > 0) { %>
+                                                                <span class="tm-pair-role main">정<%= pair.asMain %></span>
+                                                            <% } %>
+                                                            <% if (pair.asSub > 0) { %>
+                                                                <span class="tm-pair-role sub">부<%= pair.asSub %></span>
+                                                            <% } %>
+                                                            <span class="tm-pair-count"><%= pair.count %>건</span>
+                                                            <% if (pair.holders && pair.holders.length) { %>
+                                                                <span class="tm-pair-holders" title="<%= pair.holders.join(', ') %>">
+                                                                    <%= pair.holders.join(', ') %>
+                                                                </span>
+                                                            <% } %>
                                                         </span>
                                                     </div>
-                                                    <% if (member.skills.length > 0) { %>
-                                                        <div class="tm-skill-list">
-                                                            <% member.skills.slice(0, 5).forEach(function (skill) { %>
-                                                                <div class="tm-skill">
-                                                                    <span class="tm-skill-mfr"><%= skill.manufacturer %></span>
-                                                                    · <%= skill.item %>
-                                                                    <% if (skill.model && skill.model !== '-') { %>
-                                                                        · <code><%= skill.model %></code>
-                                                                    <% } %>
-                                                                    <% if (skill.asMain > 0) { %><span class="tm-skill-role main">정<%= skill.asMain %></span><% } %>
-                                                                    <% if (skill.asSub > 0) { %><span class="tm-skill-role sub">부<%= skill.asSub %></span><% } %>
-                                                                </div>
-                                                            <% }); %>
-                                                            <% if (member.skills.length > 5) { %>
-                                                                <div class="tm-skill">
-                                                                    <span class="tm-no-skill">외 <%= member.skills.length - 5 %>종 · 위 엔지니어별 현황에서 전체 확인</span>
-                                                                </div>
-                                                            <% } %>
-                                                        </div>
-                                                    <% } else { %>
-                                                        <div class="tm-no-skill">유지보수 정/부엔지니어 등록 이력이 없습니다.</div>
-                                                    <% } %>
-                                                </div>
-                                            <% }); %>
+                                                <% }); %>
+                                                <% if (team.pairs.length > 12) { %>
+                                                    <div class="tm-pair">
+                                                        <span class="tm-no-skill">
+                                                            외 <%= team.pairs.length - 12 %>개 조합 · 위 엔지니어별 현황에서 전체 확인
+                                                        </span>
+                                                    </div>
+                                                <% } %>
+                                            <% } else { %>
+                                                <div class="tm-no-skill">유지보수 정/부엔지니어 등록 이력이 없습니다.</div>
+                                            <% } %>
                                         </div>
                                     </article>
                                 <% }); %>
